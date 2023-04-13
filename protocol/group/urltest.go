@@ -50,6 +50,7 @@ type URLTest struct {
 	interval                     time.Duration
 	tolerance                    uint16
 	idleTimeout                  time.Duration
+	fallback                     URLTestFallback
 	group                        *URLTestGroup
 	interruptExternalConnections bool
 
@@ -57,6 +58,11 @@ type URLTest struct {
 	exclude           *regexp.Regexp
 	providerTags      []string
 	use_all_providers bool
+}
+
+type URLTestFallback struct {
+	enabled  bool
+	maxDelay uint16
 }
 
 func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (adapter.Outbound, error) {
@@ -98,6 +104,12 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		providerTags:                 options.Providers,
 		use_all_providers:            options.UseAllProviders,
 	}
+	if options.Fallback.Enabled {
+		outbound.fallback = URLTestFallback{
+			enabled:  true,
+			maxDelay: uint16(time.Duration(options.Fallback.MaxDelay).Milliseconds()),
+		}
+	}
 	return outbound, nil
 }
 
@@ -110,7 +122,7 @@ func (s *URLTest) Start() error {
 		}
 		outbounds = append(outbounds, detour)
 	}
-	group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.interruptExternalConnections)
+	group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.fallback, s.interruptExternalConnections)
 	if err != nil {
 		return err
 	}
@@ -293,6 +305,8 @@ type URLTestGroup struct {
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 
+	fallback URLTestFallback
+
 	access     sync.Mutex
 	ticker     *time.Ticker
 	close      chan struct{}
@@ -300,7 +314,7 @@ type URLTestGroup struct {
 	lastActive atomic.TypedValue[time.Time]
 }
 
-func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, interruptExternalConnections bool) (*URLTestGroup, error) {
+func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, fallback URLTestFallback, interruptExternalConnections bool) (*URLTestGroup, error) {
 	if interval == 0 {
 		interval = C.DefaultURLTestInterval
 	}
@@ -331,6 +345,7 @@ func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManage
 		tolerance:                    tolerance,
 		idleTimeout:                  idleTimeout,
 		history:                      history,
+		fallback:                     fallback,
 		checking:                     atomic.Bool{},
 		close:                        make(chan struct{}),
 		pauseManager:                 service.FromContext[pause.Manager](ctx),
@@ -374,6 +389,8 @@ func (g *URLTestGroup) Close() error {
 func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 	var minDelay uint16
 	var minOutbound adapter.Outbound
+	var fallbackIgnoreOutboundDelay uint16
+	var fallbackIgnoreOutbound adapter.Outbound
 	switch network {
 	case N.NetworkTCP:
 		if g.selectedOutboundTCP != nil {
@@ -398,10 +415,29 @@ func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 		if history == nil {
 			continue
 		}
+		if g.fallback.enabled && g.fallback.maxDelay > 0 && history.Delay > g.fallback.maxDelay {
+			if fallbackIgnoreOutboundDelay == 0 || history.Delay < fallbackIgnoreOutboundDelay {
+				fallbackIgnoreOutboundDelay = history.Delay
+				fallbackIgnoreOutbound = detour
+			}
+			continue
+		}
+		if g.fallback.enabled {
+			minDelay = history.Delay
+			minOutbound = detour
+			if minDelay == 0 {
+				continue
+			} else {
+				break
+			}
+		}
 		if minDelay == 0 || minDelay > history.Delay+g.tolerance {
 			minDelay = history.Delay
 			minOutbound = detour
 		}
+	}
+	if minOutbound == nil && fallbackIgnoreOutbound != nil {
+		return fallbackIgnoreOutbound, true
 	}
 	if minOutbound == nil {
 		for _, detour := range g.outbounds {
