@@ -48,6 +48,7 @@ type URLTest struct {
 	interval                     time.Duration
 	tolerance                    uint16
 	idleTimeout                  time.Duration
+	fallback                     URLTestFallback
 	group                        *URLTestGroup
 	checkAccess                  sync.Mutex
 	interruptExternalConnections bool
@@ -62,6 +63,11 @@ type URLTest struct {
 	exclude         *regexp.Regexp
 	include         *regexp.Regexp
 	useAllProviders bool
+}
+
+type URLTestFallback struct {
+	enabled  bool
+	maxDelay int64
 }
 
 func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (adapter.Outbound, error) {
@@ -89,6 +95,12 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 	for i, tag := range outbound.tags {
 		if slices.Contains(outbound.tags[:i], tag) {
 			return nil, E.New("duplicate tag: ", tag)
+		}
+	}
+	if options.Fallback.Enabled {
+		outbound.fallback = URLTestFallback{
+			enabled:  true,
+			maxDelay: time.Duration(options.Fallback.MaxDelay).Milliseconds(),
 		}
 	}
 	return outbound, nil
@@ -136,7 +148,7 @@ func (s *URLTest) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		s.tags = append(s.tags, detour.Tag())
 		outbounds = append(outbounds, detour)
 	}
-	group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.interruptExternalConnections)
+	group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.fallback, s.interruptExternalConnections)
 	if err != nil {
 		return err
 	}
@@ -340,9 +352,11 @@ type URLTestGroup struct {
 	close                        chan struct{}
 	started                      atomic.Bool
 	lastActive                   common.TypedValue[time.Time]
+
+	fallback URLTestFallback
 }
 
-func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, interruptExternalConnections bool) (*URLTestGroup, error) {
+func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManager, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, tolerance uint16, idleTimeout time.Duration, fallback URLTestFallback, interruptExternalConnections bool) (*URLTestGroup, error) {
 	if interval == 0 {
 		interval = C.DefaultURLTestInterval
 	}
@@ -368,6 +382,7 @@ func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManage
 		tolerance:                    tolerance,
 		idleTimeout:                  idleTimeout,
 		history:                      history,
+		fallback:                     fallback,
 		close:                        make(chan struct{}),
 		pause:                        service.FromContext[pause.Manager](ctx),
 		interruptGroup:               interrupt.NewGroup(),
@@ -418,21 +433,25 @@ func (g *URLTestGroup) Close() error {
 func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 	var minDelay uint16
 	var minOutbound adapter.Outbound
-	switch network {
-	case N.NetworkTCP:
-		selectedOutbound := g.selectedOutboundTCP.Load()
-		if selectedOutbound != nil {
-			if history := g.history.LoadURLTestHistory(RealTag(selectedOutbound, network)); history != nil {
-				minOutbound = selectedOutbound
-				minDelay = history.Delay
+	var fallbackIgnoreOutboundDelay uint16
+	var fallbackIgnoreOutbound adapter.Outbound
+	if !g.fallback.enabled {
+		switch network {
+		case N.NetworkTCP:
+			selectedOutbound := g.selectedOutboundTCP.Load()
+			if selectedOutbound != nil {
+				if history := g.history.LoadURLTestHistory(RealTag(selectedOutbound, network)); history != nil {
+					minOutbound = selectedOutbound
+					minDelay = history.Delay
+				}
 			}
-		}
-	case N.NetworkUDP:
-		selectedOutbound := g.selectedOutboundUDP.Load()
-		if selectedOutbound != nil {
-			if history := g.history.LoadURLTestHistory(RealTag(selectedOutbound, network)); history != nil {
-				minOutbound = selectedOutbound
-				minDelay = history.Delay
+		case N.NetworkUDP:
+			selectedOutbound := g.selectedOutboundUDP.Load()
+			if selectedOutbound != nil {
+				if history := g.history.LoadURLTestHistory(RealTag(selectedOutbound, network)); history != nil {
+					minOutbound = selectedOutbound
+					minDelay = history.Delay
+				}
 			}
 		}
 	}
@@ -445,10 +464,29 @@ func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 		if history == nil {
 			continue
 		}
+		if g.fallback.enabled && g.fallback.maxDelay > 0 && int64(history.Delay) > g.fallback.maxDelay {
+			if fallbackIgnoreOutboundDelay == 0 || history.Delay < fallbackIgnoreOutboundDelay {
+				fallbackIgnoreOutboundDelay = history.Delay
+				fallbackIgnoreOutbound = detour
+			}
+			continue
+		}
+		if g.fallback.enabled {
+			minDelay = history.Delay
+			minOutbound = detour
+			if minDelay == 0 {
+				continue
+			} else {
+				break
+			}
+		}
 		if minDelay == 0 || minDelay > history.Delay+g.tolerance {
 			minDelay = history.Delay
 			minOutbound = detour
 		}
+	}
+	if minOutbound == nil && fallbackIgnoreOutbound != nil {
+		return fallbackIgnoreOutbound, true
 	}
 	if minOutbound == nil {
 		for _, detour := range outbounds {

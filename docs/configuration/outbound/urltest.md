@@ -21,6 +21,10 @@
   "tolerance": 50,
   "idle_timeout": "",
   "use_all_providers": false,
+  "fallback": {
+    "enabled": false,
+    "max_delay": ""
+  },
   "interrupt_exist_connections": false
 }
 ```
@@ -62,6 +66,22 @@ The idle timeout. `30m` will be used if empty.
 #### use_all_providers
 
 Whether to use all providers for testing. `false` will be used if empty.
+
+#### fallback
+
+Fallback selection configuration.
+
+When enabled, the first available outbound is selected in configuration order instead of selecting the outbound with the lowest delay.
+
+##### fallback.enabled
+
+Enable fallback selection.
+
+##### fallback.max_delay
+
+Maximum acceptable delay.
+
+An outbound whose delay exceeds this value is skipped. If every available outbound exceeds the value, the skipped outbound with the lowest delay is selected.
 
 #### interrupt_exist_connections
 
