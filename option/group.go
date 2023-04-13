@@ -10,11 +10,12 @@ type SelectorOutboundOptions struct {
 
 type URLTestOutboundOptions struct {
 	GroupCommonOption
-	URL                       string             `json:"url,omitempty"`
-	Interval                  badoption.Duration `json:"interval,omitempty"`
-	Tolerance                 uint16             `json:"tolerance,omitempty"`
-	IdleTimeout               badoption.Duration `json:"idle_timeout,omitempty"`
-	InterruptExistConnections bool               `json:"interrupt_exist_connections,omitempty"`
+	URL                       string                 `json:"url,omitempty"`
+	Interval                  badoption.Duration     `json:"interval,omitempty"`
+	Tolerance                 uint16                 `json:"tolerance,omitempty"`
+	IdleTimeout               badoption.Duration     `json:"idle_timeout,omitempty"`
+	InterruptExistConnections bool                   `json:"interrupt_exist_connections,omitempty"`
+	Fallback                  URLTestFallbackOptions `json:"fallback,omitempty"`
 }
 
 type GroupCommonOption struct {
@@ -23,4 +24,9 @@ type GroupCommonOption struct {
 	Exclude         *badoption.Regexp `json:"exclude,omitempty"`
 	Include         *badoption.Regexp `json:"include,omitempty"`
 	UseAllProviders bool              `json:"use_all_providers,omitempty"`
+}
+
+type URLTestFallbackOptions struct {
+	Enabled  bool               `json:"enabled,omitempty"`
+	MaxDelay badoption.Duration `json:"max_delay,omitempty"`
 }
