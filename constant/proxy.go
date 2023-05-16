@@ -23,6 +23,7 @@ const (
 	TypeVLESS        = "vless"
 	TypeTUIC         = "tuic"
 	TypeHysteria2    = "hysteria2"
+	TypeSideLoad     = "sideload"
 )
 
 const (
@@ -68,6 +69,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "TUIC"
 	case TypeHysteria2:
 		return "Hysteria2"
+	case TypeSideLoad:
+		return "SideLoad"
 	case TypeSelector:
 		return "Selector"
 	case TypeURLTest:

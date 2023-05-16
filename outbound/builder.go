@@ -55,6 +55,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		return NewTUIC(ctx, router, logger, tag, options.TUICOptions)
 	case C.TypeHysteria2:
 		return NewHysteria2(ctx, router, logger, tag, options.Hysteria2Options)
+	case C.TypeSideLoad:
+		return NewSideLoad(ctx, router, logger, tag, options.SideLoadOptions)
 	case C.TypeSelector:
 		return NewSelector(ctx, router, logger, tag, options.SelectorOptions)
 	case C.TypeURLTest:
