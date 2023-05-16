@@ -25,6 +25,7 @@ type _Outbound struct {
 	VLESSOptions        VLESSOutboundOptions        `json:"-"`
 	TUICOptions         TUICOutboundOptions         `json:"-"`
 	Hysteria2Options    Hysteria2OutboundOptions    `json:"-"`
+	SideLoadOptions     SideLoadOutboundOptions     `json:"-"`
 	SelectorOptions     SelectorOutboundOptions     `json:"-"`
 	URLTestOptions      URLTestOutboundOptions      `json:"-"`
 }
@@ -66,6 +67,8 @@ func (h *Outbound) RawOptions() (any, error) {
 		rawOptionsPtr = &h.TUICOptions
 	case C.TypeHysteria2:
 		rawOptionsPtr = &h.Hysteria2Options
+	case C.TypeSideLoad:
+		rawOptionsPtr = &h.SideLoadOptions
 	case C.TypeSelector:
 		rawOptionsPtr = &h.SelectorOptions
 	case C.TypeURLTest:
