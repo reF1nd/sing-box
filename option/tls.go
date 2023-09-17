@@ -135,6 +135,7 @@ type OutboundTLSOptions struct {
 	ECH                        *OutboundECHOptions             `json:"ech,omitempty"`
 	UTLS                       *OutboundUTLSOptions            `json:"utls,omitempty"`
 	Reality                    *OutboundRealityOptions         `json:"reality,omitempty"`
+	CertificatePinSHA256       string                          `json:"certificate_pin_sha256,omitempty"`
 }
 
 type OutboundTLSOptionsContainer struct {
