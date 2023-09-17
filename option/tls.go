@@ -111,6 +111,7 @@ type OutboundTLSOptions struct {
 	ClientCertificatePath      string                              `json:"client_certificate_path,omitempty"`
 	ClientKey                  badoption.Listable[string]          `json:"client_key,omitempty"`
 	ClientKeyPath              string                              `json:"client_key_path,omitempty"`
+	CertificatePinSHA256       string                              `json:"certificate_pin_sha256,omitempty"`
 	Fragment                   bool                                `json:"fragment,omitempty"`
 	FragmentFallbackDelay      badoption.Duration                  `json:"fragment_fallback_delay,omitempty"`
 	RecordFragment             bool                                `json:"record_fragment,omitempty"`
