@@ -278,6 +278,9 @@ func buildConnectionState(serverName string, client *schannel.ClientContext) (tl
 }
 
 func (c *windowsClientConfig) verifyPeerCertificates(peerCertificates []*x509.Certificate) error {
+	if len(c.certificatePinSHA256) > 0 {
+		return VerifyCertificatePinSHA256(c.certificatePinSHA256, c.serverName, c.timeFunc, peerCertificates)
+	}
 	if c.insecure {
 		return nil
 	}

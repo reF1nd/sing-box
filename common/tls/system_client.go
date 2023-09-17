@@ -14,14 +14,19 @@ import (
 )
 
 type SystemTLSValidated struct {
-	MinVersion uint16
-	MaxVersion uint16
-	UserPEM    []byte
-	Exclusive  bool
-	Store      adapter.CertificateStore
+	MinVersion           uint16
+	MaxVersion           uint16
+	UserPEM              []byte
+	Exclusive            bool
+	Store                adapter.CertificateStore
+	CertificatePinSHA256 []byte
 }
 
 func ValidateSystemTLSOptions(ctx context.Context, options option.OutboundTLSOptions, engineName string) (SystemTLSValidated, error) {
+	certificatePin, err := parseCertificatePinSHA256(options)
+	if err != nil {
+		return SystemTLSValidated{}, err
+	}
 	if options.Reality != nil && options.Reality.Enabled {
 		return SystemTLSValidated{}, E.New("reality is unsupported in ", engineName)
 	}
@@ -76,11 +81,12 @@ func ValidateSystemTLSOptions(ctx context.Context, options option.OutboundTLSOpt
 		return SystemTLSValidated{}, err
 	}
 	return SystemTLSValidated{
-		MinVersion: minVersion,
-		MaxVersion: maxVersion,
-		UserPEM:    userPEM,
-		Exclusive:  exclusive,
-		Store:      store,
+		MinVersion:           minVersion,
+		MaxVersion:           maxVersion,
+		UserPEM:              userPEM,
+		Exclusive:            exclusive,
+		Store:                store,
+		CertificatePinSHA256: certificatePin,
 	}, nil
 }
 
