@@ -7,13 +7,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"net"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/tlsfragment"
+	tf "github.com/sagernet/sing-box/common/tlsfragment"
 	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -131,10 +132,46 @@ func newSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
-	} else if options.DisableSNI {
+	} else if len(options.CertificatePinSHA256) > 0 {
+		if len(options.CertificatePublicKeySHA256) > 0 || len(options.Certificate) > 0 || options.CertificatePath != "" {
+			return nil, E.New("certificate_pin_sha256 is conflict with certificate_public_key_sha256 or certificate or certificate_path")
+		}
+		fingerprint := strings.TrimSpace(strings.ReplaceAll(options.CertificatePinSHA256, ":", ""))
+		fpByte, err := hex.DecodeString(fingerprint)
+		if err != nil {
+			return nil, E.Cause(err, "decode fingerprint string")
+		}
+		if len(fpByte) != 32 {
+			return nil, E.New("fingerprint string length error, need sha256 fingerprint")
+		}
 		tlsConfig.InsecureSkipVerify = true
-	}
-	if len(options.CertificatePublicKeySHA256) > 0 {
+		tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
+			certs := state.PeerCertificates
+			for i, cert := range certs {
+				hash := sha256.Sum256(cert.Raw)
+				if bytes.Equal(fpByte, hash[:]) {
+					if i > 0 {
+						opts := x509.VerifyOptions{
+							Roots:         x509.NewCertPool(),
+							Intermediates: x509.NewCertPool(),
+							DNSName:       serverName,
+						}
+						if tlsConfig.Time != nil {
+							opts.CurrentTime = tlsConfig.Time()
+						}
+						opts.Roots.AddCert(certs[i])
+						for _, cert := range certs[1 : i+1] {
+							opts.Intermediates.AddCert(cert)
+						}
+						_, err := certs[0].Verify(opts)
+						return err
+					}
+					return nil
+				}
+			}
+			return E.New("certificate fingerprint mismatch")
+		}
+	} else if len(options.CertificatePublicKeySHA256) > 0 {
 		if len(options.Certificate) > 0 || options.CertificatePath != "" {
 			return nil, E.New("certificate_public_key_sha256 is conflict with certificate or certificate_path")
 		}
@@ -142,7 +179,10 @@ func newSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			return VerifyPublicKeySHA256(options.CertificatePublicKeySHA256, rawCerts)
 		}
+	} else if options.DisableSNI {
+		tlsConfig.InsecureSkipVerify = true
 	}
+
 	if len(options.ALPN) > 0 {
 		tlsConfig.NextProtos = options.ALPN
 	}
