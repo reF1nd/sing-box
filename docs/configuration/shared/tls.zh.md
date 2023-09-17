@@ -123,6 +123,7 @@ icon: material/new-box
   "certificate": "",
   "certificate_path": "",
   "certificate_public_key_sha256": [],
+  "certificate_pin_sha256": "",
   "client_certificate": [],
   "client_certificate_path": "",
   "client_key": [],
@@ -217,6 +218,7 @@ TLS 版本值：
 * `max_version`
 * `certificate` / `certificate_path`
 * `certificate_public_key_sha256`
+* `certificate_pin_sha256`
 * `handshake_timeout`
 
 不支持的字段：
@@ -250,6 +252,7 @@ TLS 版本值：
 * `max_version`
 * `certificate` / `certificate_path`
 * `certificate_public_key_sha256`
+* `certificate_pin_sha256`
 * `handshake_timeout`
 
 不支持的字段：
@@ -333,6 +336,28 @@ TLS 版本值：
     文件更改时将自动重新加载。
 
 服务器证书链路径，PEM 格式。
+
+#### certificate_pin_sha256
+
+==仅客户端==
+
+单个证书的 SHA-256 指纹，基于整个 DER 编码的证书计算，使用十六进制格式。
+允许大小写、冒号分隔和首尾空白。
+
+固定叶证书时，只检查证书指纹，不检查域名、有效期或系统信任链。
+固定证书链中的 CA 证书时，将其作为信任锚，并检查叶证书的证书链、域名、有效期和服务器认证用途。
+CA 证书必须出现在引擎取得的证书链中；系统引擎可能提供由系统构建的证书链。
+
+与 `certificate_public_key_sha256`、`certificate`、`certificate_path` 及启用的 `reality` 互斥，同时配置会报错。
+允许与 `insecure: true` 共用，但不会跳过上述 pin 校验。
+支持 Go TLS、uTLS、Apple/Windows TLS 及 Apple HTTP 引擎。
+Go TLS 和 uTLS 允许同时设置 `disable_sni`，固定 CA 时仍校验目标域名。
+
+生成指纹：
+
+```bash
+sing-box generate pinsha256 certificate.crt
+```
 
 #### certificate_public_key_sha256
 

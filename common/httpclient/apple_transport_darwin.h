@@ -15,6 +15,8 @@ typedef struct box_apple_http_session_config {
 	bool insecure;
 	void *anchors_cf;
 	bool anchor_only;
+	const uint8_t *certificate_pin_sha256;
+	size_t certificate_pin_sha256_len;
 	const uint8_t *pinned_public_key_sha256;
 	size_t pinned_public_key_sha256_len;
 } box_apple_http_session_config_t;
@@ -67,4 +69,10 @@ char *box_apple_http_verify_public_key_sha256(
 	size_t known_hash_values_len,
 	uint8_t *leaf_cert,
 	size_t leaf_cert_len
+);
+
+char *box_apple_http_verify_certificate_pin(
+	uint8_t *pin, size_t pin_len,
+	uint8_t *chain, size_t chain_len,
+	char *server_name, bool has_verify_time, int64_t verify_time_unix_millis
 );
