@@ -2,6 +2,8 @@ package shadowtls
 
 import (
 	"context"
+	stdTLS "crypto/tls"
+	"crypto/x509"
 	"net"
 	"os"
 
@@ -76,6 +78,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			if err != nil {
 				return nil, err
 			}
+			stdTLSConfig = bridgeVerifyConnectionToPeerCert(stdTLSConfig)
 			defaultHandshakeFunc := shadowtls.DefaultTLSHandshakeFunc(options.Password, stdTLSConfig)
 			handshakeTimeout := tlsConfig.HandshakeTimeout()
 			tlsHandshakeFunc = func(ctx context.Context, conn net.Conn, sessionIDGenerator shadowtls.TLSSessionIDGeneratorFunc) error {
@@ -117,4 +120,35 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 
 func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return nil, os.ErrInvalid
+}
+
+func bridgeVerifyConnectionToPeerCert(config *stdTLS.Config) *stdTLS.Config {
+	if config == nil || config.VerifyConnection == nil {
+		return config
+	}
+	cloned := config.Clone()
+	verifyConnection := cloned.VerifyConnection
+	existingVerifyPeer := cloned.VerifyPeerCertificate
+	serverName := cloned.ServerName
+	cloned.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		if existingVerifyPeer != nil {
+			if err := existingVerifyPeer(rawCerts, verifiedChains); err != nil {
+				return err
+			}
+		}
+		certificates := make([]*x509.Certificate, 0, len(rawCerts))
+		for _, rawCert := range rawCerts {
+			certificate, err := x509.ParseCertificate(rawCert)
+			if err != nil {
+				return err
+			}
+			certificates = append(certificates, certificate)
+		}
+		return verifyConnection(stdTLS.ConnectionState{
+			ServerName:       serverName,
+			PeerCertificates: certificates,
+			VerifiedChains:   verifiedChains,
+		})
+	}
+	return cloned
 }
