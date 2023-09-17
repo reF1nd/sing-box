@@ -3,9 +3,12 @@
 package tls
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"math/rand"
 	"net"
 	"os"
@@ -13,7 +16,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/tlsfragment"
+	tf "github.com/sagernet/sing-box/common/tlsfragment"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
@@ -158,6 +161,45 @@ func NewUTLSClient(ctx context.Context, serverAddress string, options option.Out
 	}
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
+	} else if len(options.CertificatePinSHA256) > 0 {
+		if len(options.Certificate) > 0 || options.CertificatePath != "" {
+			return nil, E.New("certificate_pin_sha256 is conflict with certificate or certificate_path")
+		}
+		fingerprint := strings.TrimSpace(strings.ReplaceAll(options.CertificatePinSHA256, ":", ""))
+		fpByte, err := hex.DecodeString(fingerprint)
+		if err != nil {
+			return nil, E.Cause(err, "decode fingerprint string")
+		}
+		if len(fpByte) != 32 {
+			return nil, E.New("fingerprint string length error, need sha256 fingerprint")
+		}
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyConnection = func(state utls.ConnectionState) error {
+			certs := state.PeerCertificates
+			for i, cert := range certs {
+				hash := sha256.Sum256(cert.Raw)
+				if bytes.Equal(fpByte, hash[:]) {
+					if i > 0 {
+						opts := x509.VerifyOptions{
+							Roots:         x509.NewCertPool(),
+							Intermediates: x509.NewCertPool(),
+							DNSName:       serverName,
+						}
+						if tlsConfig.Time != nil {
+							opts.CurrentTime = tlsConfig.Time()
+						}
+						opts.Roots.AddCert(certs[i])
+						for _, cert := range certs[1 : i+1] {
+							opts.Intermediates.AddCert(cert)
+						}
+						_, err := certs[0].Verify(opts)
+						return err
+					}
+					return nil
+				}
+			}
+			return E.New("certificate fingerprint mismatch")
+		}
 	} else if options.DisableSNI {
 		if options.Reality != nil && options.Reality.Enabled {
 			return nil, E.New("disable_sni is unsupported in reality")
