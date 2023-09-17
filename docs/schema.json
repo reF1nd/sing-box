@@ -15003,6 +15003,9 @@
         "client_key_path": {
           "type": "string"
         },
+        "certificate_pin_sha256": {
+          "type": "string"
+        },
         "fragment": {
           "type": "boolean"
         },
