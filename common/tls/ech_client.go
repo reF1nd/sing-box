@@ -4,9 +4,11 @@ package tls
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"net"
 	"net/netip"
@@ -164,6 +166,20 @@ func NewECHClient(ctx context.Context, serverAddress string, options option.Outb
 			return nil, E.New("failed to parse certificate:\n\n", certificate)
 		}
 		tlsConfig.RootCAs = certPool
+	}
+	if options.CertificatePinSHA256 != "" {
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			for _, rawCert := range rawCerts {
+				cert, err := x509.ParseCertificate(rawCert)
+				if err == nil {
+					hash := sha256.Sum256(cert.Raw)
+					if strings.ToLower(options.CertificatePinSHA256) == hex.EncodeToString(hash[:]) {
+						return nil
+					}
+				}
+			}
+			return E.New("certificate fingerprint mismatch")
+		}
 	}
 
 	// ECH Config
