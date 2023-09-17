@@ -118,6 +118,7 @@ type OutboundTLSOptions struct {
 	Certificate                badoption.Listable[string]          `json:"certificate,omitempty"`
 	CertificatePath            string                              `json:"certificate_path,omitempty"`
 	CertificatePublicKeySHA256 badoption.Listable[[]byte]          `json:"certificate_public_key_sha256,omitempty"`
+	CertificatePinSHA256       string                              `json:"certificate_pin_sha256,omitempty"`
 	ClientCertificate          badoption.Listable[string]          `json:"client_certificate,omitempty"`
 	ClientCertificatePath      string                              `json:"client_certificate_path,omitempty"`
 	ClientKey                  badoption.Listable[string]          `json:"client_key,omitempty"`

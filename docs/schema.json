@@ -15038,6 +15038,9 @@
             }
           ]
         },
+        "certificate_pin_sha256": {
+          "type": "string"
+        },
         "client_certificate": {
           "anyOf": [
             {
