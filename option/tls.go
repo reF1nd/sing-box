@@ -47,6 +47,7 @@ type OutboundTLSOptions struct {
 	CipherSuites          badoption.Listable[string] `json:"cipher_suites,omitempty"`
 	Certificate           badoption.Listable[string] `json:"certificate,omitempty"`
 	CertificatePath       string                     `json:"certificate_path,omitempty"`
+	CertificatePinSHA256  string                     `json:"certificate_pin_sha256,omitempty"`
 	Fragment              bool                       `json:"fragment,omitempty"`
 	FragmentFallbackDelay badoption.Duration         `json:"fragment_fallback_delay,omitempty"`
 	RecordFragment        bool                       `json:"record_fragment,omitempty"`
