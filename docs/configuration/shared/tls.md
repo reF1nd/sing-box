@@ -130,6 +130,7 @@ icon: material/new-box
   "certificate_path": "",
   "certificate_sha256": [],
   "certificate_public_key_sha256": [],
+  "certificate_pin_sha256": "",
   "client_certificate": [],
   "client_certificate_path": "",
   "client_key": [],
@@ -225,6 +226,7 @@ Supported fields:
 * `certificate` / `certificate_path`
 * `certificate_sha256`
 * `certificate_public_key_sha256`
+* `certificate_pin_sha256`
 * `handshake_timeout`
 
 Unsupported fields:
@@ -259,6 +261,7 @@ Supported fields:
 * `certificate` / `certificate_path`
 * `certificate_sha256`
 * `certificate_public_key_sha256`
+* `certificate_pin_sha256`
 * `handshake_timeout`
 
 Unsupported fields:
@@ -366,6 +369,28 @@ openssl x509 -in certificate.pem -outform der | openssl dgst -sha256 -binary | o
 
 # For a certificate from a remote server
 echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/null | openssl x509 -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+```
+
+#### certificate_pin_sha256
+
+==Client only==
+
+A single SHA-256 fingerprint of the whole DER-encoded certificate, in hexadecimal format.
+Uppercase, lowercase, colon separators and surrounding whitespace are accepted.
+
+A matching leaf certificate is accepted without checking its hostname, validity period or system trust chain.
+A matching CA certificate in the chain is used as a trust anchor; the leaf's chain, hostname, validity period and server-auth usage are then verified.
+The pinned CA must appear in the chain obtained by the engine; system engines may provide a chain built by the operating system.
+
+Mutually exclusive with `certificate_sha256`, `certificate_public_key_sha256`, `certificate`, `certificate_path` and enabled `reality`; configuring them together is an error.
+May be combined with `insecure: true`, which does not bypass pin verification.
+Supported by Go TLS, uTLS, Apple/Windows TLS and the Apple HTTP engine.
+Go TLS and uTLS also allow `disable_sni`; CA pins still verify the target hostname.
+
+Generate the fingerprint with:
+
+```bash
+sing-box generate pinsha256 certificate.crt
 ```
 
 #### certificate_public_key_sha256
