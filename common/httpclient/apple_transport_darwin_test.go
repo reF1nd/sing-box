@@ -5,11 +5,18 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	stdtls "crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -802,6 +809,11 @@ func startAppleHTTPTestServer(t *testing.T, handler http.HandlerFunc) *appleHTTP
 	t.Helper()
 
 	serverCertificate, serverCertificatePEM := newAppleHTTPTestCertificate(t, "localhost")
+	return startAppleHTTPTestServerWithCertificate(t, handler, serverCertificate, serverCertificatePEM)
+}
+
+func startAppleHTTPTestServerWithCertificate(t *testing.T, handler http.HandlerFunc, serverCertificate stdtls.Certificate, serverCertificatePEM string) *appleHTTPTestServer {
+	t.Helper()
 	server := httptest.NewUnstartedServer(handler)
 	server.EnableHTTP2 = true
 	server.TLS = &stdtls.Config{
@@ -1006,5 +1018,98 @@ func assertAppleHTTPSucceeds(t *testing.T, transport http.RoundTripper, rawURL s
 	defer response.Body.Close()
 	if body := readResponseBody(t, response); body != "ok" {
 		t.Fatalf("unexpected response body: %q", body)
+	}
+}
+
+func TestAppleTransportCertificatePin(t *testing.T) {
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "pin test CA"},
+		IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign,
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, host := range []string{"localhost", "wrong-host"} {
+		for _, expired := range []bool{false, true} {
+			expiry := time.Now().Add(time.Hour)
+			if expired {
+				expiry = time.Now().Add(-time.Minute)
+			}
+			keyPEM, certPEM, err := boxTLS.GenerateCertificate(ca, caKey, time.Now, host, expiry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cert, err := stdtls.X509KeyPair(certPEM, keyPEM)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cert.Certificate = append(cert.Certificate, caDER)
+			server := startAppleHTTPTestServerWithCertificate(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }, cert, string(certPEM))
+			for _, pinKind := range []string{"leaf", "ca", "wrong"} {
+				pin := certificateSHA256(cert.Certificate[0])
+				if pinKind == "ca" {
+					pin = certificateSHA256(caDER)
+				}
+				if pinKind == "wrong" {
+					pin = bytes.Repeat([]byte{0xff}, 32)
+				}
+				for _, insecure := range []bool{false, true} {
+					transport := newAppleHTTPTestTransport(t, server, option.HTTPClientOptions{
+						Version: 2, OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{TLS: &option.OutboundTLSOptions{
+							Enabled: true, Insecure: insecure, CertificatePinSHA256: hex.EncodeToString(pin),
+						}},
+					})
+					response, requestErr := transport.RoundTrip(newAppleHTTPRequest(t, http.MethodGet, server.URL("/"), nil))
+					if response != nil {
+						response.Body.Close()
+					}
+					wantOK := pinKind == "leaf" || (pinKind == "ca" && host == "localhost" && !expired)
+					if (requestErr == nil) != wantOK {
+						t.Fatalf("host=%s expired=%v pin=%s insecure=%v: %v", host, expired, pinKind, insecure, requestErr)
+					}
+				}
+			}
+			if host == "localhost" {
+				transport := newAppleHTTPTestTransport(t, server, option.HTTPClientOptions{
+					Version: 2, OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{TLS: &option.OutboundTLSOptions{
+						Enabled: true, CertificatePinSHA256: hex.EncodeToString(certificateSHA256(caDER)),
+					}},
+				})
+				// The Go verifier must receive the request's custom verification time.
+				transport.(*appleTransport).shared.timeFunc = func() time.Time {
+					if expired {
+						return time.Now().Add(-30 * time.Minute)
+					}
+					return time.Now().Add(2 * time.Hour)
+				}
+				response, requestErr := transport.RoundTrip(newAppleHTTPRequest(t, http.MethodGet, server.URL("/clock"), nil))
+				if response != nil {
+					response.Body.Close()
+				}
+				if (requestErr == nil) != expired {
+					t.Fatalf("custom time expired=%v: %v", expired, requestErr)
+				}
+			}
+		}
+	}
+	// Reject incompatible verification modes before opening a session.
+	_, err = newAppleSessionConfig(context.Background(), option.HTTPClientOptions{
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{TLS: &option.OutboundTLSOptions{
+			CertificatePinSHA256: hex.EncodeToString(certificateSHA256(caDER)),
+			Certificate:          []string{string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER}))},
+		}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "conflict") {
+		t.Fatalf("expected pin conflict, got %v", err)
 	}
 }

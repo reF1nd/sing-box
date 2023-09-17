@@ -16057,6 +16057,9 @@
         },
         "reality": {
           "$ref": "#/$defs/OutboundRealityOptions"
+        },
+        "certificate_pin_sha256": {
+          "type": "string"
         }
       },
       "additionalProperties": false
