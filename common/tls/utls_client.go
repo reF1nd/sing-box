@@ -4,8 +4,10 @@ package tls
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"math/rand"
 	"net"
 	"os"
@@ -13,7 +15,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/tlsfragment"
+	tf "github.com/sagernet/sing-box/common/tlsfragment"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
@@ -158,6 +160,20 @@ func NewUTLSClient(ctx context.Context, serverAddress string, options option.Out
 	}
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
+	} else if options.CertificatePinSHA256 != "" {
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			for _, rawCert := range rawCerts {
+				cert, err := x509.ParseCertificate(rawCert)
+				if err == nil {
+					hash := sha256.Sum256(cert.Raw)
+					if strings.ToLower(options.CertificatePinSHA256) == hex.EncodeToString(hash[:]) {
+						return nil
+					}
+				}
+			}
+			return E.New("certificate fingerprint mismatch")
+		}
 	} else if options.DisableSNI {
 		if options.Reality != nil && options.Reality.Enabled {
 			return nil, E.New("disable_sni is unsupported in reality")
