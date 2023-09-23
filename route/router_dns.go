@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/cache"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -91,10 +91,101 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, index int, isAd
 	}
 }
 
+func (r *Router) matchHosts(ctx context.Context, metadata *adapter.InboundContext) (int, bool) {
+	if len(r.hostsRules) == 0 {
+		return 0, false
+	}
+	for i, rule := range r.hostsRules {
+		metadata.ResetRuleCache()
+		if rule.Match(metadata) {
+			r.dnsLogger.DebugContext(ctx, "match[", i, "] ", rule.String())
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+func (r *Router) ExchangeHosts(ctx context.Context, message *mDNS.Msg, metadata *adapter.InboundContext) (*mDNS.Msg, bool) {
+	var ip4, ip6 []netip.Addr
+	if i, ok := r.matchHosts(ctx, metadata); ok {
+		for _, ip := range r.hostsRules[i].IP() {
+			if ip.Is4In6() {
+				ip = netip.AddrFrom4(ip.As4())
+			}
+			if ip.Is4() {
+				ip4 = append(ip4, ip)
+			} else {
+				ip6 = append(ip6, ip)
+			}
+		}
+		if len(message.Question) == 1 && (message.Question[0].Qtype == mDNS.TypeA || message.Question[0].Qtype == mDNS.TypeAAAA) && (len(ip4) > 0 || len(ip6) > 0) {
+			response := &mDNS.Msg{
+				MsgHdr: mDNS.MsgHdr{
+					Id:       message.Id,
+					Rcode:    mDNS.RcodeSuccess,
+					Response: true,
+				},
+				Question: message.Question,
+			}
+			ttl := uint32(dns.DefaultTTL)
+			if rewriteTTL, loaded := dns.RewriteTTLFromContext(ctx); loaded {
+				ttl = rewriteTTL
+			}
+			if message.Question[0].Qtype == mDNS.TypeA && len(ip4) > 0 && r.defaultDomainStrategy != dns.DomainStrategyUseIPv6 {
+				for _, ip := range ip4 {
+					response.Answer = append(response.Answer, &mDNS.A{
+						Hdr: mDNS.RR_Header{
+							Name:   message.Question[0].Name,
+							Rrtype: mDNS.TypeA,
+							Class:  mDNS.ClassINET,
+							Ttl:    ttl,
+						},
+						A: ip.AsSlice(),
+					})
+				}
+				metadata.QueryType = message.Question[0].Qtype
+				metadata.IPVersion = 4
+				metadata.Domain = fqdnToDomain(message.Question[0].Name)
+				return response, true
+			}
+			if message.Question[0].Qtype == mDNS.TypeAAAA && len(ip6) > 0 && r.defaultDomainStrategy != dns.DomainStrategyUseIPv4 {
+				for _, ip := range ip6 {
+					response.Answer = append(response.Answer, &mDNS.AAAA{
+						Hdr: mDNS.RR_Header{
+							Name:   message.Question[0].Name,
+							Rrtype: mDNS.TypeAAAA,
+							Class:  mDNS.ClassINET,
+							Ttl:    ttl,
+						},
+						AAAA: ip.AsSlice(),
+					})
+				}
+				metadata.QueryType = message.Question[0].Qtype
+				metadata.IPVersion = 6
+				metadata.Domain = fqdnToDomain(message.Question[0].Name)
+				return response, true
+			}
+		}
+	}
+	return nil, false
+}
+
 func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	ctx, metadata := adapter.ExtendContext(ctx)
+	metadata.Domain = fqdnToDomain(message.Question[0].Name)
 	if len(message.Question) > 0 {
 		r.dnsLogger.DebugContext(ctx, "exchange ", formatQuestion(message.Question[0].String()))
 	}
+
+	if response, ok := r.ExchangeHosts(ctx, message, metadata); ok {
+		for _, recordList := range [][]mDNS.RR{response.Answer, response.Ns, response.Extra} {
+			for _, record := range recordList {
+				r.dnsLogger.InfoContext(ctx, "exchanged hosts ", fqdnToDomain(message.Question[0].Name), " ", mDNS.Type(record.Header().Rrtype).String(), " ", formatQuestion(record.String()))
+			}
+		}
+		return response, nil
+	}
+
 	var (
 		response  *mDNS.Msg
 		cached    bool
@@ -181,6 +272,41 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 	return response, nil
 }
 
+func (r *Router) LookupHosts(ctx context.Context, domain string, strategy dns.DomainStrategy, metadata *adapter.InboundContext) ([]netip.Addr, bool) {
+	var ip4, ip6 []netip.Addr
+	if i, ok := r.matchHosts(ctx, metadata); ok {
+		for _, ip := range r.hostsRules[i].IP() {
+			if ip.Is4In6() {
+				ip = netip.AddrFrom4(ip.As4())
+			}
+			if ip.Is4() {
+				ip4 = append(ip4, ip)
+			} else {
+				ip6 = append(ip6, ip)
+			}
+		}
+		switch strategy {
+		case dns.DomainStrategyUseIPv4:
+			if len(ip4) > 0 {
+				return ip4, true
+			}
+		case dns.DomainStrategyUseIPv6:
+			if len(ip6) > 0 {
+				return ip6, true
+			}
+		case dns.DomainStrategyPreferIPv4, dns.DomainStrategyAsIS:
+			if len(ip4) > 0 || len(ip6) > 0 {
+				return append(ip4, ip6...), true
+			}
+		case dns.DomainStrategyPreferIPv6:
+			if len(ip4) > 0 || len(ip6) > 0 {
+				return append(ip6, ip4...), true
+			}
+		}
+	}
+	return []netip.Addr{}, false
+}
+
 func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainStrategy) ([]netip.Addr, error) {
 	var (
 		responseAddrs []netip.Addr
@@ -197,7 +323,14 @@ func (r *Router) Lookup(ctx context.Context, domain string, strategy dns.DomainS
 	r.dnsLogger.DebugContext(ctx, "lookup domain ", domain)
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
+	domain = fqdnToDomain(domain)
 	metadata.Domain = domain
+
+	if ips, ok := r.LookupHosts(ctx, domain, strategy, metadata); ok {
+		r.dnsLogger.InfoContext(ctx, "lookup hosts succeed for ", domain, ": ", strings.Join(F.MapToString(ips), " "))
+		return ips, nil
+	}
+
 	var (
 		transport         dns.Transport
 		transportStrategy dns.DomainStrategy
