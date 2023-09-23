@@ -61,6 +61,7 @@ type Router struct {
 	outboundByTag                      map[string]adapter.Outbound
 	outboundProviders                  []adapter.OutboundProvider
 	outboundProviderByTag              map[string]adapter.OutboundProvider
+	hostsRules                         []adapter.HostsRule
 	rules                              []adapter.Rule
 	routeRuleByUUID                    map[string]adapter.Rule
 	defaultDetour                      string
