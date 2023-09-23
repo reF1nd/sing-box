@@ -38,6 +38,15 @@ func hasDNSRule(rules []option.DNSRule, cond func(rule option.DefaultDNSRule) bo
 	return false
 }
 
+func hasHostsRule(rules []option.HostsRule, cond func(rule option.DefaultHostsRule) bool) bool {
+	for _, rule := range rules {
+		if cond(rule.DefaultOptions) {
+			return true
+		}
+	}
+	return false
+}
+
 func hasHeadlessRule(rules []option.HeadlessRule, cond func(rule option.DefaultHeadlessRule) bool) bool {
 	for _, rule := range rules {
 		switch rule.Type {
@@ -67,6 +76,10 @@ func isGeositeRule(rule option.DefaultRule) bool {
 }
 
 func isGeositeDNSRule(rule option.DefaultDNSRule) bool {
+	return len(rule.Geosite) > 0
+}
+
+func isGeositeHostsRule(rule option.DefaultHostsRule) bool {
 	return len(rule.Geosite) > 0
 }
 
