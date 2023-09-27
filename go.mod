@@ -55,6 +55,8 @@ require (
 	howett.net/plist v1.0.1
 )
 
+require github.com/ipsn/go-libtor v1.0.380 // indirect
+
 //replace github.com/sagernet/sing => ../sing
 
 require (
