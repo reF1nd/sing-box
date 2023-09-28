@@ -78,7 +78,32 @@ Sing-box 配置：
 }
 ```
 
-#### 2. URLTest Fallback 支持
+#### 2. Clash Dashboard 内置支持 (with_clash_dashboard)
+
+- 编译时需要使用 `with_clash_dashboard` tag
+- 编译前需要先初始化 web 文件
+
+```
+使用 yacd 作为 Clash Dashboard：make init_yacd
+使用 metacubexd 作为 Clash Dashboard：make init_metacubexd
+清除 web 文件：make clean_clash_dashboard
+```
+
+##### 用法
+
+```json5
+{
+    "experimental": {
+        "clash_api": {
+            "external_controller": "0.0.0.0:9090",
+            //"external_ui": "" // 无需填写
+            "external_ui_buildin": true // 启用内置 Clash Dashboard
+        }
+    }
+}
+```
+
+#### 3. URLTest Fallback 支持
 按照**可用性**和**顺序**选择出站
 
 可用：指 URL 测试存在有效结果
@@ -105,7 +130,7 @@ Sing-box 配置：
 1. 当 A, B, C 都可用时，优选选择 A。当 A 不可用时，优选选择 B。当 A, B 都不可用时，选择 C，若 C 也不可用，则返回第一个出站：A
 2. (配置了 max_delay) 当 A, C 都不可用，B 延迟超过 200ms 时（在第一轮选择时淘汰，被认为是不可用节点），则选择 B
 
-#### 3. RandomAddr 出站支持 (with_randomaddr)
+#### 4. RandomAddr 出站支持 (with_randomaddr)
 
 - 编译时需要使用 `with_randomaddr` tag
 
@@ -155,7 +180,7 @@ Sing-box 配置：
 ]
 ```
 
-#### 4. Tor No Fatal 启动
+#### 5. Tor No Fatal 启动
 
 ```json
 {
