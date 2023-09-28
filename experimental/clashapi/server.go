@@ -54,6 +54,7 @@ type Server struct {
 	externalUI               string
 	externalUIDownloadURL    string
 	externalUIDownloadDetour string
+	externalUIBuildin        bool
 }
 
 func NewServer(ctx context.Context, router adapter.Router, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
@@ -72,6 +73,7 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 		externalController:       options.ExternalController != "",
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
+		externalUIBuildin:        options.ExternalUIBuildin,
 	}
 	server.urlTestHistory = service.PtrFromContext[urltest.HistoryStorage](ctx)
 	if server.urlTestHistory == nil {
@@ -127,6 +129,12 @@ func NewServer(ctx context.Context, router adapter.Router, logFactory log.Observ
 			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusMovedPermanently).ServeHTTP)
 			r.Handle("/ui/*", http.StripPrefix("/ui/", http.FileServer(http.Dir(server.externalUI))))
 		})
+	} else if options.ExternalUIBuildin {
+		f, err := initDashboard()
+		if err != nil {
+			return nil, err
+		}
+		chiRouter.Group(f)
 	}
 	return server, nil
 }
@@ -146,7 +154,9 @@ func (s *Server) PreStart() error {
 
 func (s *Server) Start() error {
 	if s.externalController {
-		s.checkAndDownloadExternalUI()
+		if !s.externalUIBuildin {
+			s.checkAndDownloadExternalUI()
+		}
 		var (
 			listener net.Listener
 			err      error
