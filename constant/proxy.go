@@ -24,6 +24,7 @@ const (
 	TypeTUIC         = "tuic"
 	TypeHysteria2    = "hysteria2"
 	TypeSideLoad     = "sideload"
+	TypeRandomAddr   = "randomaddr"
 )
 
 const (
@@ -71,6 +72,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "Hysteria2"
 	case TypeSideLoad:
 		return "SideLoad"
+	case TypeRandomAddr:
+		return "RandomAddr"
 	case TypeSelector:
 		return "Selector"
 	case TypeURLTest:
