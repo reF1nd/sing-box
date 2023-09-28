@@ -19,6 +19,7 @@ type CacheFileOptions struct {
 type ClashAPIOptions struct {
 	ExternalController       string   `json:"external_controller,omitempty"`
 	ExternalUI               string   `json:"external_ui,omitempty"`
+	ExternalUIBuildin        bool     `json:"external_ui_buildin,omitempty"`
 	ExternalUIDownloadURL    string   `json:"external_ui_download_url,omitempty"`
 	ExternalUIDownloadDetour string   `json:"external_ui_download_detour,omitempty"`
 	Secret                   string   `json:"secret,omitempty"`

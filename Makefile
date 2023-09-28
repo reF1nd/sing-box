@@ -212,3 +212,17 @@ update:
 	git fetch
 	git reset FETCH_HEAD --hard
 	git clean -fdx
+
+init_yacd:
+	rm -rf experimental/clashapi/clash_dashboard
+	mkdir -p experimental/clashapi/clash_dashboard
+	git clone https://github.com/Metacubex/Yacd-Meta -b gh-pages experimental/clashapi/clash_dashboard
+
+init_metacubexd:
+	rm -rf experimental/clashapi/clash_dashboard
+	mkdir -p experimental/clashapi/clash_dashboard
+	git clone https://github.com/Metacubex/metacubexd -b gh-pages experimental/clashapi/clash_dashboard
+
+clean_clash_dashboard:
+	rm -rf experimental/clashapi/clash_dashboard
+	mkdir -p experimental/clashapi/clash_dashboard
