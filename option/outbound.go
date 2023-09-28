@@ -26,6 +26,7 @@ type _Outbound struct {
 	TUICOptions         TUICOutboundOptions         `json:"-"`
 	Hysteria2Options    Hysteria2OutboundOptions    `json:"-"`
 	SideLoadOptions     SideLoadOutboundOptions     `json:"-"`
+	RandomAddrOptions   RandomAddrOutboundOptions   `json:"-"`
 	SelectorOptions     SelectorOutboundOptions     `json:"-"`
 	URLTestOptions      URLTestOutboundOptions      `json:"-"`
 }
@@ -69,6 +70,8 @@ func (h *Outbound) RawOptions() (any, error) {
 		rawOptionsPtr = &h.Hysteria2Options
 	case C.TypeSideLoad:
 		rawOptionsPtr = &h.SideLoadOptions
+	case C.TypeRandomAddr:
+		rawOptionsPtr = &h.RandomAddrOptions
 	case C.TypeSelector:
 		rawOptionsPtr = &h.SelectorOptions
 	case C.TypeURLTest:
