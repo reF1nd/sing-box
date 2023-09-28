@@ -38,7 +38,7 @@ with this application without prior consent.
 
 ---
 
-#### SideLoad 出站支持
+#### 1. SideLoad 出站支持 (with_sideload)
 对于 Sing-box 不支持的出站类型，可以通过侧载方式与 Sing-box 共用。只需暴露 Socks 端口，即可与 Sing-box 集成
 
 编译时加入 tag ```with_sideload```
@@ -76,4 +76,54 @@ Sing-box 配置：
   ],
   // Dial Fields
 }
+```
+
+#### 2. RandomAddr 出站支持 (with_randomaddr)
+
+- 编译时需要使用 `with_randomaddr` tag
+
+支持随机不同 IP:Port 连接，只需要将 Detour 设置为这个出站，即可随机使用不同的 IP:Port 组合连接，需要配合其他出站使用，~~可以躲避基于目的地址的审查~~
+
+```json5
+{
+    "tag": "randomaddr-out",
+    "type": "randomaddr",
+    "udp": true, // 为 true 时，替换 NewPakcetConn，开启 UDP 支持
+    "ignore_fqdn": false, // 为 true 时，对有 FQDN 的连接不处理
+    "delete_fqdn": false, // 为 true 时，删除连接中的 FQDN
+    "addresses": [ // 地址重写规则
+        {
+            "ip": "100.64.0.1", // IP 地址，支持 192.168.2.0/24、192.168.2.0、192.168.2.0-192.168.2.254 三种写法
+            "port": 80, // 连接端口
+        }
+    ],
+}
+```
+
+用法范例：配合 WebSocket + CloudFront CDN **（请勿滥用，后果自负）**
+
+```json5
+[
+    {
+        "tag": "ws-out",
+        "type": "vmess",
+        ...
+        "transport": {
+            "type": "ws",
+            ...
+        },
+        "detour": "randomaddr-out"
+    },
+    {
+        "tag": "randomaddr-out",
+        "type": "randomaddr",
+        "delete_fqdn": true,
+        "addresses": [
+            {
+                "ip": "13.33.100.0/24",
+                "port": 80
+            }
+        ]
+    }
+]
 ```

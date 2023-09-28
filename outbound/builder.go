@@ -57,6 +57,8 @@ func New(ctx context.Context, router adapter.Router, logger log.ContextLogger, t
 		return NewHysteria2(ctx, router, logger, tag, options.Hysteria2Options)
 	case C.TypeSideLoad:
 		return NewSideLoad(ctx, router, logger, tag, options.SideLoadOptions)
+	case C.TypeRandomAddr:
+		return NewRandomAddr(ctx, router, logger, tag, options.RandomAddrOptions)
 	case C.TypeSelector:
 		return NewSelector(ctx, router, logger, tag, options.SelectorOptions)
 	case C.TypeURLTest:
