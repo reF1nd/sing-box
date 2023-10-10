@@ -193,3 +193,23 @@ Sing-box 配置：
     ]
 }
 ```
+
+#### 6. Geo Resource 自动更新支持
+
+##### 用法
+```json5
+{
+    "route": {
+        "geosite": {
+            "path": "/temp/geosite.db",
+            "auto_update_interval": "12h" // 更新间隔，在程序运行时会间隔时间自动更新
+        },
+        "geoip": {
+            "path": "/temp/geoip.db",
+            "auto_update_interval": "12h"
+        }
+    }
+}
+```
+
+- 支持在 Clash API 中调用 API 更新 Geo Resource

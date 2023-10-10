@@ -30,6 +30,7 @@ type Router interface {
 
 	GeoIPReader() *geoip.Reader
 	LoadGeosite(code string) (Rule, error)
+	UpdateGeoDatabase()
 
 	RuleSet(tag string) (RuleSet, bool)
 
