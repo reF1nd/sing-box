@@ -59,6 +59,8 @@ type Router interface {
 	SetV2RayServer(server V2RayServer)
 
 	ResetNetwork() error
+
+	Reload()
 }
 
 func ContextWithRouter(ctx context.Context, router Router) context.Context {
