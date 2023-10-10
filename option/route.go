@@ -14,13 +14,15 @@ type RouteOptions struct {
 }
 
 type GeoIPOptions struct {
-	Path           string `json:"path,omitempty"`
-	DownloadURL    string `json:"download_url,omitempty"`
-	DownloadDetour string `json:"download_detour,omitempty"`
+	Path               string   `json:"path,omitempty"`
+	DownloadURL        string   `json:"download_url,omitempty"`
+	DownloadDetour     string   `json:"download_detour,omitempty"`
+	AutoUpdateInterval Duration `json:"auto_update_interval,omitempty"`
 }
 
 type GeositeOptions struct {
-	Path           string `json:"path,omitempty"`
-	DownloadURL    string `json:"download_url,omitempty"`
-	DownloadDetour string `json:"download_detour,omitempty"`
+	Path               string   `json:"path,omitempty"`
+	DownloadURL        string   `json:"download_url,omitempty"`
+	DownloadDetour     string   `json:"download_detour,omitempty"`
+	AutoUpdateInterval Duration `json:"auto_update_interval,omitempty"`
 }
