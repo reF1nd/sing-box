@@ -10,9 +10,11 @@ import (
 	"os/user"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
+	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/conntrack"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -69,6 +71,12 @@ type Router struct {
 	geositeReader                      *geosite.Reader
 	geositeCache                       map[string]adapter.Rule
 	needFindProcess                    bool
+	geositeUpdateLock                  sync.Mutex
+	geoIPUpdateLock                    sync.Mutex
+	geositePath                        string
+	geoIPPath                          string
+	geoUpdateLock                      sync.Mutex
+	geoWatcher                         *fswatch.Watcher
 	dnsClient                          *dns.Client
 	defaultDomainStrategy              dns.DomainStrategy
 	dnsRules                           []adapter.DNSRule
@@ -492,11 +500,25 @@ func (r *Router) Start() error {
 		if err != nil {
 			return err
 		}
+		if r.geoIPOptions.AutoUpdateInterval > 0 {
+			go r.loopUpdateGeoIPDatabase()
+			r.logger.Info("geoip database auto update enabled")
+		}
 	}
 	if r.needGeositeDatabase {
 		monitor.Start("initialize geosite database")
 		err := r.prepareGeositeDatabase()
 		monitor.Finish()
+		if err != nil {
+			return err
+		}
+		if r.geositeOptions.AutoUpdateInterval > 0 {
+			go r.loopUpdateGeositeDatabase()
+			r.logger.Info("geosite database auto update enabled")
+		}
+	}
+	if r.needGeoIPDatabase || r.needGeositeDatabase {
+		err := r.startGeoWatcher()
 		if err != nil {
 			return err
 		}
@@ -622,6 +644,12 @@ func (r *Router) Close() error {
 			return E.Cause(err, "close geoip reader")
 		})
 		monitor.Finish()
+	}
+	if r.geoWatcher != nil {
+		r.logger.Trace("closing geo resource watcher")
+		err = E.Append(err, r.geoWatcher.Close(), func(err error) error {
+			return E.Cause(err, "close geo resource watcher")
+		})
 	}
 	if r.interfaceMonitor != nil {
 		monitor.Start("close interface monitor")
