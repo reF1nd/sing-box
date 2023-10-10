@@ -30,6 +30,8 @@ type Router interface {
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
 	DefaultDomainMatchStrategy() C.DomainMatchStrategy
+
+	Reload()
 }
 
 type PreMatchAction uint8
