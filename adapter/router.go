@@ -28,6 +28,8 @@ type Router interface {
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
 	DefaultDomainMatchStrategy() C.DomainMatchStrategy
+
+	Reload()
 }
 
 type ConnectionTracker interface {
