@@ -26,6 +26,8 @@ type Router interface {
 	Rules() []Rule
 	SetTracker(tracker ConnectionTracker)
 	ResetNetwork()
+
+	Reload()
 }
 
 type ConnectionTracker interface {
