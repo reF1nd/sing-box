@@ -12,7 +12,8 @@ import (
 func configRouter(server *Server, logFactory log.Factory) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getConfigs(server, logFactory))
-	r.Put("/", updateConfigs)
+	// r.Put("/", updateConfigs)
+	r.Put("/", reload(server))
 	r.Patch("/", patchConfigs(server))
 	return r
 }
@@ -69,6 +70,6 @@ func patchConfigs(server *Server) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func updateConfigs(w http.ResponseWriter, r *http.Request) {
+/* func updateConfigs(w http.ResponseWriter, r *http.Request) {
 	render.NoContent(w, r)
-}
+} */
