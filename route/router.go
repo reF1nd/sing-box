@@ -26,10 +26,10 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/transport/fakeip"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-mux"
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-vmess"
+	dns "github.com/sagernet/sing-dns"
+	mux "github.com/sagernet/sing-mux"
+	tun "github.com/sagernet/sing-tun"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -98,6 +98,7 @@ type Router struct {
 	needPackageManager                 bool
 	wifiState                          adapter.WIFIState
 	started                            bool
+	reloadChan                         chan<- struct{}
 }
 
 func NewRouter(
@@ -108,6 +109,7 @@ func NewRouter(
 	ntpOptions option.NTPOptions,
 	inbounds []option.Inbound,
 	platformInterface platform.Interface,
+	reloadChan chan<- struct{},
 ) (*Router, error) {
 	router := &Router{
 		ctx:                   ctx,
@@ -135,6 +137,7 @@ func NewRouter(
 		needPackageManager: common.Any(inbounds, func(inbound option.Inbound) bool {
 			return len(inbound.TunOptions.IncludePackage) > 0 || len(inbound.TunOptions.ExcludePackage) > 0
 		}),
+		reloadChan: reloadChan,
 	}
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
 		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
@@ -1347,5 +1350,14 @@ func (r *Router) notifyWindowsPowerEvent(event int) {
 	case winpowrprof.EVENT_RESUME_AUTOMATIC:
 		r.pauseManager.DeviceWake()
 		_ = r.ResetNetwork()
+	}
+}
+
+func (r *Router) Reload() {
+	if r.platformInterface == nil {
+		select {
+		case r.reloadChan <- struct{}{}:
+		default:
+		}
 	}
 }
