@@ -121,6 +121,7 @@ func (r *fakeRouter) ResetNetwork()                              {}
 func (r *fakeRouter) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
 	return 0
 }
+func (r *fakeRouter) Reload() {}
 
 type fakeRuleSet struct {
 	access                   sync.Mutex
