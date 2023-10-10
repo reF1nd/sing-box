@@ -54,6 +54,7 @@ func (r *ruleSetItemTestRouter) ResetNetwork()                              {}
 func (r *ruleSetItemTestRouter) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
 	return 0
 }
+func (r *ruleSetItemTestRouter) Reload() {}
 
 type countingRuleSet struct {
 	name string
