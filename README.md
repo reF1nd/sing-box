@@ -213,3 +213,31 @@ Sing-box 配置：
 ```
 
 - 支持在 Clash API 中调用 API 更新 Geo Resource
+
+#### 7. JSTest 出站支持 (with_jstest) (*** 实验性 ***)
+
+JSTest 出站允许用户根据 JS 脚本代码选择出站，依附 JS 脚本，用户可以自定义强大的出站选择逻辑，比如：送中节点规避，流媒体节点选择，等等。
+
+你可以在 jstest/javascript/ 目录下找到一些示例脚本。
+
+- 编译时需要使用 `with_jstest` tag
+- JS 脚本请自行测试，慎而又慎，不要随意使用不明脚本，可能会导致安全问题或预期外的问题
+- JS 脚本运行需要依赖 JS 虚拟机，内存占用可能会比较大（10-20M 左右，视脚本而定），建议使用时注意内存占用情况
+
+- 专门告知使用送中节点的脚本的用户：请**确保 Google 定位已经正常关闭**，否则运行该脚本可能会**导致上游节点全部送中**，~~尤其是机场用户~~，运行所造成的一切后果概不负责
+
+##### 用法
+```json5
+{
+    "outbounds": [
+        {
+            "tag": "google-cn-auto-switch",
+            "type": "jstest",
+            "js_path": "/etc/sing-box/google_cn.js", // JS 脚本路径
+            "js_base64": "", // JS 脚本 Base64 编码，若遇到某些存储脚本文件困难的情况，如：使用了移动客户端，可以使用该字段
+            "interval": "60s", // 脚本执行间隔
+            "interrupt_exist_connections": false // 切换时是否中断已有连接
+        }
+    ]
+}
+```

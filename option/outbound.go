@@ -29,6 +29,7 @@ type _Outbound struct {
 	RandomAddrOptions   RandomAddrOutboundOptions   `json:"-"`
 	SelectorOptions     SelectorOutboundOptions     `json:"-"`
 	URLTestOptions      URLTestOutboundOptions      `json:"-"`
+	JSTestOptions       JSTestOutboundOptions       `json:"-"`
 }
 
 type Outbound _Outbound
@@ -76,6 +77,8 @@ func (h *Outbound) RawOptions() (any, error) {
 		rawOptionsPtr = &h.SelectorOptions
 	case C.TypeURLTest:
 		rawOptionsPtr = &h.URLTestOptions
+	case C.TypeJSTest:
+		rawOptionsPtr = &h.JSTestOptions
 	case "":
 		return nil, E.New("missing outbound type")
 	default:
