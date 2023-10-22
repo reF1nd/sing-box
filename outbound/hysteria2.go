@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic/hysteria"
 	"github.com/sagernet/sing-quic/hysteria2"
+	"github.com/sagernet/sing-quic/udphop"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -58,6 +59,9 @@ func NewHysteria2(ctx context.Context, router adapter.Router, logger log.Context
 		return nil, err
 	}
 	networkList := options.Network.Build()
+	if options.HopInterval < 5 {
+		options.HopInterval = 5
+	}
 	client, err := hysteria2.NewClient(hysteria2.ClientOptions{
 		Context:            ctx,
 		Dialer:             outboundDialer,
@@ -70,6 +74,10 @@ func NewHysteria2(ctx context.Context, router adapter.Router, logger log.Context
 		Password:           options.Password,
 		TLSConfig:          tlsConfig,
 		UDPDisabled:        !common.Contains(networkList, N.NetworkUDP),
+		UDPHopOption: udphop.UDPHopOption{
+			HopPorts:    options.HopPorts,
+			HopInterval: options.HopInterval,
+		},
 	})
 	if err != nil {
 		return nil, err
