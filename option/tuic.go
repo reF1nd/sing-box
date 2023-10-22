@@ -24,6 +24,8 @@ type TUICOutboundOptions struct {
 	CongestionControl string      `json:"congestion_control,omitempty"`
 	UDPRelayMode      string      `json:"udp_relay_mode,omitempty"`
 	UDPOverStream     bool        `json:"udp_over_stream,omitempty"`
+	HopPorts          string      `json:"hop_ports,omitempty"`
+	HopInterval       int         `json:"hop_interval,omitempty"`
 	ZeroRTTHandshake  bool        `json:"zero_rtt_handshake,omitempty"`
 	Heartbeat         Duration    `json:"heartbeat,omitempty"`
 	Network           NetworkList `json:"network,omitempty"`
