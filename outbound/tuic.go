@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic/tuic"
+	"github.com/sagernet/sing-quic/udphop"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -62,6 +63,9 @@ func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogge
 	if err != nil {
 		return nil, err
 	}
+	if options.HopInterval < 5 {
+		options.HopInterval = 5
+	}
 	client, err := tuic.NewClient(tuic.ClientOptions{
 		Context:           ctx,
 		Dialer:            outboundDialer,
@@ -73,6 +77,10 @@ func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogge
 		UDPStream:         tuicUDPStream,
 		ZeroRTTHandshake:  options.ZeroRTTHandshake,
 		Heartbeat:         time.Duration(options.Heartbeat),
+		UDPHopOption: udphop.UDPHopOption{
+			HopPorts:    options.HopPorts,
+			HopInterval: options.HopInterval,
+		},
 	})
 	if err != nil {
 		return nil, err
