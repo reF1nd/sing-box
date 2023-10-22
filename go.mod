@@ -57,6 +57,10 @@ require (
 )
 
 //replace github.com/sagernet/sing => ../sing
+replace (
+	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.47.0-beta.2.1
+	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.3.0-rc.1.1
+)
 
 require (
 	github.com/Dreamacro/protobytes v0.0.0-20230617041236-6500a9f4f158 // indirect
