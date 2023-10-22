@@ -46,6 +46,9 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	networkList := options.Network.Build()
+	if options.HopInterval < 5 {
+		options.HopInterval = 5
+	}
 	var password string
 	if options.AuthString != "" {
 		password = options.AuthString
@@ -80,6 +83,8 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 		Password:      password,
 		TLSConfig:     tlsConfig,
 		UDPDisabled:   !common.Contains(networkList, N.NetworkUDP),
+		HopPorts:      options.HopPorts,
+		HopInterval:   options.HopInterval,
 
 		ConnReceiveWindow:   options.ReceiveWindowConn,
 		StreamReceiveWindow: options.ReceiveWindow,

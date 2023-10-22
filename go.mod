@@ -56,6 +56,7 @@ require (
 )
 
 //replace github.com/sagernet/sing => ../sing
+replace github.com/sagernet/sing-quic => github.com/xchacha20-poly1305/sing-quic v0.2.0-beta.5
 
 require (
 	github.com/Dreamacro/protobytes v0.0.0-20230617041236-6500a9f4f158 // indirect
