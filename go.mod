@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	berty.tech/go-libtor v1.0.385
+	github.com/Dreamacro/clash v1.17.0
 	github.com/caddyserver/certmagic v0.20.0
 	github.com/cloudflare/circl v1.3.7
 	github.com/cretz/bine v0.2.0
@@ -20,6 +21,7 @@ require (
 	github.com/miekg/dns v1.1.59
 	github.com/ooni/go-libtor v1.1.8
 	github.com/oschwald/maxminddb-golang v1.12.0
+	github.com/pires/go-proxyproto v0.7.0
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1
 	github.com/sagernet/gomobile v0.1.3
@@ -56,6 +58,7 @@ require (
 //replace github.com/sagernet/sing => ../sing
 
 require (
+	github.com/Dreamacro/protobytes v0.0.0-20230617041236-6500a9f4f158 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
