@@ -19,6 +19,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/route"
+	"github.com/sagernet/sing-box/script"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -33,6 +34,7 @@ type Box struct {
 	router       adapter.Router
 	inbounds     []adapter.Inbound
 	outbounds    []adapter.Outbound
+	scripts      []*script.Script
 	logFactory   log.Factory
 	logger       log.ContextLogger
 	preServices1 map[string]adapter.Service
@@ -86,6 +88,25 @@ func New(options Options) (*Box, error) {
 	})
 	if err != nil {
 		return nil, E.Cause(err, "create log factory")
+	}
+	var scripts []*script.Script
+	for i, scriptOptions := range options.Scripts {
+		var tag string
+		if scriptOptions.Tag != "" {
+			tag = scriptOptions.Tag
+		} else {
+			tag = F.ToString(i)
+		}
+		s, err := script.NewScript(
+			ctx,
+			logFactory.NewLogger(F.ToString("script", "[", tag, "]")),
+			tag,
+			scriptOptions,
+		)
+		if err != nil {
+			return nil, E.Cause(err, "parse script[", i, "]")
+		}
+		scripts = append(scripts, s)
 	}
 	router, err := route.NewRouter(
 		ctx,
@@ -190,6 +211,7 @@ func New(options Options) (*Box, error) {
 		router:       router,
 		inbounds:     inbounds,
 		outbounds:    outbounds,
+		scripts:      scripts,
 		createdAt:    createdAt,
 		logFactory:   logFactory,
 		logger:       logFactory.Logger(),
@@ -246,6 +268,12 @@ func (s *Box) preStart() error {
 	monitor.Finish()
 	if err != nil {
 		return E.Cause(err, "start logger")
+	}
+	for _, script := range s.scripts {
+		err := script.PreStart()
+		if err != nil {
+			return E.Cause(err, "pre-start script[", script.Tag(), "]")
+		}
 	}
 	for serviceName, service := range s.preServices1 {
 		if preService, isPreService := service.(adapter.PreStarter); isPreService {
@@ -307,6 +335,12 @@ func (s *Box) start() error {
 			return E.Cause(err, "initialize inbound/", in.Type(), "[", tag, "]")
 		}
 	}
+	for _, script := range s.scripts {
+		err := script.PostStart()
+		if err != nil {
+			return E.Cause(err, "post-start script[", script.Tag(), "]")
+		}
+	}
 	err = s.postStart()
 	if err != nil {
 		return err
@@ -354,6 +388,11 @@ func (s *Box) Close() error {
 	}
 	monitor := taskmonitor.New(s.logger, C.StopTimeout)
 	var errors error
+	for _, script := range s.scripts {
+		errors = E.Append(errors, script.PreClose(), func(err error) error {
+			return E.Cause(err, "pre-close script[", script.Tag(), "]")
+		})
+	}
 	for serviceName, service := range s.postServices {
 		monitor.Start("close ", serviceName)
 		errors = E.Append(errors, service.Close(), func(err error) error {
@@ -395,6 +434,11 @@ func (s *Box) Close() error {
 			return E.Cause(err, "close ", serviceName)
 		})
 		monitor.Finish()
+	}
+	for _, script := range s.scripts {
+		errors = E.Append(errors, script.PostClose(), func(err error) error {
+			return E.Cause(err, "post-close script[", script.Tag(), "]")
+		})
 	}
 	if err := common.Close(s.logFactory); err != nil {
 		errors = E.Append(errors, err, func(err error) error {
