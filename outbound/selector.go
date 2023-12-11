@@ -240,6 +240,10 @@ func (s *Selector) Now() string {
 	return s.selected.Tag()
 }
 
+func (s *Selector) SelectedOutbound(network string) adapter.Outbound {
+	return s.selected
+}
+
 func (s *Selector) All() []string {
 	all := []string{}
 	for _, outbound := range s.outbounds {
@@ -288,4 +292,12 @@ func RealTag(detour adapter.Outbound) string {
 		return group.Now()
 	}
 	return detour.Tag()
+}
+
+func RealOutboundTag(detour adapter.Outbound, network string) string {
+	group, isGroup := detour.(adapter.OutboundGroup)
+	if !isGroup {
+		return detour.Tag()
+	}
+	return RealOutboundTag(group.SelectedOutbound(network), network)
 }

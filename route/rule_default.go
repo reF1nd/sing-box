@@ -48,10 +48,11 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	rule := &DefaultRule{
 		abstractDefaultRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				tag:      options.Tag,
-				invert:   options.Invert,
-				outbound: options.Outbound,
+				uuid:        id.String(),
+				tag:         options.Tag,
+				invert:      options.Invert,
+				outbound:    options.Outbound,
+				skipResolve: options.SkipResolve,
 			},
 		},
 	}
@@ -213,6 +214,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	if len(options.RuleSet) > 0 {
 		item := NewRuleSetItem(router, options.RuleSet, options.RuleSetIPCIDRMatchSource)
 		rule.items = append(rule.items, item)
+		rule.ruleSetItems = append(rule.ruleSetItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil
@@ -229,10 +231,11 @@ func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options opt
 	r := &LogicalRule{
 		abstractLogicalRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				tag:      options.Tag,
-				invert:   options.Invert,
-				outbound: options.Outbound,
+				uuid:        id.String(),
+				tag:         options.Tag,
+				invert:      options.Invert,
+				outbound:    options.Outbound,
+				skipResolve: options.SkipResolve,
 			},
 			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},

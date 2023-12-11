@@ -52,6 +52,10 @@ func (s *abstractRuleSet) RuleCount() int {
 	return s.ruleCount
 }
 
+func (s *abstractRuleSet) ContainsDestinationIPCIDRRule() bool {
+	return s.metadata.ContainsIPCIDRRule
+}
+
 func (s *abstractRuleSet) Match(metadata *adapter.InboundContext) bool {
 	return common.Any(s.rules, func(it adapter.HeadlessRule) bool {
 		return it.Match(metadata)

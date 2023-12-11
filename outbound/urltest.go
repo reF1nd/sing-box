@@ -188,6 +188,11 @@ func (s *URLTest) Now() string {
 	return ""
 }
 
+func (s *URLTest) SelectedOutbound(network string) adapter.Outbound {
+	dialer, _ := s.group.Select(network)
+	return dialer
+}
+
 func (s *URLTest) All() []string {
 	all := []string{}
 	for _, outbound := range s.group.outbounds {

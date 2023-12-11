@@ -82,11 +82,16 @@ func (h *Socks) DialContext(ctx context.Context, network string, destination M.S
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
 	if h.resolve && destination.IsFqdn() {
-		destinationAddresses, err := h.router.LookupDefault(ctx, destination.Fqdn)
-		if err != nil {
-			return nil, err
+		if len(metadata.CacheIPs) > 0 {
+			destinationAddresses := metadata.CacheIPs
+			return N.DialSerial(ctx, h.client, network, destination, destinationAddresses)
+		} else {
+			destinationAddresses, err := h.router.LookupDefault(ctx, destination.Fqdn)
+			if err != nil {
+				return nil, err
+			}
+			return N.DialSerial(ctx, h.client, network, destination, destinationAddresses)
 		}
-		return N.DialSerial(ctx, h.client, network, destination, destinationAddresses)
 	}
 	return h.client.DialContext(ctx, network, destination)
 }
@@ -100,15 +105,24 @@ func (h *Socks) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.
 		return h.uotClient.ListenPacket(ctx, destination)
 	}
 	if h.resolve && destination.IsFqdn() {
-		destinationAddresses, err := h.router.LookupDefault(ctx, destination.Fqdn)
-		if err != nil {
-			return nil, err
+		if len(metadata.CacheIPs) > 0 {
+			destinationAddresses := metadata.CacheIPs
+			packetConn, _, err := N.ListenSerial(ctx, h.client, destination, destinationAddresses)
+			if err != nil {
+				return nil, err
+			}
+			return packetConn, nil
+		} else {
+			destinationAddresses, err := h.router.LookupDefault(ctx, destination.Fqdn)
+			if err != nil {
+				return nil, err
+			}
+			packetConn, _, err := N.ListenSerial(ctx, h.client, destination, destinationAddresses)
+			if err != nil {
+				return nil, err
+			}
+			return packetConn, nil
 		}
-		packetConn, _, err := N.ListenSerial(ctx, h.client, destination, destinationAddresses)
-		if err != nil {
-			return nil, err
-		}
-		return packetConn, nil
 	}
 	h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	return h.client.ListenPacket(ctx, destination)
