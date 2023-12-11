@@ -25,7 +25,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound"
+	O "github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/transport/fakeip"
 	dns "github.com/sagernet/sing-dns"
 	mux "github.com/sagernet/sing-mux"
@@ -114,6 +114,7 @@ type Router struct {
 	wifiState                          adapter.WIFIState
 	started                            bool
 	reloadChan                         chan<- struct{}
+	routeStrategy                      uint8
 }
 
 func NewRouter(
@@ -157,7 +158,8 @@ func NewRouter(
 		needPackageManager: C.IsAndroid && platformInterface == nil && common.Any(inbounds, func(inbound option.Inbound) bool {
 			return len(inbound.TunOptions.IncludePackage) > 0 || len(inbound.TunOptions.ExcludePackage) > 0
 		}),
-		reloadChan: reloadChan,
+		reloadChan:    reloadChan,
+		routeStrategy: uint8(options.RouteStrategy),
 	}
 	router.dnsClient = dns.NewClient(dns.ClientOptions{
 		DisableCache:     dnsOptions.DNSClientOptions.DisableCache,
@@ -1022,6 +1024,26 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 	if !common.Contains(detour.Network(), N.NetworkTCP) {
 		return E.New("missing supported outbound, closing connection")
 	}
+	if r.routeStrategy == 1 && len(metadata.CacheIPs) > 0 {
+		ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForConnection)
+		if err != nil {
+			return err
+		}
+		if !common.Contains(detour.Network(), N.NetworkTCP) {
+			return E.New("missing supported outbound, closing connection")
+		}
+		if r.clashServer != nil {
+			trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, matchedRule)
+			defer tracker.Leave()
+			conn = trackerConn
+		}
+		if r.v2rayServer != nil {
+			if statsService := r.v2rayServer.StatsService(); statsService != nil {
+				conn = statsService.RoutedConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
+			}
+		}
+		return detour.NewConnection(ctx, conn, metadata)
+	}
 	if r.clashServer != nil {
 		trackerConn, tracker := r.clashServer.RoutedConnection(ctx, conn, metadata, matchedRule)
 		defer tracker.Leave()
@@ -1150,6 +1172,29 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if !common.Contains(detour.Network(), N.NetworkUDP) {
 		return E.New("missing supported outbound, closing packet connection")
 	}
+	if r.routeStrategy == 1 && len(metadata.CacheIPs) > 0 {
+		ctx, matchedRule, detour, err := r.match(ctx, &metadata, r.defaultOutboundForPacketConnection)
+		if err != nil {
+			return err
+		}
+		if !common.Contains(detour.Network(), N.NetworkUDP) {
+			return E.New("missing supported outbound, closing packet connection")
+		}
+		if r.clashServer != nil {
+			trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
+			defer tracker.Leave()
+			conn = trackerConn
+		}
+		if r.v2rayServer != nil {
+			if statsService := r.v2rayServer.StatsService(); statsService != nil {
+				conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
+			}
+		}
+		if metadata.FakeIP {
+			conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
+		}
+		return detour.NewPacketConnection(ctx, conn, metadata)
+	}
 	if r.clashServer != nil {
 		trackerConn, tracker := r.clashServer.RoutedPacketConnection(ctx, conn, metadata, matchedRule)
 		defer tracker.Leave()
@@ -1168,12 +1213,20 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 
 func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (context.Context, adapter.Rule, adapter.Outbound, error) {
 	matchRule, matchOutbound := r.match0(ctx, metadata, defaultOutbound)
-	if contextOutbound, loaded := outbound.TagFromContext(ctx); loaded {
+	if contextOutbound, loaded := O.TagFromContext(ctx); loaded {
 		if contextOutbound == matchOutbound.Tag() {
 			return nil, nil, nil, E.New("connection loopback in outbound/", matchOutbound.Type(), "[", matchOutbound.Tag(), "]")
 		}
 	}
-	ctx = outbound.ContextWithTag(ctx, matchOutbound.Tag())
+	if metadata.NonMatch && len(metadata.CacheIPs) == 0 {
+		addresses, err := r.LookupDefault(adapter.WithContext(ctx, metadata), metadata.Destination.Fqdn)
+		if err == nil {
+			metadata.CacheIPs = addresses
+			r.dnsLogger.DebugContext(ctx, "IPIfNonMatch enabled, start the second match. resolved [", strings.Join(F.MapToString(metadata.CacheIPs), " "), "]")
+			return ctx, matchRule, matchOutbound, nil
+		}
+	}
+	ctx = O.ContextWithTag(ctx, matchOutbound.Tag())
 	return ctx, matchRule, matchOutbound, nil
 }
 
@@ -1209,21 +1262,54 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 			metadata.ProcessInfo = processInfo
 		}
 	}
+	resolveStatus := -1
+	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) == dns.DomainStrategyAsIS && r.routeStrategy == 2 {
+		resolveStatus = 0
+	}
 	for i, rule := range r.rules {
 		if rule.Disabled() {
 			continue
 		}
+		if metadata.NonMatch && !rule.ContainsDestinationIPCIDRRule() {
+			continue
+		}
 		metadata.ResetRuleCache()
+		if !rule.SkipResolve() && resolveStatus == 0 && rule.ContainsDestinationIPCIDRRule() {
+			addresses, err := r.LookupDefault(adapter.WithContext(ctx, metadata), metadata.Destination.Fqdn)
+			resolveStatus = 2
+			if err == nil {
+				resolveStatus = 1
+				metadata.CacheIPs = addresses
+				r.dnsLogger.DebugContext(ctx, "IPOnDemand enabled. resolved [", strings.Join(F.MapToString(metadata.CacheIPs), " "), "]")
+				metadata.ResetRuleCache()
+			}
+		}
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
 			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
+				if len(metadata.CacheIPs) > 0 && r.FindoutRealOutboundType(outbound, metadata.Network) {
+					metadata.IsDirectOutbound = true
+				}
 				return rule, outbound
 			}
 			r.logger.ErrorContext(ctx, "outbound not found: ", detour)
 		}
 	}
+	if metadata.Destination.IsFqdn() && r.routeStrategy == 1 && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) == dns.DomainStrategyAsIS && !metadata.NonMatch {
+		metadata.NonMatch = true
+	}
+	if len(metadata.CacheIPs) > 0 && r.FindoutRealOutboundType(defaultOutbound, metadata.Network) {
+		metadata.IsDirectOutbound = true
+	}
 	return nil, defaultOutbound
+}
+
+func (r *Router) FindoutRealOutboundType(outbound adapter.Outbound, network string) bool {
+	tag := O.RealOutboundTag(outbound, network)
+	detour, _ := r.OutboundWithProvider(tag)
+	dType := detour.Type()
+	return dType == C.TypeDirect
 }
 
 func (r *Router) InterfaceFinder() control.InterfaceFinder {

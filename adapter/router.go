@@ -87,6 +87,7 @@ type HeadlessRule interface {
 	Match(metadata *InboundContext) bool
 	String() string
 	RuleCount() int
+	ContainsDestinationIPCIDRRule() bool
 }
 
 type Rule interface {
@@ -97,6 +98,7 @@ type Rule interface {
 	ChangeStatus()
 	Type() string
 	UpdateGeosite() error
+	SkipResolve() bool
 	Outbound() string
 }
 

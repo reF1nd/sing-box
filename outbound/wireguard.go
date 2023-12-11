@@ -17,8 +17,8 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/wireguard"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
+	dns "github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -180,6 +180,9 @@ func (w *WireGuard) onPauseUpdated(event int) {
 }
 
 func (w *WireGuard) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = w.tag
+	metadata.Destination = destination
 	switch network {
 	case N.NetworkTCP:
 		w.logger.InfoContext(ctx, "outbound connection to ", destination)
@@ -187,27 +190,44 @@ func (w *WireGuard) DialContext(ctx context.Context, network string, destination
 		w.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
 	if destination.IsFqdn() {
-		destinationAddresses, err := w.router.LookupDefault(ctx, destination.Fqdn)
-		if err != nil {
-			return nil, err
+		if len(metadata.CacheIPs) > 0 {
+			destinationAddresses := metadata.CacheIPs
+			return N.DialSerial(ctx, w.tunDevice, network, destination, destinationAddresses)
+		} else {
+			destinationAddresses, err := w.router.LookupDefault(ctx, destination.Fqdn)
+			if err != nil {
+				return nil, err
+			}
+			return N.DialSerial(ctx, w.tunDevice, network, destination, destinationAddresses)
 		}
-		return N.DialSerial(ctx, w.tunDevice, network, destination, destinationAddresses)
 	}
 	return w.tunDevice.DialContext(ctx, network, destination)
 }
 
 func (w *WireGuard) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	ctx, metadata := adapter.AppendContext(ctx)
+	metadata.Outbound = w.tag
+	metadata.Destination = destination
 	w.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	if destination.IsFqdn() {
-		destinationAddresses, err := w.router.LookupDefault(ctx, destination.Fqdn)
-		if err != nil {
-			return nil, err
+		if len(metadata.CacheIPs) > 0 {
+			destinationAddresses := metadata.CacheIPs
+			packetConn, _, err := N.ListenSerial(ctx, w.tunDevice, destination, destinationAddresses)
+			if err != nil {
+				return nil, err
+			}
+			return packetConn, err
+		} else {
+			destinationAddresses, err := w.router.LookupDefault(ctx, destination.Fqdn)
+			if err != nil {
+				return nil, err
+			}
+			packetConn, _, err := N.ListenSerial(ctx, w.tunDevice, destination, destinationAddresses)
+			if err != nil {
+				return nil, err
+			}
+			return packetConn, err
 		}
-		packetConn, _, err := N.ListenSerial(ctx, w.tunDevice, destination, destinationAddresses)
-		if err != nil {
-			return nil, err
-		}
-		return packetConn, err
 	}
 	return w.tunDevice.ListenPacket(ctx, destination)
 }

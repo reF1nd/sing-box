@@ -108,6 +108,7 @@
         ],
         "rule_set_ipcidr_match_source": false,
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       },
       {
@@ -115,6 +116,7 @@
         "mode": "and",
         "rules": [],
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       }
     ]
@@ -313,6 +315,10 @@ Make `ipcidr` in rule sets match the source IP.
 #### invert
 
 Invert match result.
+
+#### skip_resolve
+
+Skip resolving domain.
 
 #### outbound
 
