@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/geoip"
-	"github.com/sagernet/sing-dns"
-	"github.com/sagernet/sing-tun"
+	dns "github.com/sagernet/sing-dns"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
@@ -92,6 +92,7 @@ type HeadlessRule interface {
 	Match(metadata *InboundContext) bool
 	RuleCount() uint64
 	String() string
+	ContainsDestinationIPCIDRRule() bool
 }
 
 type Rule interface {
@@ -102,6 +103,7 @@ type Rule interface {
 	ChangeStatus()
 	Type() string
 	UpdateGeosite() error
+	SkipResolve() bool
 	Outbound() string
 }
 
