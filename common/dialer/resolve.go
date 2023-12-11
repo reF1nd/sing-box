@@ -8,7 +8,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -43,7 +43,11 @@ func (d *ResolveDialer) DialContext(ctx context.Context, network string, destina
 	var addresses []netip.Addr
 	var err error
 	if d.strategy == dns.DomainStrategyAsIS {
-		addresses, err = d.router.LookupDefault(ctx, destination.Fqdn)
+		if len(metadata.CacheIPs) > 0 && metadata.IsDirectOutbound {
+			addresses = metadata.CacheIPs
+		} else {
+			addresses, err = d.router.LookupDefault(ctx, destination.Fqdn)
+		}
 	} else {
 		addresses, err = d.router.Lookup(ctx, destination.Fqdn, d.strategy)
 	}
@@ -68,7 +72,11 @@ func (d *ResolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	var addresses []netip.Addr
 	var err error
 	if d.strategy == dns.DomainStrategyAsIS {
-		addresses, err = d.router.LookupDefault(ctx, destination.Fqdn)
+		if len(metadata.CacheIPs) > 0 && metadata.IsDirectOutbound {
+			addresses = metadata.CacheIPs
+		} else {
+			addresses, err = d.router.LookupDefault(ctx, destination.Fqdn)
+		}
 	} else {
 		addresses, err = d.router.Lookup(ctx, destination.Fqdn, d.strategy)
 	}

@@ -130,6 +130,7 @@ icon: material/alert-decagram
         "rule_set_ipcidr_match_source": false,
         "rule_set_ip_cidr_match_source": false,
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       },
       {
@@ -137,6 +138,7 @@ icon: material/alert-decagram
         "mode": "and",
         "rules": [],
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       }
     ]
@@ -361,6 +363,10 @@ Make `ip_cidr` in rule-sets match the source IP.
 #### invert
 
 Invert match result.
+
+#### skip_resolve
+
+Skip resolving domain.
 
 #### outbound
 
