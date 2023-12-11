@@ -51,10 +51,11 @@ func NewDefaultRule(ctx context.Context, router adapter.Router, logger log.Conte
 	rule := &DefaultRule{
 		abstractDefaultRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				tag:      options.Tag,
-				invert:   options.Invert,
-				outbound: options.Outbound,
+				uuid:        id.String(),
+				tag:         options.Tag,
+				invert:      options.Invert,
+				outbound:    options.Outbound,
+				skipResolve: options.SkipResolve,
 			},
 		},
 	}
@@ -238,6 +239,7 @@ func NewDefaultRule(ctx context.Context, router adapter.Router, logger log.Conte
 		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, false)
 		rule.items = append(rule.items, item)
+		rule.ruleSetItems = append(rule.ruleSetItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil
@@ -254,10 +256,11 @@ func NewLogicalRule(ctx context.Context, router adapter.Router, logger log.Conte
 	r := &LogicalRule{
 		abstractLogicalRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				tag:      options.Tag,
-				invert:   options.Invert,
-				outbound: options.Outbound,
+				uuid:        id.String(),
+				tag:         options.Tag,
+				invert:      options.Invert,
+				outbound:    options.Outbound,
+				skipResolve: options.SkipResolve,
 			},
 			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},

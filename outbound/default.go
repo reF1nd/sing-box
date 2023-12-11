@@ -11,7 +11,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -99,9 +99,13 @@ func NewDirectConnection(ctx context.Context, router adapter.Router, this N.Dial
 		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 	} else if metadata.Destination.IsFqdn() {
 		var destinationAddresses []netip.Addr
-		destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
-		if err != nil {
-			return N.ReportHandshakeFailure(conn, err)
+		if domainStrategy == dns.DomainStrategyAsIS && len(metadata.CacheIPs) > 0 {
+			destinationAddresses = metadata.CacheIPs
+		} else {
+			destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
+			if err != nil {
+				return N.ReportHandshakeFailure(conn, err)
+			}
 		}
 		outConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, destinationAddresses)
 	} else {
@@ -168,9 +172,13 @@ func NewDirectPacketConnection(ctx context.Context, router adapter.Router, this 
 		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
 	} else if metadata.Destination.IsFqdn() {
 		var destinationAddresses []netip.Addr
-		destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
-		if err != nil {
-			return N.ReportHandshakeFailure(conn, err)
+		if domainStrategy == dns.DomainStrategyAsIS && len(metadata.CacheIPs) > 0 {
+			destinationAddresses = metadata.CacheIPs
+		} else {
+			destinationAddresses, err = router.Lookup(ctx, metadata.Destination.Fqdn, domainStrategy)
+			if err != nil {
+				return N.ReportHandshakeFailure(conn, err)
+			}
 		}
 		outConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, destinationAddresses)
 	} else {

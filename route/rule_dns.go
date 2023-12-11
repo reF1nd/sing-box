@@ -246,6 +246,7 @@ func NewDefaultDNSRule(ctx context.Context, router adapter.Router, logger log.Co
 		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty)
 		rule.items = append(rule.items, item)
+		rule.ruleSetItems = append(rule.ruleSetItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil
