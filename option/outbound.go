@@ -132,6 +132,7 @@ type DialerOptions struct {
 	DomainStrategy      DomainStrategy `json:"domain_strategy,omitempty"`
 	FallbackDelay       Duration       `json:"fallback_delay,omitempty"`
 	IsWireGuardListener bool           `json:"-"`
+	ResolveUDP          bool           `json:"always_resolve_udp,omitempty"`
 }
 
 func (o *DialerOptions) TakeDialerOptions() DialerOptions {

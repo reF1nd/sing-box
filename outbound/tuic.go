@@ -14,6 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-quic/tuic"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -32,8 +33,9 @@ var (
 
 type TUIC struct {
 	myOutboundAdapter
-	client    *tuic.Client
-	udpStream bool
+	client     *tuic.Client
+	udpStream  bool
+	ResolveUDP bool
 }
 
 func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TUICOutboundOptions) (*TUIC, error) {
@@ -86,8 +88,9 @@ func NewTUIC(ctx context.Context, router adapter.Router, logger log.ContextLogge
 			tag:          tag,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
-		client:    client,
-		udpStream: options.UDPOverStream,
+		client:     client,
+		udpStream:  options.UDPOverStream,
+		ResolveUDP: options.ResolveUDP,
 	}, nil
 }
 
@@ -141,7 +144,11 @@ func (h *TUIC) NewConnection(ctx context.Context, conn net.Conn, metadata adapte
 }
 
 func (h *TUIC) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	if h.ResolveUDP {
+		return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, h, conn, metadata)
+	}
 }
 
 func (h *TUIC) InterfaceUpdated() {
