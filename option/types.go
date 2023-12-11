@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
@@ -148,6 +148,42 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 		*s = DomainStrategy(dns.DomainStrategyUseIPv6)
 	default:
 		return E.New("unknown domain strategy: ", value)
+	}
+	return nil
+}
+
+type RouteStrategy uint8
+
+func (s RouteStrategy) MarshalJSON() ([]byte, error) {
+	var value string
+	switch RouteStrategy(s) {
+	case 0:
+		value = ""
+	case 1:
+		value = "IPIfNonMatch"
+	case 2:
+		value = "IPOnDemand"
+	default:
+		return nil, E.New("unknown route strategy: ", s)
+	}
+	return json.Marshal(value)
+}
+
+func (s *RouteStrategy) UnmarshalJSON(bytes []byte) error {
+	var value string
+	err := json.Unmarshal(bytes, &value)
+	if err != nil {
+		return err
+	}
+	switch value {
+	case "", "as_is":
+		*s = RouteStrategy(0)
+	case "IPIfNonMatch":
+		*s = RouteStrategy(1)
+	case "IPOnDemand":
+		*s = RouteStrategy(2)
+	default:
+		return E.New("unknown route strategy: ", value)
 	}
 	return nil
 }

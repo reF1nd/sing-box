@@ -11,12 +11,14 @@ import (
 )
 
 type abstractRule struct {
-	disabled  bool
-	uuid      string
-	tag       string
-	invert    bool
-	ruleCount int
-	outbound  string
+	disabled    bool
+	uuid        string
+	tag         string
+	invert      bool
+	ruleCount   int
+	outbound    string
+	skipResolve bool
+	useIPRule   bool
 }
 
 func (r *abstractRule) Disabled() bool {
@@ -48,6 +50,23 @@ type abstractDefaultRule struct {
 
 func (r *abstractDefaultRule) Type() string {
 	return C.RuleTypeDefault
+}
+
+func (r *abstractDefaultRule) SkipResolve() bool {
+	return r.skipResolve
+}
+
+func (r *abstractDefaultRule) UseIPRule() bool {
+	if r.useIPRule {
+		return true
+	}
+	for _, rule := range r.ruleSetItems {
+		r, _ := rule.(*RuleSetItem)
+		if r.useIPRule {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *abstractDefaultRule) Start() error {
@@ -180,6 +199,19 @@ type abstractLogicalRule struct {
 
 func (r *abstractLogicalRule) Type() string {
 	return C.RuleTypeLogical
+}
+
+func (r *abstractLogicalRule) SkipResolve() bool {
+	return r.skipResolve
+}
+
+func (r *abstractLogicalRule) UseIPRule() bool {
+	for _, rule := range r.rules {
+		if rule.UseIPRule() {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *abstractLogicalRule) UpdateGeosite() error {

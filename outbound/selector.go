@@ -163,6 +163,10 @@ func (s *Selector) Now() string {
 	return s.selected.Tag()
 }
 
+func (s *Selector) SelectedOutbound(network string) adapter.Outbound {
+	return s.selected
+}
+
 func (s *Selector) All() []string {
 	tags := make([]string, 0, len(s.tags)+len(s.providerOutboundTags))
 	tags = append(tags, s.tags...)
@@ -232,4 +236,12 @@ type groupProvider struct {
 	tag             string
 	outboundMatcher adapter.OutboundMatcher
 	invert          bool
+}
+
+func RealOutboundTag(detour adapter.Outbound, network string) string {
+	group, isGroup := detour.(adapter.OutboundGroup)
+	if !isGroup {
+		return detour.Tag()
+	}
+	return RealOutboundTag(group.SelectedOutbound(network), network)
 }

@@ -43,11 +43,14 @@ type InboundContext struct {
 	OriginDestination    M.Socksaddr
 	InboundOptions       option.InboundOptions
 	DestinationAddresses []netip.Addr
+	CacheIPs             []netip.Addr
 	SourceGeoIPCode      string
 	GeoIPCode            string
 	ProcessInfo          *process.Info
 	QueryType            uint16
 	FakeIP               bool
+	NonMatch             bool
+	IsDirectOutbound     bool
 
 	// rule cache
 

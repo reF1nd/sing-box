@@ -57,6 +57,13 @@ func (r *GeoIPItem) Match(metadata *adapter.InboundContext) bool {
 			return true
 		}
 	}
+	if len(metadata.CacheIPs) > 0 {
+		for _, ip := range metadata.CacheIPs {
+			if r.match(metadata, ip) {
+				return true
+			}
+		}
+	}
 	return false
 }
 

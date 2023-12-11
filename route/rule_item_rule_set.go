@@ -14,6 +14,7 @@ type RuleSetItem struct {
 	router            adapter.Router
 	tagList           []string
 	setList           []adapter.HeadlessRule
+	useIPRule         bool
 	ipcidrMatchSource bool
 }
 
@@ -32,6 +33,9 @@ func (r *RuleSetItem) Start() error {
 			return E.New("rule-set not found: ", tag)
 		}
 		r.setList = append(r.setList, ruleSet)
+		if ruleSet.UseIPRule() {
+			r.useIPRule = true
+		}
 	}
 	return nil
 }

@@ -90,11 +90,13 @@ func NewDefaultHeadlessRule(router adapter.Router, options option.DefaultHeadles
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 		count += len(options.IPCIDR)
+		rule.useIPRule = true
 	} else if options.IPSet != nil {
 		item := NewRawIPCIDRItem(false, options.IPSet)
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 		count += 1
+		rule.useIPRule = true
 	}
 	if len(options.SourcePort) > 0 {
 		item := NewPortItem(true, options.SourcePort)
@@ -157,6 +159,10 @@ func NewDefaultHeadlessRule(router adapter.Router, options option.DefaultHeadles
 	return rule, nil
 }
 
+func (r *DefaultHeadlessRule) UseIPRule() bool {
+	return r.useIPRule
+}
+
 var _ adapter.HeadlessRule = (*LogicalHeadlessRule)(nil)
 
 type LogicalHeadlessRule struct {
@@ -188,6 +194,9 @@ func NewLogicalHeadlessRule(router adapter.Router, options option.LogicalHeadles
 		}
 		r.rules[i] = rule
 		count += rule.RuleCount()
+		if rule.UseIPRule() {
+			r.useIPRule = true
+		}
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -196,4 +205,8 @@ func NewLogicalHeadlessRule(router adapter.Router, options option.LogicalHeadles
 		r.ruleCount = count
 	}
 	return r, nil
+}
+
+func (r *LogicalHeadlessRule) UseIPRule() bool {
+	return r.useIPRule
 }

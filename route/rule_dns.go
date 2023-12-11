@@ -230,6 +230,7 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 	if len(options.RuleSet) > 0 {
 		item := NewRuleSetItem(router, options.RuleSet, false)
 		rule.items = append(rule.items, item)
+		rule.ruleSetItems = append(rule.ruleSetItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.FallBackRule.IPCIDR) > 0 {

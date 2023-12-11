@@ -170,6 +170,11 @@ func (s *URLTest) Now() string {
 	return ""
 }
 
+func (s *URLTest) SelectedOutbound(network string) adapter.Outbound {
+	dialer, _ := s.group.Select(network)
+	return dialer
+}
+
 func (s *URLTest) All() []string {
 	tags := make([]string, 0, len(s.tags)+len(s.providerOutboundTags))
 	tags = append(tags, s.tags...)

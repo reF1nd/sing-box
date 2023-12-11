@@ -48,10 +48,12 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	rule := &DefaultRule{
 		abstractDefaultRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				tag:      options.Tag,
-				invert:   options.Invert,
-				outbound: options.Outbound,
+				uuid:        id.String(),
+				tag:         options.Tag,
+				invert:      options.Invert,
+				outbound:    options.Outbound,
+				skipResolve: options.SkipResolve,
+				useIPRule:   false,
 			},
 		},
 	}
@@ -117,6 +119,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		item := NewGeoIPItem(router, logger, false, options.GeoIP)
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
+		rule.useIPRule = true
 	}
 	if len(options.SourceIPCIDR) > 0 {
 		item, err := NewIPCIDRItem(true, options.SourceIPCIDR)
@@ -138,6 +141,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 		}
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
+		rule.useIPRule = true
 	}
 	if options.IPIsPrivate {
 		item := NewIPIsPrivateItem(false)
@@ -213,6 +217,7 @@ func NewDefaultRule(router adapter.Router, logger log.ContextLogger, options opt
 	if len(options.RuleSet) > 0 {
 		item := NewRuleSetItem(router, options.RuleSet, options.RuleSetIPCIDRMatchSource)
 		rule.items = append(rule.items, item)
+		rule.ruleSetItems = append(rule.ruleSetItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil
@@ -229,10 +234,12 @@ func NewLogicalRule(router adapter.Router, logger log.ContextLogger, options opt
 	r := &LogicalRule{
 		abstractLogicalRule{
 			abstractRule: abstractRule{
-				uuid:     id.String(),
-				tag:      options.Tag,
-				invert:   options.Invert,
-				outbound: options.Outbound,
+				uuid:        id.String(),
+				tag:         options.Tag,
+				invert:      options.Invert,
+				outbound:    options.Outbound,
+				skipResolve: options.SkipResolve,
+				useIPRule:   false,
 			},
 			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},
