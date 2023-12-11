@@ -166,6 +166,7 @@ type DialerOptions struct {
 	IsWireGuardListener  bool           `json:"-"`
 	TCPKeepAliveInterval Duration       `json:"tcp_keep_alive_interval,omitempty"`
 	TCPKeepAliveIdle     Duration       `json:"tcp_keep_alive_idle,omitempty"`
+	ResolveUDP           bool           `json:"always_resolve_udp,omitempty"`
 }
 
 func (o *DialerOptions) TakeDialerOptions() DialerOptions {

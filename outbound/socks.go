@@ -9,7 +9,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -22,9 +22,11 @@ var _ adapter.Outbound = (*Socks)(nil)
 
 type Socks struct {
 	myOutboundAdapter
-	client    *socks.Client
-	resolve   bool
-	uotClient *uot.Client
+	client     *socks.Client
+	resolve    bool
+	uotClient  *uot.Client
+	ResolveUDP bool
+	isSocks5   bool
 }
 
 func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, options option.SocksOutboundOptions) (*Socks, error) {
@@ -52,8 +54,10 @@ func NewSocks(router adapter.Router, logger log.ContextLogger, tag string, optio
 			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
-		client:  socks.NewClient(outboundDialer, options.ServerOptions.Build(), version, options.Username, options.Password),
-		resolve: version == socks.Version4,
+		client:     socks.NewClient(outboundDialer, options.ServerOptions.Build(), version, options.Username, options.Password),
+		resolve:    version == socks.Version4,
+		ResolveUDP: options.ResolveUDP,
+		isSocks5:   version == socks.Version5,
 	}
 	uotOptions := common.PtrValueOrDefault(options.UDPOverTCP)
 	if uotOptions.Enabled {
@@ -139,6 +143,12 @@ func (h *Socks) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 func (h *Socks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	if h.resolve {
 		return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyUseIPv4)
+	} else if h.ResolveUDP {
+		if h.isSocks5 {
+			return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyAsIS)
+		} else {
+			return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyUseIPv4)
+		}
 	} else {
 		return NewPacketConnection(ctx, h, conn, metadata)
 	}

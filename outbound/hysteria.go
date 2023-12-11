@@ -14,6 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-quic/hysteria"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -29,7 +30,8 @@ var (
 
 type Hysteria struct {
 	myOutboundAdapter
-	client *hysteria.Client
+	client     *hysteria.Client
+	ResolveUDP bool
 }
 
 func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HysteriaOutboundOptions) (*Hysteria, error) {
@@ -103,7 +105,8 @@ func NewHysteria(ctx context.Context, router adapter.Router, logger log.ContextL
 			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
-		client: client,
+		client:     client,
+		ResolveUDP: options.ResolveUDP,
 	}, nil
 }
 
@@ -133,7 +136,11 @@ func (h *Hysteria) NewConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (h *Hysteria) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	if h.ResolveUDP {
+		return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, h, conn, metadata)
+	}
 }
 
 func (h *Hysteria) InterfaceUpdated() error {

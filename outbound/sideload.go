@@ -16,6 +16,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	dns "github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -37,6 +38,7 @@ type SideLoad struct {
 	commandStdoutWriter *sideLoadLogWriter
 	commandStderrWriter *sideLoadLogWriter
 	isClose             atomic.Bool
+	ResolveUDP          bool
 }
 
 func NewSideLoad(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SideLoadOutboundOptions) (*SideLoad, error) {
@@ -48,7 +50,8 @@ func NewSideLoad(ctx context.Context, router adapter.Router, logger log.ContextL
 			logger:   logger,
 			tag:      tag,
 		},
-		ctx: ctx,
+		ctx:        ctx,
+		ResolveUDP: options.ResolveUDP,
 	}
 	outboundDialer, err := dialer.New(router, options.DialerOptions)
 	if err != nil {
@@ -178,7 +181,11 @@ func (s *SideLoad) NewConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (s *SideLoad) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, s, conn, metadata)
+	if s.ResolveUDP {
+		return NewDirectPacketConnection(ctx, s.router, s, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, s, conn, metadata)
+	}
 }
 
 type sideLoadLogWriter struct {

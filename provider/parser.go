@@ -121,10 +121,13 @@ func overrideDialerOption(options option.DialerOptions, dialerOptions *option.Ov
 		options.UDPFragment = dialerOptions.UDPFragment
 	}
 	if dialerOptions.DomainStrategy != nil && (options.DomainStrategy != option.DomainStrategy(dns.DomainStrategyAsIS) || force) {
-		options.UDPFragment = dialerOptions.UDPFragment
+		options.DomainStrategy = *dialerOptions.DomainStrategy
 	}
 	if dialerOptions.FallbackDelay != nil && (options.FallbackDelay != option.Duration(0) || force) {
 		options.FallbackDelay = *dialerOptions.FallbackDelay
+	}
+	if dialerOptions.ResolveUDP != nil && (!options.ResolveUDP || force) {
+		options.ResolveUDP = *dialerOptions.ResolveUDP
 	}
 	return options
 }

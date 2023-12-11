@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2ray"
 	"github.com/sagernet/sing-box/transport/vless"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing-vmess/packetaddr"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -33,6 +34,7 @@ type VLESS struct {
 	transport       adapter.V2RayClientTransport
 	packetAddr      bool
 	xudp            bool
+	ResolveUDP      bool
 }
 
 func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VLESSOutboundOptions) (*VLESS, error) {
@@ -52,6 +54,7 @@ func NewVLESS(ctx context.Context, router adapter.Router, logger log.ContextLogg
 		},
 		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
+		ResolveUDP: options.ResolveUDP,
 	}
 	if options.TLS != nil {
 		outbound.tlsConfig, err = tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
@@ -124,7 +127,11 @@ func (h *VLESS) NewConnection(ctx context.Context, conn net.Conn, metadata adapt
 }
 
 func (h *VLESS) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	if h.ResolveUDP {
+		return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, h, conn, metadata)
+	}
 }
 
 func (h *VLESS) InterfaceUpdated() {

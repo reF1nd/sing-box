@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/trojan"
 	"github.com/sagernet/sing-box/transport/v2ray"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -30,6 +31,7 @@ type Trojan struct {
 	multiplexDialer *mux.Client
 	tlsConfig       tls.Config
 	transport       adapter.V2RayClientTransport
+	ResolveUDP      bool
 }
 
 func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TrojanOutboundOptions) (*Trojan, error) {
@@ -50,6 +52,7 @@ func NewTrojan(ctx context.Context, router adapter.Router, logger log.ContextLog
 		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
 		key:        trojan.Key(options.Password),
+		ResolveUDP: options.ResolveUDP,
 	}
 	if options.TLS != nil {
 		outbound.tlsConfig, err = tls.NewClient(ctx, options.Server, common.PtrValueOrDefault(options.TLS))
@@ -105,7 +108,11 @@ func (h *Trojan) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 }
 
 func (h *Trojan) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	if h.ResolveUDP {
+		return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, h, conn, metadata)
+	}
 }
 
 func (h *Trojan) InterfaceUpdated() {

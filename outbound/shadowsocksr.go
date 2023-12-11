@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/clashssr/obfs"
 	"github.com/sagernet/sing-box/transport/clashssr/protocol"
+	dns "github.com/sagernet/sing-dns"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -34,6 +35,7 @@ type ShadowsocksR struct {
 	cipher     core.Cipher
 	obfs       obfs.Obfs
 	protocol   protocol.Protocol
+	ResolveUDP bool
 }
 
 func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksROutboundOptions) (*ShadowsocksR, error) {
@@ -54,6 +56,7 @@ func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.Cont
 		},
 		dialer:     outboundDialer,
 		serverAddr: options.ServerOptions.Build(),
+		ResolveUDP: options.ResolveUDP,
 	}
 	var cipher string
 	switch options.Method {
@@ -159,7 +162,11 @@ func (h *ShadowsocksR) NewConnection(ctx context.Context, conn net.Conn, metadat
 }
 
 func (h *ShadowsocksR) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	if h.ResolveUDP {
+		return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, h, conn, metadata)
+	}
 }
 
 type ssPacketConn struct {

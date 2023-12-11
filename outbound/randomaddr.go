@@ -16,6 +16,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	dns "github.com/sagernet/sing-dns"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -31,6 +32,7 @@ type RandomAddr struct {
 	ignoreFqdn      bool
 	deleteFqdn      bool
 	udp             bool
+	ResolveUDP      bool
 }
 
 func NewRandomAddr(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.RandomAddrOutboundOptions) (adapter.Outbound, error) {
@@ -63,6 +65,7 @@ func NewRandomAddr(ctx context.Context, router adapter.Router, logger log.Contex
 		ignoreFqdn:      options.IgnoreFqdn,
 		deleteFqdn:      options.DeleteFqdn,
 		udp:             options.UDP,
+		ResolveUDP:      options.ResolveUDP,
 	}
 	return r, nil
 }
@@ -84,7 +87,11 @@ func (r *RandomAddr) NewConnection(ctx context.Context, conn net.Conn, metadata 
 }
 
 func (r *RandomAddr) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, r, conn, metadata)
+	if r.ResolveUDP {
+		return NewDirectPacketConnection(ctx, r.router, r, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, r, conn, metadata)
+	}
 }
 
 func (r *RandomAddr) overrideDestination(ctx context.Context, destination *M.Socksaddr) {

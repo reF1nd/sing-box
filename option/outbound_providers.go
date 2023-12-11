@@ -34,6 +34,7 @@ type OverrideDialerOptions struct {
 	UDPFragment      *bool           `json:"udp_fragment,omitempty"`
 	DomainStrategy   *DomainStrategy `json:"domain_strategy,omitempty"`
 	FallbackDelay    *Duration       `json:"fallback_delay,omitempty"`
+	ResolveUDP       *bool           `json:"always_resolve_udp,omitempty"`
 }
 
 type RemoteProviderOptions struct {

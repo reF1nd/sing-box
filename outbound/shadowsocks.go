@@ -11,7 +11,8 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/sip003"
-	"github.com/sagernet/sing-shadowsocks2"
+	dns "github.com/sagernet/sing-dns"
+	shadowsocks "github.com/sagernet/sing-shadowsocks2"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -30,6 +31,7 @@ type Shadowsocks struct {
 	plugin          sip003.Plugin
 	uotClient       *uot.Client
 	multiplexDialer *mux.Client
+	ResolveUDP      bool
 }
 
 func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksOutboundOptions) (*Shadowsocks, error) {
@@ -56,6 +58,7 @@ func NewShadowsocks(ctx context.Context, router adapter.Router, logger log.Conte
 		dialer:     outboundDialer,
 		method:     method,
 		serverAddr: options.ServerOptions.Build(),
+		ResolveUDP: options.ResolveUDP,
 	}
 	if options.Plugin != "" {
 		outbound.plugin, err = sip003.CreatePlugin(ctx, options.Plugin, options.PluginOptions, router, outbound.dialer, outbound.serverAddr)
@@ -131,7 +134,11 @@ func (h *Shadowsocks) NewConnection(ctx context.Context, conn net.Conn, metadata
 }
 
 func (h *Shadowsocks) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	return NewPacketConnection(ctx, h, conn, metadata)
+	if h.ResolveUDP {
+		return NewDirectPacketConnection(ctx, h.router, h, conn, metadata, dns.DomainStrategyAsIS)
+	} else {
+		return NewPacketConnection(ctx, h, conn, metadata)
+	}
 }
 
 func (h *Shadowsocks) InterfaceUpdated() {
