@@ -98,12 +98,61 @@ func (h *Inbound) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (h *Inbound) GetSniffOverrideRules() []Rule {
+	switch h.Type {
+	case C.TypeTun:
+		return h.TunOptions.GetSniffOverrideRules()
+	case C.TypeRedirect:
+		return h.RedirectOptions.GetSniffOverrideRules()
+	case C.TypeTProxy:
+		return h.TProxyOptions.GetSniffOverrideRules()
+	case C.TypeDirect:
+		return h.DirectOptions.GetSniffOverrideRules()
+	case C.TypeSOCKS:
+		return h.SocksOptions.GetSniffOverrideRules()
+	case C.TypeHTTP:
+		return h.HTTPOptions.GetSniffOverrideRules()
+	case C.TypeMixed:
+		return h.MixedOptions.GetSniffOverrideRules()
+	case C.TypeShadowsocks:
+		return h.ShadowsocksOptions.GetSniffOverrideRules()
+	case C.TypeVMess:
+		return h.VMessOptions.GetSniffOverrideRules()
+	case C.TypeTrojan:
+		return h.TrojanOptions.GetSniffOverrideRules()
+	case C.TypeNaive:
+		return h.NaiveOptions.GetSniffOverrideRules()
+	case C.TypeHysteria:
+		return h.HysteriaOptions.GetSniffOverrideRules()
+	case C.TypeShadowTLS:
+		return h.ShadowTLSOptions.GetSniffOverrideRules()
+	case C.TypeVLESS:
+		return h.VLESSOptions.GetSniffOverrideRules()
+	case C.TypeTUIC:
+		return h.TUICOptions.GetSniffOverrideRules()
+	case C.TypeHysteria2:
+		return h.Hysteria2Options.GetSniffOverrideRules()
+	}
+	return nil
+}
+
 type InboundOptions struct {
 	SniffEnabled              bool           `json:"sniff,omitempty"`
 	SniffOverrideDestination  bool           `json:"sniff_override_destination,omitempty"`
+	SniffOverrideRules        []Rule         `json:"sniff_override_rules,omitempty"`
 	SniffTimeout              Duration       `json:"sniff_timeout,omitempty"`
 	DomainStrategy            DomainStrategy `json:"domain_strategy,omitempty"`
 	UDPDisableDomainUnmapping bool           `json:"udp_disable_domain_unmapping,omitempty"`
+}
+
+func (o *InboundOptions) GetSniffOverrideRules() []Rule {
+	if !o.SniffEnabled {
+		return nil
+	}
+	if !o.SniffOverrideDestination {
+		return nil
+	}
+	return o.SniffOverrideRules
 }
 
 type ListenOptions struct {
