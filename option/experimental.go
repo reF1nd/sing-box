@@ -15,14 +15,15 @@ type CacheFileOptions struct {
 }
 
 type ClashAPIOptions struct {
-	ExternalController       string   `json:"external_controller,omitempty"`
-	ExternalUI               string   `json:"external_ui,omitempty"`
-	ExternalUIBuildin        bool     `json:"external_ui_buildin,omitempty"`
-	ExternalUIDownloadURL    string   `json:"external_ui_download_url,omitempty"`
-	ExternalUIDownloadDetour string   `json:"external_ui_download_detour,omitempty"`
-	Secret                   string   `json:"secret,omitempty"`
-	DefaultMode              string   `json:"default_mode,omitempty"`
-	ModeList                 []string `json:"-"`
+	ExternalController       string           `json:"external_controller,omitempty"`
+	ExternalUI               string           `json:"external_ui,omitempty"`
+	ExternalUIBuildin        bool             `json:"external_ui_buildin,omitempty"`
+	ExternalUIDownloadURL    string           `json:"external_ui_download_url,omitempty"`
+	ExternalUIDownloadDetour string           `json:"external_ui_download_detour,omitempty"`
+	TrustedDomain            Listable[string] `json:"trusted_domain,omitempty"`
+	Secret                   string           `json:"secret,omitempty"`
+	DefaultMode              string           `json:"default_mode,omitempty"`
+	ModeList                 []string         `json:"-"`
 
 	// Deprecated: migrated to global cache file
 	CacheFile string `json:"cache_file,omitempty"`
