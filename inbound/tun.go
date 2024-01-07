@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/script"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -37,6 +38,7 @@ type Tun struct {
 	tunStack               tun.Stack
 	platformInterface      platform.Interface
 	platformOptions        option.TunPlatformOptions
+	scripts                []*script.Script
 }
 
 func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions, platformInterface platform.Interface) (*Tun, error) {
@@ -66,7 +68,7 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 			return nil, E.Cause(err, "parse exclude_uid_range")
 		}
 	}
-	return &Tun{
+	t := &Tun{
 		tag:            tag,
 		ctx:            ctx,
 		router:         router,
@@ -99,7 +101,18 @@ func NewTun(ctx context.Context, router adapter.Router, logger log.ContextLogger
 		stack:                  options.Stack,
 		platformInterface:      platformInterface,
 		platformOptions:        common.PtrValueOrDefault(options.Platform),
-	}, nil
+	}
+	if len(options.Scripts) > 0 && platformInterface == nil {
+		t.scripts = make([]*script.Script, len(options.Scripts))
+		for i, scriptOptions := range options.Scripts {
+			s, err := script.New(ctx, logger, scriptOptions)
+			if err != nil {
+				return nil, E.Cause(err, "create script[", i, "] failed")
+			}
+			t.scripts[i] = s
+		}
+	}
+	return t, nil
 }
 
 func uidToRange(uidList option.Listable[uint32]) []ranges.Range[uint32] {
@@ -187,10 +200,24 @@ func (t *Tun) Start() error {
 		return err
 	}
 	t.logger.Info("started at ", t.tunOptions.Name)
+	for i, s := range t.scripts {
+		t.logger.Debug("start: run script[", i, "]")
+		err := s.Start()
+		if err != nil {
+			return E.Cause(err, "start: run script[", i, "] failed")
+		}
+	}
 	return nil
 }
 
 func (t *Tun) Close() error {
+	for i, s := range t.scripts {
+		t.logger.Debug("close: run script[", i, "]")
+		err := s.Close()
+		if err != nil {
+			return E.Cause(err, "close: run script[", i, "] failed")
+		}
+	}
 	return common.Close(
 		t.tunStack,
 		t.tunIf,

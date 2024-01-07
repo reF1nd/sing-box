@@ -28,4 +28,5 @@ type TunInboundOptions struct {
 	Stack                    string                 `json:"stack,omitempty"`
 	Platform                 *TunPlatformOptions    `json:"platform,omitempty"`
 	InboundOptions
+	Scripts Listable[ScriptOptions] `json:"scripts,omitempty"`
 }

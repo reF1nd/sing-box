@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/redir"
+	"github.com/sagernet/sing-box/common/script"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -23,10 +24,11 @@ import (
 
 type TProxy struct {
 	myInboundAdapter
-	udpNat *udpnat.Service[netip.AddrPort]
+	udpNat  *udpnat.Service[netip.AddrPort]
+	scripts []*script.Script
 }
 
-func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TProxyInboundOptions) *TProxy {
+func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TProxyInboundOptions) (*TProxy, error) {
 	tproxy := &TProxy{
 		myInboundAdapter: myInboundAdapter{
 			protocol:      C.TypeTProxy,
@@ -48,7 +50,17 @@ func NewTProxy(ctx context.Context, router adapter.Router, logger log.ContextLog
 	tproxy.oobPacketHandler = tproxy
 	tproxy.udpNat = udpnat.New[netip.AddrPort](int64(udpTimeout.Seconds()), tproxy.upstreamContextHandler())
 	tproxy.packetUpstream = tproxy.udpNat
-	return tproxy
+	if len(options.Scripts) > 0 {
+		tproxy.scripts = make([]*script.Script, len(options.Scripts))
+		for i, scriptOptions := range options.Scripts {
+			s, err := script.New(ctx, logger, scriptOptions)
+			if err != nil {
+				return nil, E.Cause(err, "create script[", i, "] failed")
+			}
+			tproxy.scripts[i] = s
+		}
+	}
+	return tproxy, nil
 }
 
 func (t *TProxy) Start() error {
@@ -72,7 +84,25 @@ func (t *TProxy) Start() error {
 			return E.Cause(err, "configure tproxy UDP listener")
 		}
 	}
+	for i, s := range t.scripts {
+		t.logger.Debug("start: run script[", i, "]")
+		err := s.Start()
+		if err != nil {
+			return E.Cause(err, "start: run script[", i, "] failed")
+		}
+	}
 	return nil
+}
+
+func (t *TProxy) Close() error {
+	for i, s := range t.scripts {
+		t.logger.Debug("close: run script[", i, "]")
+		err := s.Close()
+		if err != nil {
+			return E.Cause(err, "close: run script[", i, "] failed")
+		}
+	}
+	return t.myInboundAdapter.Close()
 }
 
 func (t *TProxy) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
