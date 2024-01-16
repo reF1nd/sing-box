@@ -17,83 +17,105 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContext, error) {
+func QUICClientHello(ctx context.Context, packet []byte, sniffdata chan SniffData) {
 	reader := bytes.NewReader(packet)
-
+	data := SniffData{
+		metadata: nil,
+		err:      nil,
+	}
+	defer func() {
+		sniffdata <- data
+	}()
 	typeByte, err := reader.ReadByte()
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 	if typeByte&0x40 == 0 {
-		return nil, E.New("bad type byte")
+		data.err = E.New("bad type byte")
+		return
 	}
 	var versionNumber uint32
 	err = binary.Read(reader, binary.BigEndian, &versionNumber)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 	if versionNumber != qtls.VersionDraft29 && versionNumber != qtls.Version1 && versionNumber != qtls.Version2 {
-		return nil, E.New("bad version")
+		data.err = E.New("bad version")
+		return
 	}
 	packetType := (typeByte & 0x30) >> 4
 	if packetType == 0 && versionNumber == qtls.Version2 || packetType == 2 && versionNumber != qtls.Version2 || packetType > 2 {
-		return nil, E.New("bad packet type")
+		data.err = E.New("bad packet type")
+		return
 	}
 
 	destConnIDLen, err := reader.ReadByte()
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	if destConnIDLen == 0 || destConnIDLen > 20 {
-		return nil, E.New("bad destination connection id length")
+		data.err = E.New("bad destination connection id length")
+		return
 	}
 
 	destConnID := make([]byte, destConnIDLen)
 	_, err = io.ReadFull(reader, destConnID)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	srcConnIDLen, err := reader.ReadByte()
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	_, err = io.CopyN(io.Discard, reader, int64(srcConnIDLen))
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	tokenLen, err := qtls.ReadUvarint(reader)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	_, err = io.CopyN(io.Discard, reader, int64(tokenLen))
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	packetLen, err := qtls.ReadUvarint(reader)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	hdrLen := int(reader.Size()) - reader.Len()
 	if hdrLen+int(packetLen) > len(packet) {
-		return nil, os.ErrInvalid
+		data.err = os.ErrInvalid
+		return
 	}
 
 	_, err = io.CopyN(io.Discard, reader, 4)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	pnBytes := make([]byte, aes.BlockSize)
 	_, err = io.ReadFull(reader, pnBytes)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 
 	var salt []byte
@@ -117,7 +139,8 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	hpKey := qtls.HKDFExpandLabel(crypto.SHA256, secret, []byte{}, hkdfHeaderProtectionLabel, 16)
 	block, err := aes.NewCipher(hpKey)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 	mask := make([]byte, aes.BlockSize)
 	block.Encrypt(mask, pnBytes)
@@ -129,7 +152,8 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	}
 	packetNumberLength := newPacket[0]&0x3 + 1
 	if hdrLen+int(packetNumberLength) > int(packetLen)+hdrLen {
-		return nil, os.ErrInvalid
+		data.err = os.ErrInvalid
+		return
 	}
 	var packetNumber uint32
 	switch packetNumberLength {
@@ -142,11 +166,12 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	case 4:
 		packetNumber = binary.BigEndian.Uint32(newPacket[hdrLen:])
 	default:
-		return nil, E.New("bad packet number length")
+		data.err = E.New("bad packet number length")
+		return
 	}
 	extHdrLen := hdrLen + int(packetNumberLength)
 	copy(newPacket[extHdrLen:hdrLen+4], packet[extHdrLen:])
-	data := newPacket[extHdrLen : int(packetLen)+hdrLen]
+	pdata := newPacket[extHdrLen : int(packetLen)+hdrLen]
 
 	var keyLabel string
 	var ivLabel string
@@ -164,9 +189,10 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 	cipher := qtls.AEADAESGCMTLS13(key, iv)
 	nonce := make([]byte, int32(cipher.NonceSize()))
 	binary.BigEndian.PutUint64(nonce[len(nonce)-8:], uint64(packetNumber))
-	decrypted, err := cipher.Open(newPacket[extHdrLen:extHdrLen], nonce, data, newPacket[:extHdrLen])
+	decrypted, err := cipher.Open(newPacket[extHdrLen:extHdrLen], nonce, pdata, newPacket[:extHdrLen])
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 	var frameType byte
 	var frameLen uint64
@@ -189,54 +215,67 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 		case 0x02, 0x03: // ACK
 			_, err = qtls.ReadUvarint(decryptedReader) // Largest Acknowledged
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 			_, err = qtls.ReadUvarint(decryptedReader) // ACK Delay
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 			ackRangeCount, err := qtls.ReadUvarint(decryptedReader) // ACK Range Count
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 			_, err = qtls.ReadUvarint(decryptedReader) // First ACK Range
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 			for i := 0; i < int(ackRangeCount); i++ {
 				_, err = qtls.ReadUvarint(decryptedReader) // Gap
 				if err != nil {
-					return nil, err
+					data.err = err
+					return
 				}
 				_, err = qtls.ReadUvarint(decryptedReader) // ACK Range Length
 				if err != nil {
-					return nil, err
+					data.err = err
+					return
 				}
 			}
 			if frameType == 0x03 {
 				_, err = qtls.ReadUvarint(decryptedReader) // ECT0 Count
 				if err != nil {
-					return nil, err
+					data.err = err
+					return
 				}
 				_, err = qtls.ReadUvarint(decryptedReader) // ECT1 Count
 				if err != nil {
-					return nil, err
+					data.err = err
+					return
 				}
 				_, err = qtls.ReadUvarint(decryptedReader) // ECN-CE Count
 				if err != nil {
-					return nil, err
+					data.err = err
+					return
 				}
 			}
 		case 0x06: // CRYPTO
 			var offset uint64
 			offset, err = qtls.ReadUvarint(decryptedReader)
 			if err != nil {
-				return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, err
+				data.metadata = &adapter.InboundContext{Protocol: C.ProtocolQUIC}
+				data.err = err
+				return
 			}
 			var length uint64
 			length, err = qtls.ReadUvarint(decryptedReader)
 			if err != nil {
-				return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, err
+				data.metadata = &adapter.InboundContext{Protocol: C.ProtocolQUIC}
+				data.err = err
+				return
 			}
 			index := len(decrypted) - decryptedReader.Len()
 			fragments = append(fragments, struct {
@@ -247,28 +286,34 @@ func QUICClientHello(ctx context.Context, packet []byte) (*adapter.InboundContex
 			frameLen += length
 			_, err = decryptedReader.Seek(int64(length), io.SeekCurrent)
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 		case 0x1c: // CONNECTION_CLOSE
 			_, err = qtls.ReadUvarint(decryptedReader) // Error Code
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 			_, err = qtls.ReadUvarint(decryptedReader) // Frame Type
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 			var length uint64
 			length, err = qtls.ReadUvarint(decryptedReader) // Reason Phrase Length
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 			_, err = decryptedReader.Seek(int64(length), io.SeekCurrent) // Reason Phrase
 			if err != nil {
-				return nil, err
+				data.err = err
+				return
 			}
 		default:
-			return nil, os.ErrInvalid
+			data.err = os.ErrInvalid
+			return
 		}
 	}
 	tlsHdr := make([]byte, 5)
@@ -292,12 +337,21 @@ find:
 		if length == len(fragments) {
 			break
 		}
-		return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, E.New("bad fragments")
+		data.metadata = &adapter.InboundContext{Protocol: C.ProtocolQUIC}
+		data.err = E.New("bad fragments")
+		return
 	}
-	metadata, err := TLSClientHello(ctx, io.MultiReader(readers...))
+	tlsdatachan := make(chan SniffData, 1)
+	TLSClientHello(ctx, io.MultiReader(readers...), tlsdatachan)
+	tlsdata := <-tlsdatachan
+	metadata := tlsdata.metadata
+	err = tlsdata.err
 	if err != nil {
-		return &adapter.InboundContext{Protocol: C.ProtocolQUIC}, err
+		data.metadata = &adapter.InboundContext{Protocol: C.ProtocolQUIC}
+		data.err = err
+		return
 	}
 	metadata.Protocol = C.ProtocolQUIC
-	return metadata, nil
+	data.metadata = metadata
+	data.err = nil
 }
