@@ -14,10 +14,10 @@ import (
 )
 
 type _RuleSet struct {
-	Type          string        `json:"type"`
-	Tag           string        `json:"tag"`
-	Format        string        `json:"format"`
-	LocalOptions  LocalRuleSet  `json:"-"`
+	Type          string        `json:"type,omitempty"`
+	Tag           string        `json:"tag,omitempty"`
+	Path          string        `json:"path,omitempty"`
+	Format        string        `json:"format,omitempty"`
 	RemoteOptions RemoteRuleSet `json:"-"`
 }
 
@@ -27,7 +27,7 @@ func (r RuleSet) MarshalJSON() ([]byte, error) {
 	var v any
 	switch r.Type {
 	case C.RuleSetTypeLocal:
-		v = r.LocalOptions
+		v = nil
 	case C.RuleSetTypeRemote:
 		v = r.RemoteOptions
 	default:
@@ -54,7 +54,7 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	var v any
 	switch r.Type {
 	case C.RuleSetTypeLocal:
-		v = &r.LocalOptions
+		v = nil
 	case C.RuleSetTypeRemote:
 		v = &r.RemoteOptions
 	case "":
@@ -69,12 +69,8 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-type LocalRuleSet struct {
-	Path string `json:"path,omitempty"`
-}
-
 type RemoteRuleSet struct {
-	URL            string   `json:"url"`
+	URL            string   `json:"url,omitempty"`
 	DownloadDetour string   `json:"download_detour,omitempty"`
 	UpdateInterval Duration `json:"update_interval,omitempty"`
 }

@@ -13,6 +13,7 @@ icon: material/new-box
   "type": "",
   "tag": "",
   "format": "",
+  "path": "",
   
   ... // Typed Fields
 }
@@ -25,8 +26,6 @@ icon: material/new-box
   "type": "local",
   
   ...
-  
-  "path": ""
 }
 ```
 
@@ -68,13 +67,11 @@ Tag of Rule Set.
 
 Format of Rule Set, `source` or `binary`.
 
-### Local Fields
-
 #### path
 
-==Required==
-
 File path of Rule Set.
+
+If empty, will use tag name with format suffix. `json` will be used when format is `source`, while `srs` will be used when format is `binary`.
 
 ### Remote Fields
 
