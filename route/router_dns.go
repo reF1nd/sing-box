@@ -180,7 +180,7 @@ func (r *Router) matchDNS0(ctx context.Context, fStrategy dns.DomainStrategy) ([
 	return r.lookupMulitServer(ctx, metadata.Domain, r.defaultTransports, fStrategy)
 }
 
-func (r *Router) matchDNS1(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+func (r *Router) matchDNS1(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, bool, error) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		panic("no context")
@@ -188,11 +188,13 @@ func (r *Router) matchDNS1(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, e
 	for i, rule := range r.dnsRules {
 		metadata.ResetRuleCache()
 		if rule.Match(metadata) {
+			var isFakeIP bool
 			var transports []dns.Transport
 			servers := rule.Servers()
 			for _, server := range servers {
 				transport := r.transportMap[server]
 				transports = append(transports, transport)
+				_, isFakeIP = transport.(adapter.FakeIPTransport)
 			}
 			targetServer := servers[0]
 			if len(servers) > 1 {
@@ -224,10 +226,11 @@ func (r *Router) matchDNS1(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, e
 				r.dnsLogger.DebugContext(ctx, "match fallback, continue")
 				continue
 			}
-			return response, err
+			return response, isFakeIP, err
 		}
 	}
-	return r.getRequestMulitServer(ctx, r.defaultTransports, message)
+	response, err := r.getRequestMulitServer(ctx, r.defaultTransports, message)
+	return response, false, err
 }
 
 func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
@@ -237,10 +240,11 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 	var (
 		response *mDNS.Msg
 		cached   bool
+		isFakeIP bool
 		err      error
 	)
 	defer func() {
-		if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
+		if r.dnsReverseMapping != nil && !isFakeIP && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
 			for _, answer := range response.Answer {
 				switch record := answer.(type) {
 				case *mDNS.A:
@@ -268,7 +272,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, er
 		}
 		metadata.Domain = fqdnToDomain(message.Question[0].Name)
 	}
-	response, err = r.matchDNS1(ctx, message)
+	response, isFakeIP, err = r.matchDNS1(ctx, message)
 	return response, err
 }
 
