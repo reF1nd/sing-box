@@ -27,6 +27,10 @@ type Selector struct {
 	defaultTag                   string
 	outbounds                    map[string]adapter.Outbound
 	selected                     adapter.Outbound
+	groupProviders               []*groupProvider
+	providerDependencies         []string
+	providerOutboundTags         []string
+	providerOutbounds            map[string]adapter.Outbound
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 }
@@ -47,10 +51,41 @@ func NewSelector(ctx context.Context, router adapter.Router, logger log.ContextL
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: options.InterruptExistConnections,
 	}
-	if len(outbound.tags) == 0 {
+	if len(options.Providers) > 0 {
+		outbound.groupProviders = make([]*groupProvider, 0, len(options.Providers))
+		outbound.providerDependencies = make([]string, 0, len(options.Providers))
+		outbound.providerOutbounds = make(map[string]adapter.Outbound)
+		for i, providerOptions := range options.Providers {
+			if providerOptions.Tag == "" {
+				return nil, E.New("missing tag in provider[", i, "]")
+			}
+			logical := providerOptions.Logical
+			if logical == "" {
+				logical = "or"
+			}
+			g, err := adapter.NewOutboundMatcherGroup(providerOptions.Rules, logical)
+			if err != nil {
+				return nil, E.Cause(err, "parse provider[", i, "] failed")
+			}
+			outbound.groupProviders = append(outbound.groupProviders, &groupProvider{
+				tag:             providerOptions.Tag,
+				outboundMatcher: g,
+				invert:          providerOptions.Invert,
+			})
+			outbound.providerDependencies = append(outbound.providerDependencies, providerOptions.Tag)
+		}
+	}
+	if len(outbound.tags) == 0 && len(options.Providers) == 0 {
 		return nil, E.New("missing tags")
 	}
 	return outbound, nil
+}
+
+func (s *Selector) Dependencies() []string {
+	dependencies := make([]string, 0, len(s.dependencies)+len(s.providerDependencies))
+	dependencies = append(dependencies, s.dependencies...)
+	dependencies = append(dependencies, s.providerDependencies...)
+	return dependencies
 }
 
 func (s *Selector) Network() []string {
@@ -69,6 +104,18 @@ func (s *Selector) Start() error {
 		s.outbounds[tag] = detour
 	}
 
+	for i, tag := range s.providerDependencies {
+		provider, loaded := s.router.OutboundProvider(tag)
+		if !loaded {
+			return E.New("outbound-provider ", i, " not found: ", tag)
+		}
+		outbounds := provider.FilterOutbounds(s.groupProviders[i].outboundMatcher, s.groupProviders[i].invert)
+		for _, outbound := range outbounds {
+			s.providerOutbounds[outbound.Tag()] = outbound
+			s.providerOutboundTags = append(s.providerOutboundTags, outbound.Tag())
+		}
+	}
+
 	if s.tag != "" {
 		cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
 		if cacheFile != nil {
@@ -78,6 +125,12 @@ func (s *Selector) Start() error {
 				if loaded {
 					s.selected = detour
 					return nil
+				} else if s.providerOutbounds != nil {
+					detour, loaded := s.providerOutbounds[selected]
+					if loaded {
+						s.selected = detour
+						return nil
+					}
 				}
 			}
 		}
@@ -85,6 +138,9 @@ func (s *Selector) Start() error {
 
 	if s.defaultTag != "" {
 		detour, loaded := s.outbounds[s.defaultTag]
+		if !loaded && s.providerOutbounds != nil {
+			detour, loaded = s.providerOutbounds[s.defaultTag]
+		}
 		if !loaded {
 			return E.New("default outbound not found: ", s.defaultTag)
 		}
@@ -92,7 +148,14 @@ func (s *Selector) Start() error {
 		return nil
 	}
 
-	s.selected = s.outbounds[s.tags[0]]
+	if len(s.tags) > 0 {
+		s.selected = s.outbounds[s.tags[0]]
+		return nil
+	}
+	if len(s.providerOutboundTags) > 0 {
+		s.selected = s.providerOutbounds[s.providerOutboundTags[0]]
+		return nil
+	}
 	return nil
 }
 
@@ -101,11 +164,17 @@ func (s *Selector) Now() string {
 }
 
 func (s *Selector) All() []string {
-	return s.tags
+	tags := make([]string, 0, len(s.tags)+len(s.providerOutboundTags))
+	tags = append(tags, s.tags...)
+	tags = append(tags, s.providerOutboundTags...)
+	return tags
 }
 
 func (s *Selector) SelectOutbound(tag string) bool {
 	detour, loaded := s.outbounds[tag]
+	if !loaded && s.providerOutbounds != nil {
+		detour, loaded = s.providerOutbounds[tag]
+	}
 	if !loaded {
 		return false
 	}
@@ -157,4 +226,10 @@ func RealTag(detour adapter.Outbound) string {
 		return group.Now()
 	}
 	return detour.Tag()
+}
+
+type groupProvider struct {
+	tag             string
+	outboundMatcher adapter.OutboundMatcher
+	invert          bool
 }

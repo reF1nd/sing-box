@@ -1,44 +1,306 @@
 # sing-box
 
-The universal proxy platform.
+这是一个第三方 Fork 仓库，在原有基础上添加一些强大功能
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/sing-box.svg)](https://repology.org/project/sing-box/versions)
+### 1. Outbound Provider 支持 (with_outbound_provider)
 
-## Documentation
+允许从远程获取 ```Outbound``` ，支持普通链接、Clash订阅、Sing-box订阅。并在此基础上对 ```Outbound``` 进行配置修改
 
-https://sing-box.sagernet.org
+编译时加入 tag ```with_outbound_provider```
 
-## Support
+#### 配置详解
 
-https://community.sagernet.org/c/sing-box/
-
-## License
-
+```json5
+{
+  "outbounds": [
+    {
+      "tag": "direct-out",
+      "type": "direct"
+    },
+    {
+      "tag": "direct-mark-out", // 该 Outbound 流量会打上 SO_MARK 0xff
+      "type": "direct",
+      "routing_mark": 255
+    },
+    {
+      "tag": "global",
+      "type": "selector",
+      "outbounds": [
+        "Sub1", // 使用 Outbound Provider 暴露的同名 Selector Outbound
+        "Sub2"
+      ]
+    }
+  ],
+  "outbound_providers": [
+    {
+      "tag": "Sub1", // Outbound Provider 标签，必填，用于区分不同 Outbound Provider 以及创建同名 Selector Outbound
+      "url": "http://example.com", // 订阅链接
+      "cache_tag": "", // 保存到缓存的 Tag，请开启 CacheFile 以使用缓存，若为空，则使用 tag 代替
+      "update_interval": "", // 自动更新间隔，Golang Duration 格式，默认为空，不自动更新
+      "request_timeout": "", // HTTP 请求的超时时间
+      "http3": false, // 使用 HTTP/3 请求
+      "headers": {}, // HTTP Header 头，键值对
+      "optimize": false, // 自动优化
+      "selector": { // 暴露的同名 Selector Outbound 配置
+        // 与 Selector Outbound 配置一致
+      },
+      "actions": [], // 生成 Outbound 时对配置进行的操作，具体见下
+      // Outbound Dial 配置，用于获取 Outbound 的 HTTP 请求
+    },
+    {
+      "tag": "Sub2",
+      "url": "http://2.example.com",
+      "detour": "Sub1" // 使用 Sub1 的 Outbound 进行请求
+    }
+  ]
+}
 ```
-Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+#### Action
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+```action``` 提供强大的对 ```Outbound``` 配置的自定义需求，```action``` 可以定义多个，按顺序执行，目前有以下操作：
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
+###### 全局文档 - Rules
 
-In addition, no derivative work may use the name or imply association
-with this application without prior consent.
+```json5
+{
+  "type": "...",
+  "rules": [], // 匹配 Outbound 的规则，具体见下
+  "logical": "or", // 匹配逻辑，要求全部匹配还是任一匹配
+}
+```
+```
+Rules 支持匹配 Tag 或 Type：
+
+1. 若匹配 Tag ，格式：`tag:HK$`，以 `tag:` 开头，后面是 Golang 正则表达式
+2. 若匹配 Type，格式：`type:trojan`，以 `type:` 开头，后面是 Outbound 类型名
+3. 若无 `$*:` 开头，则默认以 `tag:` 开头
 ```
 
-## 额外功能
+##### 1. Filter
 
----
+过滤 ```Outbound``` ，建议放置在最前面
 
-#### 1. SideLoad 出站支持 (with_sideload)
+```json5
+{
+  "type": "filter",
+  //
+  "rules": [],
+  "logical": "or", // 默认为 or
+  //
+  "invert": false, // 默认为 false ，对匹配到规则的 Outbound 进行过滤剔除；若为 true ，对未匹配到规则的 Outbound 进行过滤剔除
+}
+```
+
+##### 2. TagFormat
+
+对 ```Outbound``` 标签进行格式化，对于拥有多个 ```Outbound Provider``` ，并且 ```Outbound Provider``` 间 ```Outbound``` 存在命名冲突，可以使用该 action 进行重命名
+
+```json5
+{
+  "type": "tagformat",
+  //
+  "rules": [],
+  "logical": "or", // 默认为 or
+  //
+  "invert": false, // 默认为 false ，对匹配到规则的 Outbound 进行格式化；若为 true ，对未匹配到规则的 Outbound 进行格式化
+  "format": "Sub1 - %s", // 格式化表达式，%s 代表旧的标签名
+}
+```
+
+##### 3. Group
+
+对 ```Outbound``` 进行筛选分组，仅支持 ```Selector Outbound``` 和 ```URLTest Outbound```
+
+```json5
+{
+  "type": "group",
+  //
+  "rules": [],
+  "logical": "or", // 默认为 or
+  //
+  "invert": false, // 默认为 false ，对匹配到规则的 Outbound 加入分组；若为 true ，对未匹配到规则的 Outbound 加入分组
+  "outbound": {
+    "tag": "group1",
+    "type": "selector", // 使用 Selector 分组，也可以使用 URLTest 分组
+    // "outbounds": [], 筛选的 Outbound 会自动添加到 Outbounds 中，可以预附加 Outbound ，造成的预期外问题自负
+    // "default": "" // 仅 Selector 可用，默认为空，可以预附加 Outbound ，造成的预期外问题自负
+  }
+}
+```
+
+##### 4. SetDialer
+
+对 ```Outbound``` 进行筛选修改 ```Dial``` 配置
+```json5
+{
+  "type": "setdialer",
+  //
+  "rules": [],
+  "logical": "and", // 默认为 and
+  //
+  "invert": false, // 默认为 false ，匹配到的 Outbound 才会被执行操作；若为 true ，没有匹配到的 Outbound 才会被执行操作
+  "dialer": {
+    "set_$tag": ..., // 以 set_ 开头，覆写原配置 $tag 项，覆写注意值类型
+    "del_$tag": null // 以 del_ 开头，删除原配置 $tag 项，键值任意
+  }
+}
+```
+
+#### 示例配置
+
+```json5
+{
+  "log": {
+    "timestamp": true,
+    "level": "info"
+  },
+  "experimental": {
+    "cache_file": { // 开启缓存，缓存 Outbound Provider 数据
+      "enabled": true,
+      "path": "/etc/sing-box-cache.db"
+    }
+  },
+  "outbounds": [
+    {
+      "tag": "direct-out",
+      "type": "direct"
+    },
+    {
+      "tag": "proxy-out",
+      "type": "selector",
+      "outbounds": [
+        "sub"
+      ]
+    }
+  ],
+  "outbound_providers": [
+    {
+      "tag": "sub",
+      "url": "http://example.com", // 订阅链接
+      "update_interval": "24h",
+      "actions": [
+        {
+          "type": "filter",
+          "rules": [
+            "剩余",
+            "过期",
+            "更多"
+          ]
+        },
+        {
+          "type": "group",
+          "rules": [
+            "香港",
+            "Hong Kong",
+            "HK"
+          ],
+          "outbound": {
+            "tag": "sub - HK",
+            "type": "selector"
+          }
+        }
+      ],
+      "detour": "direct-out",
+      "selector": {
+        "default": "sub - HK"
+      }
+    }
+  ],
+  "route": {
+    "rule_set": [
+      {
+        "tag": "geosite-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://github.com/SagerNet/sing-geosite/raw/rule-set/geosite-cn.srs",
+        "update_interval": "24h",
+        "download_detour": "sub"
+      },
+      {
+        "tag": "geoip-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://github.com/SagerNet/sing-geoip/raw/rule-set/geoip-cn.srs",
+        "update_interval": "24h",
+        "download_detour": "sub"
+      }
+    ],
+    "rules": [
+      {
+        "rule_set": [
+          "geosite-cn",
+          "geoip-cn"
+        ],
+        "outbound": "direct-out"
+      },
+      {
+        "inbound": [
+          "mixed-in"
+        ],
+        "outbound": "sub"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "tag": "mixed-in",
+      "type": "mixed",
+      "listen": "::",
+      "listen_port": 2080,
+      "sniff": true
+    }
+  ]
+}
+```
+
+#### Group Outbound 添加 Outbound Provider 中的 Outbound
+
+#### 示例配置
+```json5
+{
+  "outbounds": [
+    {
+      "tag": "HK",
+      "type": "selector", // 支持 Selector 和 URLTest
+      // "outbounds": [
+      //   ...
+      // ]
+      "providers": [ // 添加 Outbound Provider 中的 Outbound
+        {
+          "tag": "sub", // Outbound Provider Tag
+          // 参考上面
+          "rules": ["HK"],
+          "logical": "or", // 默认为 or
+          //
+          "invert": false // 默认为 false ，匹配到的 Outbound 才会被添加；若为 true ，没有匹配到的 Outbound 才会被添加
+        }
+        // 上述配置会把 Tag 为 HK 的 Outbound 添加到 Group Outbound 中
+      ]
+    }
+  ],
+  "outbound_providers": [
+    {
+      "tag": "sub",
+      "url": "http://example.com", // 订阅链接
+      "update_interval": "24h",
+      "actions": [
+        {
+          "type": "filter",
+          "rules": [
+            "剩余",
+            "过期",
+            "更多"
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 2. SideLoad 出站支持 (with_sideload)
+
 对于 Sing-box 不支持的出站类型，可以通过侧载方式与 Sing-box 共用。只需暴露 Socks 端口，即可与 Sing-box 集成
 
 编译时加入 tag ```with_sideload```
@@ -78,7 +340,7 @@ Sing-box 配置：
 }
 ```
 
-#### 2. Clash Dashboard 内置支持 (with_clash_dashboard)
+### 3. Clash Dashboard 内置支持 (with_clash_dashboard)
 
 - 编译时需要使用 `with_clash_dashboard` tag
 - 编译前需要先初始化 web 文件
@@ -89,7 +351,7 @@ Sing-box 配置：
 清除 web 文件：make clean_clash_dashboard
 ```
 
-##### 用法
+#### 用法
 
 ```json5
 {
@@ -103,7 +365,8 @@ Sing-box 配置：
 }
 ```
 
-#### 3. URLTest Fallback 支持
+### 4. URLTest Fallback 支持
+
 按照**可用性**和**顺序**选择出站
 
 可用：指 URL 测试存在有效结果
@@ -130,7 +393,7 @@ Sing-box 配置：
 1. 当 A, B, C 都可用时，优选选择 A。当 A 不可用时，优选选择 B。当 A, B 都不可用时，选择 C，若 C 也不可用，则返回第一个出站：A
 2. (配置了 max_delay) 当 A, C 都不可用，B 延迟超过 200ms 时（在第一轮选择时淘汰，被认为是不可用节点），则选择 B
 
-#### 4. RandomAddr 出站支持 (with_randomaddr)
+### 5. RandomAddr 出站支持 (with_randomaddr)
 
 - 编译时需要使用 `with_randomaddr` tag
 
@@ -180,7 +443,7 @@ Sing-box 配置：
 ]
 ```
 
-#### 5. Tor No Fatal 启动
+### 6. Tor No Fatal 启动
 
 ```json
 {
@@ -194,9 +457,9 @@ Sing-box 配置：
 }
 ```
 
-#### 6. Geo Resource 自动更新支持
+### 7. Geo Resource 自动更新支持
 
-##### 用法
+#### 用法
 ```json5
 {
     "route": {
@@ -214,7 +477,7 @@ Sing-box 配置：
 
 - 支持在 Clash API 中调用 API 更新 Geo Resource
 
-#### 7. JSTest 出站支持 (with_jstest) (*** 实验性 ***)
+### 8. JSTest 出站支持 (with_jstest) (*** 实验性 ***)
 
 JSTest 出站允许用户根据 JS 脚本代码选择出站，依附 JS 脚本，用户可以自定义强大的出站选择逻辑，比如：送中节点规避，流媒体节点选择，等等。
 
@@ -226,7 +489,7 @@ JSTest 出站允许用户根据 JS 脚本代码选择出站，依附 JS 脚本�
 
 - 专门告知使用送中节点的脚本的用户：请**确保 Google 定位已经正常关闭**，否则运行该脚本可能会**导致上游节点全部送中**，~~尤其是机场用户~~，运行所造成的一切后果概不负责
 
-##### 用法
+#### 用法
 ```json5
 {
     "outbounds": [

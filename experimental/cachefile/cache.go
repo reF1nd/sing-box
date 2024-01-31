@@ -2,6 +2,7 @@ package cachefile
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"os"
@@ -19,16 +20,18 @@ import (
 )
 
 var (
-	bucketSelected = []byte("selected")
-	bucketExpand   = []byte("group_expand")
-	bucketMode     = []byte("clash_mode")
-	bucketRuleSet  = []byte("rule_set")
+	bucketSelected         = []byte("selected")
+	bucketExpand           = []byte("group_expand")
+	bucketMode             = []byte("clash_mode")
+	bucketRuleSet          = []byte("rule_set")
+	bucketOutboundProvider = []byte("outbound_provider")
 
 	bucketNameList = []string{
 		string(bucketSelected),
 		string(bucketExpand),
 		string(bucketMode),
 		string(bucketRuleSet),
+		string(bucketOutboundProvider),
 	}
 
 	cacheIDDefault = []byte("default")
@@ -291,4 +294,37 @@ func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedRuleSet) error {
 		}
 		return bucket.Put([]byte(tag), setBinary)
 	})
+}
+
+func (c *CacheFile) StoreOutboundProviderData(tag string, data adapter.OutboundProviderData) error {
+	content, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	return c.DB.Batch(func(t *bbolt.Tx) error {
+		bucket, err := c.createBucket(t, bucketOutboundProvider)
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(tag), content)
+	})
+}
+
+func (c *CacheFile) LoadOutboundProviderData(tag string) (adapter.OutboundProviderData, error) {
+	var data adapter.OutboundProviderData
+	err := c.DB.View(func(t *bbolt.Tx) error {
+		bucket := c.bucket(t, bucketOutboundProvider)
+		if bucket == nil {
+			return os.ErrNotExist
+		}
+		content := bucket.Get([]byte(tag))
+		if len(content) == 0 {
+			return os.ErrInvalid
+		}
+		return json.Unmarshal(content, &data)
+	})
+	if err != nil {
+		return adapter.OutboundProviderData{}, nil
+	}
+	return data, nil
 }

@@ -38,6 +38,8 @@ type CacheFile interface {
 	StoreGroupExpand(group string, expand bool) error
 	LoadRuleSet(tag string) *SavedRuleSet
 	SaveRuleSet(tag string, set *SavedRuleSet) error
+	StoreOutboundProviderData(tag string, data OutboundProviderData) error
+	LoadOutboundProviderData(tag string) (OutboundProviderData, error)
 }
 
 type SavedRuleSet struct {
