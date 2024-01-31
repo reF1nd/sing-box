@@ -19,6 +19,7 @@ icon: material/alert-decagram
   "route": {
     "rules": [
       {
+        "tag": "rule-a",
         "inbound": [
           "mixed-in"
         ],
@@ -139,6 +140,10 @@ icon: material/alert-decagram
     `other fields`
 
     另外，引用的规则集可视为被合并，而不是作为一个单独的规则子项。
+
+#### tag
+
+规则标签，如果被设置则会替换输出中的项目详情。
 
 #### inbound
 
