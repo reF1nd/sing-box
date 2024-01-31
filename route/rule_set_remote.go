@@ -48,6 +48,7 @@ func NewRemoteRuleSet(ctx context.Context, router adapter.Router, logger logger.
 			ctx:    ctx,
 			cancel: cancel,
 			tag:    options.Tag,
+			pType:  "remote",
 			path:   options.Path,
 			format: options.Format,
 		},
@@ -69,6 +70,10 @@ func (s *RemoteRuleSet) Match(metadata *adapter.InboundContext) bool {
 	return false
 }
 
+func (s *RemoteRuleSet) Update(router adapter.Router) error {
+	return s.fetchOnce(s.ctx, nil)
+}
+
 func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext adapter.RuleSetStartContext) error {
 	var dialer N.Dialer
 	if s.options.DownloadDetour != "" {
@@ -85,7 +90,7 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext adapter.R
 		dialer = outbound
 	}
 	s.dialer = dialer
-	s.loadFromFile(s.router)
+	s.loadFromFile(s.router, true)
 	s.lastUpdated = s.updatedTime
 	if s.lastUpdated.IsZero() {
 		err := s.fetchOnce(ctx, startContext)

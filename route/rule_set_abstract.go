@@ -21,10 +21,32 @@ type abstractRuleSet struct {
 	cancel      context.CancelFunc
 	tag         string
 	path        string
+	pType       string
 	format      string
+	ruleCount   int
 	metadata    adapter.RuleSetMetadata
 	rules       []adapter.HeadlessRule
 	updatedTime time.Time
+}
+
+func (s *abstractRuleSet) Tag() string {
+	return s.tag
+}
+
+func (s *abstractRuleSet) Type() string {
+	return s.pType
+}
+
+func (s *abstractRuleSet) Format() string {
+	return s.format
+}
+
+func (s *abstractRuleSet) UpdatedTime() time.Time {
+	return s.updatedTime
+}
+
+func (s *abstractRuleSet) RuleCount() int {
+	return s.ruleCount
 }
 
 func (s *abstractRuleSet) Match(metadata *adapter.InboundContext) bool {
@@ -69,13 +91,20 @@ func (s *abstractRuleSet) setPath() error {
 	return nil
 }
 
-func (s *abstractRuleSet) loadFromFile(router adapter.Router) error {
-	err := s.setPath()
-	if err != nil {
-		return err
+func (s *abstractRuleSet) loadFromFile(router adapter.Router, firstLoad bool) error {
+	if firstLoad {
+		err := s.setPath()
+		if err != nil {
+			return err
+		}
 	}
 	setFile, err := os.Open(s.path)
 	if err != nil {
+		return nil
+	}
+	fs, _ := setFile.Stat()
+	modTime := fs.ModTime()
+	if !firstLoad && modTime == s.updatedTime {
 		return nil
 	}
 	content, err := os.ReadFile(s.path)
@@ -86,8 +115,7 @@ func (s *abstractRuleSet) loadFromFile(router adapter.Router) error {
 	if err != nil {
 		return err
 	}
-	fs, _ := setFile.Stat()
-	s.updatedTime = fs.ModTime()
+	s.updatedTime = modTime
 	return nil
 }
 
@@ -110,6 +138,7 @@ func (s *abstractRuleSet) loadData(router adapter.Router, content []byte) error 
 			return err
 		}
 	}
+	var ruleCount int
 	rules := make([]adapter.HeadlessRule, len(plainRuleSet.Rules))
 	for i, ruleOptions := range plainRuleSet.Rules {
 		rule, err := NewHeadlessRule(router, ruleOptions)
@@ -117,9 +146,11 @@ func (s *abstractRuleSet) loadData(router adapter.Router, content []byte) error 
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
 		rules[i] = rule
+		ruleCount += rule.RuleCount()
 	}
 	s.metadata.ContainsProcessRule = hasHeadlessRule(plainRuleSet.Rules, isProcessHeadlessRule)
 	s.metadata.ContainsWIFIRule = hasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
+	s.ruleCount = ruleCount
 	s.rules = rules
 	return nil
 }
