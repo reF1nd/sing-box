@@ -28,6 +28,8 @@ type Router interface {
 	OutboundProviders() []OutboundProvider
 	OutboundProvider(tag string) (OutboundProvider, bool)
 
+	Transport(tag string) (dns.Transport, bool)
+
 	FakeIPStore() FakeIPStore
 
 	ConnectionRouter
@@ -58,7 +60,7 @@ type Router interface {
 	Rule(uuid string) (Rule, bool)
 	DNSRules() []DNSRule
 	DNSRule(uuid string) (DNSRule, bool)
-	DefaultDNSServer() string
+	DefaultDNSServers() []string
 
 	ClashServer() ClashServer
 	SetClashServer(server ClashServer)
@@ -101,6 +103,7 @@ type DNSRule interface {
 	MatchFallback(metadata *InboundContext) bool
 	DisableCache() bool
 	RewriteTTL() *uint32
+	Servers() []string
 }
 
 type RuleSet interface {

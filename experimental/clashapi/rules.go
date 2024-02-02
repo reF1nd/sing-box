@@ -3,6 +3,7 @@ package clashapi
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	N "github.com/sagernet/sing/common/network"
@@ -35,19 +36,30 @@ func getRules(router adapter.Router) func(w http.ResponseWriter, r *http.Request
 
 		dnsRules := router.DNSRules()
 		for _, rule := range dnsRules {
+			servers := rule.Servers()
+			serverStr := servers[0]
+			if len(servers) > 1 {
+				serverStr = "[" + strings.Join(servers, " ") + "]"
+			}
 			rules = append(rules, Rule{
 				Type:     "DNS",
 				Payload:  rule.String(),
-				Proxy:    rule.Outbound(),
+				Proxy:    serverStr,
 				Disabled: rule.Disabled(),
 				UUID:     rule.UUID(),
 			})
 		}
-		rules = append(rules, Rule{
-			Type:    "DNS",
-			Payload: "final",
-			Proxy:   router.DefaultDNSServer(),
-		})
+		if servers := router.DefaultDNSServers(); true {
+			serverStr := servers[0]
+			if len(servers) > 1 {
+				serverStr = "[" + strings.Join(servers, " ") + "]"
+			}
+			rules = append(rules, Rule{
+				Type:    "DNS",
+				Payload: "final",
+				Proxy:   serverStr,
+			})
+		}
 
 		routeRules := router.Rules()
 		for _, rule := range routeRules {

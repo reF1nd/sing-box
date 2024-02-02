@@ -7,7 +7,9 @@
   "dns": {
     "servers": [],
     "rules": [],
-    "final": "",
+    "final": [
+      "local"
+    ],
     "strategy": "",
     "disable_cache": false,
     "disable_expire": false,
@@ -28,7 +30,13 @@
 
 #### final
 
-默认 DNS 服务器的标签。
+!!! note ""
+
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
+
+默认 DNS 服务器的标签列表。
+
+当数量大于一时并发请求所有目标 DNS 服务器，取最快非空响应。
 
 默认使用第一个服务器。
 
