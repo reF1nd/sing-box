@@ -37,12 +37,13 @@ type InboundContext struct {
 	// sniffer
 
 	Protocol     string
-	Domain       string
+	SniffHost    string
 	Client       string
 	SniffContext any
 
 	// cache
 
+	Domain               string
 	InboundDetour        string
 	LastInbound          string
 	OriginDestination    M.Socksaddr

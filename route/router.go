@@ -1009,16 +1009,17 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			sniff.BitTorrent,
 		)
 		if err == nil {
-			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
-				metadata.Destination = M.Socksaddr{
-					Fqdn: metadata.Domain,
-					Port: metadata.Destination.Port,
-				}
-			}
-			if metadata.Domain != "" {
-				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			if metadata.SniffHost != "" {
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost)
 			} else {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
+			}
+			if !metadata.Destination.IsFqdn() && metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.SniffHost) && r.matchSniffOverride(ctx, &metadata) {
+				metadata.Destination = M.Socksaddr{
+					Fqdn: metadata.SniffHost,
+					Port: metadata.Destination.Port,
+				}
+				r.logger.DebugContext(ctx, "connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
 			}
 		}
 		if !buffer.IsEmpty() {
@@ -1028,7 +1029,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		}
 	}
 
-	if r.dnsReverseMapping != nil && metadata.Domain == "" {
+	if r.dnsReverseMapping != nil {
 		domain, loaded := r.dnsReverseMapping.Query(metadata.Destination.Addr)
 		if loaded {
 			metadata.Domain = domain
@@ -1120,6 +1121,8 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 	conntrack.KillerCheck()
 	metadata.Network = N.NetworkUDP
 
+	var destOverride bool
+
 	if r.fakeIPStore != nil && r.fakeIPStore.Contains(metadata.Destination.Addr) {
 		domain, loaded := r.fakeIPStore.Lookup(metadata.Destination.Addr)
 		if !loaded {
@@ -1131,6 +1134,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			Port: metadata.Destination.Port,
 		}
 		metadata.FakeIP = true
+		destOverride = true
 		r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
 	}
 
@@ -1198,20 +1202,23 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 						continue
 					}
 					if metadata.Protocol != "" {
-						if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
-							metadata.Destination = M.Socksaddr{
-								Fqdn: metadata.Domain,
-								Port: metadata.Destination.Port,
-							}
-						}
-						if metadata.Domain != "" && metadata.Client != "" {
-							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain, ", client: ", metadata.Client)
-						} else if metadata.Domain != "" {
-							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+						if metadata.SniffHost != "" && metadata.Client != "" {
+							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost, ", client: ", metadata.Client)
+						} else if metadata.SniffHost != "" {
+							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost)
 						} else if metadata.Client != "" {
 							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", client: ", metadata.Client)
 						} else {
 							r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
+						}
+						if !metadata.Destination.IsFqdn() && metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.SniffHost) && r.matchSniffOverride(ctx, &metadata) {
+							metadata.OriginDestination = metadata.Destination
+							metadata.Destination = M.Socksaddr{
+								Fqdn: metadata.SniffHost,
+								Port: metadata.Destination.Port,
+							}
+							destOverride = true
+							r.logger.DebugContext(ctx, "connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
 						}
 					}
 				}
@@ -1223,7 +1230,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			break
 		}
 	}
-	if r.dnsReverseMapping != nil && metadata.Domain == "" {
+	if r.dnsReverseMapping != nil {
 		domain, loaded := r.dnsReverseMapping.Query(metadata.Destination.Addr)
 		if loaded {
 			metadata.Domain = domain
@@ -1274,7 +1281,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 				conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 			}
 		}
-		if metadata.FakeIP {
+		if destOverride {
 			conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 		}
 		return detour.NewPacketConnection(ctx, conn, metadata)
@@ -1289,7 +1296,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 		}
 	}
-	if metadata.FakeIP {
+	if destOverride {
 		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
