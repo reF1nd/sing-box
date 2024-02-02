@@ -25,7 +25,7 @@ func TestSniffQUICChromium(t *testing.T) {
 	require.NoError(t, err)
 	err = sniff.QUICClientHello(context.Background(), &metadata, pkt)
 	require.NoError(t, err)
-	require.Equal(t, metadata.Domain, "google.com")
+	require.Equal(t, metadata.SniffHost, "google.com")
 }
 
 func TestSniffUQUICChrome115(t *testing.T) {
@@ -37,7 +37,7 @@ func TestSniffUQUICChrome115(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, metadata.Protocol, C.ProtocolQUIC)
 	require.Equal(t, metadata.Client, C.ClientQUICGo)
-	require.Equal(t, metadata.Domain, "www.google.com")
+	require.Equal(t, metadata.SniffHost, "www.google.com")
 }
 
 func TestSniffQUICFirefox(t *testing.T) {
@@ -49,7 +49,7 @@ func TestSniffQUICFirefox(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, metadata.Protocol, C.ProtocolQUIC)
 	require.Equal(t, metadata.Client, C.ClientFirefox)
-	require.Equal(t, metadata.Domain, "www.google.com")
+	require.Equal(t, metadata.SniffHost, "www.google.com")
 }
 
 func TestSniffQUICSafari(t *testing.T) {
@@ -61,7 +61,7 @@ func TestSniffQUICSafari(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, metadata.Protocol, C.ProtocolQUIC)
 	require.Equal(t, metadata.Client, C.ClientSafari)
-	require.Equal(t, metadata.Domain, "www.google.com")
+	require.Equal(t, metadata.SniffHost, "www.google.com")
 }
 
 func FuzzSniffQUIC(f *testing.F) {
