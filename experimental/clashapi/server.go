@@ -259,10 +259,10 @@ func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
 		inbound = metadata.InboundType
 	}
 	var domain string
-	if metadata.Domain != "" {
-		domain = metadata.Domain
-	} else {
+	if metadata.Destination.IsFqdn() {
 		domain = metadata.Destination.Fqdn
+	} else {
+		domain = metadata.Domain
 	}
 	var processPath string
 	if metadata.ProcessInfo != nil {
@@ -289,6 +289,7 @@ func castMetadata(metadata adapter.InboundContext) trafficontrol.Metadata {
 		SrcPort:     F.ToString(metadata.Source.Port),
 		DstPort:     F.ToString(metadata.Destination.Port),
 		Host:        domain,
+		SniffHost:   metadata.SniffDomain,
 		DNSMode:     "normal",
 		ProcessPath: processPath,
 	}

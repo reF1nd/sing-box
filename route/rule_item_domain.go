@@ -52,10 +52,12 @@ func NewRawDomainItem(matcher *domain.Matcher) *DomainItem {
 
 func (r *DomainItem) Match(metadata *adapter.InboundContext) bool {
 	var domainHost string
-	if metadata.Domain != "" {
-		domainHost = metadata.Domain
-	} else {
+	if metadata.Destination.IsFqdn() {
 		domainHost = metadata.Destination.Fqdn
+	} else if metadata.SniffDomain != "" {
+		domainHost = metadata.SniffDomain
+	} else {
+		domainHost = metadata.Domain
 	}
 	if domainHost == "" {
 		return false
