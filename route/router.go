@@ -974,15 +974,15 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		)
 		if sniffMetadata != nil {
 			metadata.Protocol = sniffMetadata.Protocol
-			metadata.Domain = sniffMetadata.Domain
-			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
+			metadata.SniffDomain = sniffMetadata.Domain
+			if !metadata.Destination.IsFqdn() && metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
 				metadata.Destination = M.Socksaddr{
-					Fqdn: metadata.Domain,
+					Fqdn: metadata.SniffDomain,
 					Port: metadata.Destination.Port,
 				}
 			}
-			if metadata.Domain != "" {
-				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			if metadata.SniffDomain != "" {
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.SniffDomain)
 			} else {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
 			}
@@ -996,7 +996,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		}
 	}
 
-	if r.dnsReverseMapping != nil && metadata.Domain == "" {
+	if r.dnsReverseMapping != nil {
 		domain, loaded := r.dnsReverseMapping.Query(metadata.Destination.Addr)
 		if loaded {
 			metadata.Domain = domain
@@ -1058,6 +1058,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
+	var destOverride bool
 	if r.pauseManager.IsDevicePaused() {
 		return E.New("reject packet connection to ", metadata.Destination, " while device paused")
 	}
@@ -1099,6 +1100,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			Port: metadata.Destination.Port,
 		}
 		metadata.FakeIP = true
+		destOverride = true
 		r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
 	}
 
@@ -1129,15 +1131,16 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			)
 			if sniffMetadata != nil {
 				metadata.Protocol = sniffMetadata.Protocol
-				metadata.Domain = sniffMetadata.Domain
-				if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
+				metadata.SniffDomain = sniffMetadata.Domain
+				if !metadata.Destination.IsFqdn() && metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
 					metadata.Destination = M.Socksaddr{
-						Fqdn: metadata.Domain,
+						Fqdn: metadata.SniffDomain,
 						Port: metadata.Destination.Port,
 					}
+					destOverride = true
 				}
-				if metadata.Domain != "" {
-					r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+				if metadata.SniffDomain != "" {
+					r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.SniffDomain)
 				} else {
 					r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
 				}
@@ -1145,7 +1148,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 		}
 		conn = bufio.NewCachedPacketConn(conn, buffer, destination)
 	}
-	if r.dnsReverseMapping != nil && metadata.Domain == "" {
+	if r.dnsReverseMapping != nil {
 		domain, loaded := r.dnsReverseMapping.Query(metadata.Destination.Addr)
 		if loaded {
 			metadata.Domain = domain
@@ -1205,7 +1208,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			conn = statsService.RoutedPacketConnection(metadata.Inbound, detour.Tag(), metadata.User, conn)
 		}
 	}
-	if metadata.FakeIP {
+	if destOverride {
 		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
 	return detour.NewPacketConnection(ctx, conn, metadata)
