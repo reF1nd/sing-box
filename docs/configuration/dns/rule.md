@@ -98,13 +98,25 @@ icon: material/alert-decagram
           "00:00:00:00:00:00"
         ],
         "rule_set": [
-          "geoip-cn",
           "geosite-cn"
         ],
         "invert": false,
         "outbound": [
           "direct"
         ],
+        "fallback_rule": {
+          "ipcidr": [
+            "10.0.0.0/24"
+          ],
+          "geoip": [
+            "cn"
+          ],
+          "rule_set": [
+            "geoip-cn"
+          ],
+          "ip_is_private": false,
+          "invert": false
+        },
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100
@@ -113,6 +125,7 @@ icon: material/alert-decagram
         "type": "logical",
         "mode": "and",
         "rules": [],
+        "fallback_rule": {},
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100
@@ -325,3 +338,39 @@ Rewrite TTL in DNS responses.
 #### rules
 
 Included rules.
+
+### Fallback Rule
+
+!!! note ""
+
+    Fallback rule items use OR logic
+
+Fallback when matched.
+
+#### ip_cidr
+
+Match IP CIDR.
+
+#### geoip
+
+!!! failure "Deprecated in sing-box 1.8.0"
+
+    GeoIP is deprecated and may be removed in the future, check [Migration](/migration/#migrate-geoip-to-rule-sets).
+
+Match geoip.
+
+#### rule_set
+
+!!! question "Since sing-box 1.8.0"
+
+!!! quote ""
+
+    Only ip_cidr and invert items of default type headless rules in rule set will be matched. Logical type headless in it will be skipped.
+
+Match [Rule Set](/configuration/route/#rule_set).
+
+#### ip_is_private
+
+!!! question "Since sing-box 1.8.0"
+
+Match non-public IP.

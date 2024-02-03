@@ -97,13 +97,25 @@ icon: material/alert-decagram
           "00:00:00:00:00:00"
         ],
         "rule_set": [
-          "geoip-cn",
           "geosite-cn"
         ],
         "invert": false,
         "outbound": [
           "direct"
         ],
+        "fallback_rule": {
+          "ipcidr": [
+            "10.0.0.0/24"
+          ],
+          "geoip": [
+            "cn"
+          ],
+          "rule_set": [
+            "geoip-cn"
+          ],
+          "ip_is_private": false,
+          "invert": false
+        },
         "server": "local",
         "disable_cache": false
       },
@@ -111,6 +123,7 @@ icon: material/alert-decagram
         "type": "logical",
         "mode": "and",
         "rules": [],
+        "fallback_rule": {},
         "server": "local",
         "disable_cache": false
       }
@@ -320,3 +333,39 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### rules
 
 包括的规则。
+
+### fallback_rule
+
+!!! note ""
+
+    回落规则项使用 OR 逻辑
+
+匹配回落规则。
+
+#### ip_cidr
+
+匹配 IP CIDR。
+
+#### geoip
+
+!!! failure "已在 sing-box 1.8.0 废弃"
+
+    GeoIP 已废弃且可能在不久的将来移除，参阅 [迁移指南](/zh/migration/#geoip)。
+
+匹配 GeoIP。
+
+#### rule_set
+
+!!! question "自 sing-box 1.8.0 起"
+
+!!! quote ""
+
+    仅匹配规则集中的默认无头规则中的 ip_cidr 及 invert 项目，逻辑规则将会被跳过。
+
+匹配[规则集](/zh/configuration/route/#rule_set)。
+
+#### ip_is_private
+
+!!! question "自 sing-box 1.8.0 起"
+
+匹配非公开 IP。

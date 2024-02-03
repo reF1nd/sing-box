@@ -29,8 +29,14 @@ func hasDNSRule(rules []option.DNSRule, cond func(rule option.DefaultDNSRule) bo
 			if cond(rule.DefaultOptions) {
 				return true
 			}
+			if len(rule.DefaultOptions.FallBackRule.GeoIP) > 0 {
+				return true
+			}
 		case C.RuleTypeLogical:
 			if hasDNSRule(rule.LogicalOptions.Rules, cond) {
+				return true
+			}
+			if len(rule.LogicalOptions.FallBackRule.GeoIP) > 0 {
 				return true
 			}
 		}

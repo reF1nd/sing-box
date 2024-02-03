@@ -1,12 +1,16 @@
 package route
 
 import (
+	"strings"
+
 	"github.com/gofrs/uuid/v5"
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	F "github.com/sagernet/sing/common/format"
 )
 
 func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
@@ -34,8 +38,24 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 
 var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
+type FallBackRule struct {
+	items  []RuleItem
+	invert bool
+}
+
+func (r *FallBackRule) Start() error {
+	for _, item := range r.items {
+		err := common.Start(item)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type DefaultDNSRule struct {
 	abstractDefaultRule
+	fallBackRule FallBackRule
 	disableCache bool
 	rewriteTTL   *uint32
 }
@@ -49,6 +69,9 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 				invert:   options.Invert,
 				outbound: options.Server,
 			},
+		},
+		fallBackRule: FallBackRule{
+			invert: options.FallBackRule.Invert,
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
@@ -205,6 +228,25 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.FallBackRule.IPCIDR) > 0 {
+		item, err := NewIPCIDRItem(false, options.FallBackRule.IPCIDR)
+		if err != nil {
+			return nil, E.Cause(err, "ipcidr")
+		}
+		rule.fallBackRule.items = append(rule.items, item)
+	}
+	if options.FallBackRule.IPIsPrivate {
+		item := NewIPIsPrivateItem(false)
+		rule.fallBackRule.items = append(rule.fallBackRule.items, item)
+	}
+	if len(options.FallBackRule.GeoIP) > 0 {
+		item := NewGeoIPItem(router, logger, false, options.FallBackRule.GeoIP)
+		rule.fallBackRule.items = append(rule.fallBackRule.items, item)
+	}
+	if len(options.FallBackRule.RuleSet) > 0 {
+		item := NewRuleSetItem(router, options.FallBackRule.RuleSet, false)
+		rule.fallBackRule.items = append(rule.items, item)
+	}
 	return rule, nil
 }
 
@@ -216,10 +258,59 @@ func (r *DefaultDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
 }
 
+func (r *DefaultDNSRule) String() string {
+	var result string
+	func() {
+		if len(r.allItems) == 0 {
+			result = "match_all"
+			return
+		}
+		result = strings.Join(F.MapToString(r.allItems), " ")
+		if r.invert {
+			result = "!(" + result + ")"
+		}
+	}()
+	func() {
+		if len(r.fallBackRule.items) == 0 {
+			return
+		}
+		fallback := "[" + strings.Join(F.MapToString(r.fallBackRule.items), " ") + "]"
+		if r.fallBackRule.invert {
+			fallback = "!" + fallback + ""
+		}
+		result = result + " fallback_rule=" + fallback + ""
+	}()
+	return result
+}
+
+func (r *DefaultDNSRule) Start() error {
+	for _, item := range r.allItems {
+		err := common.Start(item)
+		if err != nil {
+			return err
+		}
+	}
+	return r.fallBackRule.Start()
+}
+
+func (r *DefaultDNSRule) MatchFallback(metadata *adapter.InboundContext) bool {
+	fallbackItem := r.fallBackRule.items
+	if len(fallbackItem) == 0 {
+		return false
+	}
+	for _, item := range fallbackItem {
+		if item.Match(metadata) {
+			return !r.fallBackRule.invert
+		}
+	}
+	return r.fallBackRule.invert
+}
+
 var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
 
 type LogicalDNSRule struct {
 	abstractLogicalRule
+	fallBackRule FallBackRule
 	disableCache bool
 	rewriteTTL   *uint32
 }
@@ -234,6 +325,9 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 				outbound: options.Server,
 			},
 			rules: make([]adapter.HeadlessRule, len(options.Rules)),
+		},
+		fallBackRule: FallBackRule{
+			invert: options.FallBackRule.Invert,
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
@@ -262,4 +356,62 @@ func (r *LogicalDNSRule) DisableCache() bool {
 
 func (r *LogicalDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
+}
+
+func (r *LogicalDNSRule) String() string {
+	var result string
+	var op string
+	switch r.mode {
+	case C.LogicalTypeAnd:
+		op = "&&"
+	case C.LogicalTypeOr:
+		op = "||"
+	}
+	func() {
+		if len(r.rules) == 0 {
+			result = "match_all"
+			return
+		}
+		result = strings.Join(F.MapToString(r.rules), " "+op+" ")
+		if r.invert {
+			result = "!(" + result + ")"
+		}
+	}()
+	func() {
+		if len(r.fallBackRule.items) == 0 {
+			return
+		}
+		fallback := "[" + strings.Join(F.MapToString(r.fallBackRule.items), " ") + "]"
+		if r.fallBackRule.invert {
+			fallback = "!" + fallback + ""
+		}
+		result = result + " fallback_rule=" + fallback + ""
+	}()
+	return result
+}
+
+func (r *LogicalDNSRule) Start() error {
+	for _, rule := range common.FilterIsInstance(r.rules, func(it adapter.HeadlessRule) (common.Starter, bool) {
+		rule, loaded := it.(common.Starter)
+		return rule, loaded
+	}) {
+		err := rule.Start()
+		if err != nil {
+			return err
+		}
+	}
+	return r.fallBackRule.Start()
+}
+
+func (r *LogicalDNSRule) MatchFallback(metadata *adapter.InboundContext) bool {
+	fallbackItem := r.fallBackRule.items
+	if len(fallbackItem) == 0 {
+		return false
+	}
+	for _, item := range fallbackItem {
+		if item.Match(metadata) {
+			return !r.fallBackRule.invert
+		}
+	}
+	return r.fallBackRule.invert
 }
