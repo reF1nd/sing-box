@@ -41,6 +41,23 @@ it will be rejected.
 
 拒绝未知 SNI：如果连接的 server name 与 `server_name` 不符 且 证书中不包含它，则拒绝连接。
 
+## Dialer
+
+```json
+{
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct",
+      "tcp_keep_alive_interval": "75s",
+      "tcp_keep_alive_idle": "10m"
+    }
+  ]
+}
+```
+
+TCP Keep alive options.
+
 ## DNS
 
 ### TCP
