@@ -55,6 +55,23 @@ it will be rejected.
 
 - `reuse`: Reuse TCP connection.
 
+## Dialer
+
+```json
+{
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct",
+      "tcp_keep_alive_interval": "75s",
+      "tcp_keep_alive_idle": "10min"
+    }
+  ]
+}
+```
+
+TCP Keep alive options.
+
 ## URLTest Fallback 支持
 
 按照**可用性**和**顺序**选择出站
