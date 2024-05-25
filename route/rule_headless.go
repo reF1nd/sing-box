@@ -33,7 +33,9 @@ type DefaultHeadlessRule struct {
 func NewDefaultHeadlessRule(router adapter.Router, options option.DefaultHeadlessRule) (*DefaultHeadlessRule, error) {
 	rule := &DefaultHeadlessRule{
 		abstractDefaultRule{
-			invert: options.Invert,
+			abstractRule: abstractRule{
+				invert: options.Invert,
+			},
 		},
 	}
 	if len(options.Network) > 0 {
@@ -183,8 +185,10 @@ type LogicalHeadlessRule struct {
 func NewLogicalHeadlessRule(router adapter.Router, options option.LogicalHeadlessRule) (*LogicalHeadlessRule, error) {
 	r := &LogicalHeadlessRule{
 		abstractLogicalRule{
-			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
-			invert: options.Invert,
+			abstractRule: abstractRule{
+				invert: options.Invert,
+			},
+			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},
 	}
 	switch options.Mode {
