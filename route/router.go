@@ -56,6 +56,7 @@ type Router struct {
 	ctx                                context.Context
 	logger                             log.ContextLogger
 	dnsLogger                          log.ContextLogger
+	overrideLogger                     log.ContextLogger
 	inboundByTag                       map[string]adapter.Inbound
 	outbounds                          []adapter.Outbound
 	outboundByTag                      map[string]adapter.Outbound
@@ -82,6 +83,7 @@ type Router struct {
 	dnsRules                           []adapter.DNSRule
 	ruleSets                           []adapter.RuleSet
 	ruleSetMap                         map[string]adapter.RuleSet
+	sniffOverrideRules                 map[string][]adapter.Rule
 	defaultTransport                   dns.Transport
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
@@ -123,9 +125,11 @@ func NewRouter(
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("router"),
 		dnsLogger:             logFactory.NewLogger("dns"),
+		overrideLogger:        logFactory.NewLogger("override"),
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
+		sniffOverrideRules:    make(map[string][]adapter.Rule),
 		ruleSetMap:            make(map[string]adapter.RuleSet),
 		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
 		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
@@ -163,6 +167,25 @@ func NewRouter(
 		},
 		Logger: router.dnsLogger,
 	})
+	for i, inboundOptions := range inbounds {
+		tag := inboundOptions.Tag
+		rules := []adapter.Rule{}
+		rawRules := inboundOptions.GetSniffOverrideRules()
+		if hasRule(rawRules, isGeoIPRule) {
+			router.needGeoIPDatabase = true
+		}
+		if hasRule(rawRules, isGeositeRule) {
+			router.needGeositeDatabase = true
+		}
+		for j, ruleOptions := range rawRules {
+			sniffOverrdideRule, err := NewRule(router, router.logger, ruleOptions, false)
+			if err != nil {
+				return nil, E.Cause(err, "parse inbound[", i, "] sniff_override_rule[", j, "]")
+			}
+			rules = append(rules, sniffOverrdideRule)
+		}
+		router.sniffOverrideRules[tag] = rules
+	}
 	for i, ruleOptions := range options.Rules {
 		routeRule, err := NewRule(router, router.logger, ruleOptions, true)
 		if err != nil {
@@ -535,6 +558,14 @@ func (r *Router) Start() error {
 				r.logger.Error("failed to initialize geosite: ", err)
 			}
 		}
+		for _, rules := range r.sniffOverrideRules {
+			for _, rule := range rules {
+				err := rule.UpdateGeosite()
+				if err != nil {
+					r.logger.Error("failed to initialize geosite: ", err)
+				}
+			}
+		}
 		err := common.Close(r.geositeReader)
 		if err != nil {
 			return err
@@ -653,6 +684,16 @@ func (r *Router) Start() error {
 		monitor.Finish()
 		if err != nil {
 			return E.Cause(err, "initialize DNS rule[", i, "]")
+		}
+	}
+	for in, rules := range r.sniffOverrideRules {
+		for i, rule := range rules {
+			monitor.Start("initialize inbound[", in, "] sniff_overrride_rule[", i, "]")
+			err := rule.Start()
+			monitor.Finish()
+			if err != nil {
+				return E.Cause(err, "initialize inbound[", in, "] sniff_overrride_rule[", i, "]")
+			}
 		}
 	}
 	for i, transport := range r.transports {
@@ -880,7 +921,7 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 		if sniffMetadata != nil {
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
-			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
+			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
 				metadata.Destination = M.Socksaddr{
 					Fqdn: metadata.Domain,
 					Port: metadata.Destination.Port,
@@ -1015,7 +1056,7 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			if sniffMetadata != nil {
 				metadata.Protocol = sniffMetadata.Protocol
 				metadata.Domain = sniffMetadata.Domain
-				if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
+				if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) && r.matchSniffOverride(ctx, &metadata) {
 					metadata.Destination = M.Socksaddr{
 						Fqdn: metadata.Domain,
 						Port: metadata.Destination.Port,
