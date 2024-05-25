@@ -26,6 +26,7 @@ icon: material/alert-decagram
   "route": {
     "rules": [
       {
+        "tag": "rule-a",
         "inbound": [
           "mixed-in"
         ],
@@ -160,6 +161,10 @@ icon: material/alert-decagram
     `other fields`
 
     Additionally, included rule-sets can be considered merged rather than as a single rule sub-item.
+
+#### tag
+
+Tag of rule, will take instead of item string when not empty.
 
 #### inbound
 
