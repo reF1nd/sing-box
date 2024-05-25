@@ -3,6 +3,7 @@ package route
 import (
 	"net/netip"
 
+	"github.com/gofrs/uuid/v5"
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -44,10 +45,14 @@ type DefaultDNSRule struct {
 }
 
 func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+	id, _ := uuid.NewV4()
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
-			invert:   options.Invert,
-			outbound: options.Server,
+			abstractRule: abstractRule{
+				uuid:     id.String(),
+				invert:   options.Invert,
+				outbound: options.Server,
+			},
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
@@ -276,11 +281,15 @@ type LogicalDNSRule struct {
 }
 
 func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+	id, _ := uuid.NewV4()
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
-			rules:    make([]adapter.HeadlessRule, len(options.Rules)),
-			invert:   options.Invert,
-			outbound: options.Server,
+			abstractRule: abstractRule{
+				uuid:     id.String(),
+				invert:   options.Invert,
+				outbound: options.Server,
+			},
+			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,

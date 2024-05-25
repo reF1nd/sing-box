@@ -10,7 +10,33 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
+type abstractRule struct {
+	disabled  bool
+	uuid      string
+	tag       string
+	invert    bool
+	ruleCount int
+	outbound  string
+}
+
+func (r *abstractRule) Disabled() bool {
+	return r.disabled
+}
+
+func (r *abstractRule) UUID() string {
+	return r.uuid
+}
+
+func (r *abstractRule) ChangeStatus() {
+	r.disabled = !r.disabled
+}
+
+func (r *abstractRule) RuleCount() int {
+	return r.ruleCount
+}
+
 type abstractDefaultRule struct {
+	abstractRule
 	items                   []RuleItem
 	sourceAddressItems      []RuleItem
 	sourcePortItems         []RuleItem
@@ -18,10 +44,7 @@ type abstractDefaultRule struct {
 	destinationIPCIDRItems  []RuleItem
 	destinationPortItems    []RuleItem
 	allItems                []RuleItem
-	ruleSetItem             RuleItem
-	invert                  bool
-	outbound                string
-	ruleCount               int
+	ruleSetItems            []RuleItem
 }
 
 func (r *abstractDefaultRule) Type() string {
@@ -152,6 +175,9 @@ func (r *abstractDefaultRule) Outbound() string {
 }
 
 func (r *abstractDefaultRule) String() string {
+	if r.tag != "" {
+		return "rule[" + r.tag + "]"
+	}
 	if !r.invert {
 		return strings.Join(F.MapToString(r.allItems), " ")
 	} else {
@@ -159,16 +185,10 @@ func (r *abstractDefaultRule) String() string {
 	}
 }
 
-func (r *abstractDefaultRule) RuleCount() int {
-	return r.ruleCount
-}
-
 type abstractLogicalRule struct {
-	rules     []adapter.HeadlessRule
-	mode      string
-	invert    bool
-	outbound  string
-	ruleCount int
+	abstractRule
+	rules []adapter.HeadlessRule
+	mode  string
 }
 
 func (r *abstractLogicalRule) Type() string {
@@ -233,6 +253,9 @@ func (r *abstractLogicalRule) Outbound() string {
 }
 
 func (r *abstractLogicalRule) String() string {
+	if r.tag != "" {
+		return "rule[" + r.tag + "]"
+	}
 	var op string
 	switch r.mode {
 	case C.LogicalTypeAnd:
@@ -245,8 +268,4 @@ func (r *abstractLogicalRule) String() string {
 	} else {
 		return "!(" + strings.Join(F.MapToString(r.rules), " "+op+" ") + ")"
 	}
-}
-
-func (r *abstractLogicalRule) RuleCount() int {
-	return r.ruleCount
 }
