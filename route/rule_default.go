@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 
+	"github.com/gofrs/uuid/v5"
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
@@ -46,10 +47,15 @@ type RuleItem interface {
 }
 
 func NewDefaultRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.DefaultRule) (*DefaultRule, error) {
+	id, _ := uuid.NewV4()
 	rule := &DefaultRule{
 		abstractDefaultRule{
-			invert:   options.Invert,
-			outbound: options.Outbound,
+			abstractRule: abstractRule{
+				uuid:     id.String(),
+				tag:      options.Tag,
+				invert:   options.Invert,
+				outbound: options.Outbound,
+			},
 		},
 	}
 	if len(options.Inbound) > 0 {
@@ -244,11 +250,16 @@ type LogicalRule struct {
 }
 
 func NewLogicalRule(ctx context.Context, router adapter.Router, logger log.ContextLogger, options option.LogicalRule) (*LogicalRule, error) {
+	id, _ := uuid.NewV4()
 	r := &LogicalRule{
 		abstractLogicalRule{
-			rules:    make([]adapter.HeadlessRule, len(options.Rules)),
-			invert:   options.Invert,
-			outbound: options.Outbound,
+			abstractRule: abstractRule{
+				uuid:     id.String(),
+				tag:      options.Tag,
+				invert:   options.Invert,
+				outbound: options.Outbound,
+			},
+			rules: make([]adapter.HeadlessRule, len(options.Rules)),
 		},
 	}
 	switch options.Mode {

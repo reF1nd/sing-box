@@ -10,7 +10,33 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
+type abstractRule struct {
+	disabled  bool
+	uuid      string
+	tag       string
+	invert    bool
+	ruleCount uint64
+	outbound  string
+}
+
+func (r *abstractRule) Disabled() bool {
+	return r.disabled
+}
+
+func (r *abstractRule) UUID() string {
+	return r.uuid
+}
+
+func (r *abstractRule) ChangeStatus() {
+	r.disabled = !r.disabled
+}
+
+func (r *abstractRule) RuleCount() uint64 {
+	return r.ruleCount
+}
+
 type abstractDefaultRule struct {
+	abstractRule
 	items                   []RuleItem
 	sourceAddressItems      []RuleItem
 	sourcePortItems         []RuleItem
@@ -19,17 +45,10 @@ type abstractDefaultRule struct {
 	destinationPortItems    []RuleItem
 	allItems                []RuleItem
 	ruleSetItem             RuleItem
-	ruleCount               uint64
-	invert                  bool
-	outbound                string
 }
 
 func (r *abstractDefaultRule) Type() string {
 	return C.RuleTypeDefault
-}
-
-func (r *abstractDefaultRule) RuleCount() uint64 {
-	return r.ruleCount
 }
 
 func (r *abstractDefaultRule) Start() error {
@@ -160,6 +179,9 @@ func (r *abstractDefaultRule) Outbound() string {
 }
 
 func (r *abstractDefaultRule) String() string {
+	if r.tag != "" {
+		return "rule[" + r.tag + "]"
+	}
 	if !r.invert {
 		return strings.Join(F.MapToString(r.allItems), " ")
 	} else {
@@ -168,19 +190,13 @@ func (r *abstractDefaultRule) String() string {
 }
 
 type abstractLogicalRule struct {
-	rules     []adapter.HeadlessRule
-	mode      string
-	invert    bool
-	outbound  string
-	ruleCount uint64
+	abstractRule
+	rules []adapter.HeadlessRule
+	mode  string
 }
 
 func (r *abstractLogicalRule) Type() string {
 	return C.RuleTypeLogical
-}
-
-func (r *abstractLogicalRule) RuleCount() uint64 {
-	return r.ruleCount
 }
 
 func (r *abstractLogicalRule) UpdateGeosite() error {
@@ -246,6 +262,9 @@ func (r *abstractLogicalRule) Outbound() string {
 }
 
 func (r *abstractLogicalRule) String() string {
+	if r.tag != "" {
+		return "rule[" + r.tag + "]"
+	}
 	var op string
 	switch r.mode {
 	case C.LogicalTypeAnd:
