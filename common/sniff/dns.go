@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -17,14 +18,21 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-func StreamDomainNameQuery(readCtx context.Context, reader io.Reader) (*adapter.InboundContext, error) {
+func StreamDomainNameQuery(readCtx context.Context, reader io.Reader, sniffdata chan SniffData, wg *sync.WaitGroup) {
 	var length uint16
+	var data SniffData
+	defer func() {
+		sniffdata <- data
+		wg.Done()
+	}()
 	err := binary.Read(reader, binary.BigEndian, &length)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 	if length == 0 {
-		return nil, os.ErrInvalid
+		data.err = os.ErrInvalid
+		return
 	}
 	buffer := buf.NewSize(int(length))
 	defer buffer.Release()
@@ -37,19 +45,29 @@ func StreamDomainNameQuery(readCtx context.Context, reader io.Reader) (*adapter.
 	err = readTask.Run(readCtx)
 	cancel()
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
-	return DomainNameQuery(readCtx, buffer.Bytes())
+	domainNameQuery(buffer.Bytes(), &data)
 }
 
-func DomainNameQuery(ctx context.Context, packet []byte) (*adapter.InboundContext, error) {
+func domainNameQuery(packet []byte, data *SniffData) {
 	var msg mDNS.Msg
 	err := msg.Unpack(packet)
 	if err != nil {
-		return nil, err
+		data.err = err
+		return
 	}
 	if len(msg.Question) == 0 || msg.Question[0].Qclass != mDNS.ClassINET || !M.IsDomainName(msg.Question[0].Name) {
-		return nil, os.ErrInvalid
+		data.err = os.ErrInvalid
+		return
 	}
-	return &adapter.InboundContext{Protocol: C.ProtocolDNS}, nil
+	data.metadata = &adapter.InboundContext{Protocol: C.ProtocolDNS}
+}
+
+func DomainNameQuery(ctx context.Context, packet []byte, sniffdata chan SniffData, wg *sync.WaitGroup) {
+	var data SniffData
+	domainNameQuery(packet, &data)
+	sniffdata <- data
+	wg.Done()
 }

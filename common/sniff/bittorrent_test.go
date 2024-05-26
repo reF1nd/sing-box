@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"sync"
 	"testing"
 
 	"github.com/sagernet/sing-box/common/sniff"
@@ -24,9 +25,18 @@ func TestSniffBittorrent(t *testing.T) {
 	for _, pkt := range packets {
 		pkt, err := hex.DecodeString(pkt)
 		require.NoError(t, err)
-		metadata, err := sniff.BitTorrent(context.TODO(), bytes.NewReader(pkt))
-		require.NoError(t, err)
-		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		sniffdata := make(chan sniff.SniffData, 1)
+		var data sniff.SniffData
+		var wg sync.WaitGroup
+		wg.Add(1)
+		sniff.BitTorrent(context.TODO(), bytes.NewReader(pkt), sniffdata, &wg)
+		data, ok := <-sniffdata
+		if ok {
+			metadata := data.GetMetadata()
+			err := data.GetErr()
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		}
 	}
 }
 
@@ -44,9 +54,18 @@ func TestSniffUTP(t *testing.T) {
 		pkt, err := hex.DecodeString(pkt)
 		require.NoError(t, err)
 
-		metadata, err := sniff.UTP(context.TODO(), pkt)
-		require.NoError(t, err)
-		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		sniffdata := make(chan sniff.SniffData, 1)
+		var data sniff.SniffData
+		var wg sync.WaitGroup
+		wg.Add(1)
+		sniff.UTP(context.TODO(), pkt, sniffdata, &wg)
+		data, ok := <-sniffdata
+		if ok {
+			metadata := data.GetMetadata()
+			err := data.GetErr()
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		}
 	}
 }
 
@@ -74,8 +93,17 @@ func TestSniffUDPTracker(t *testing.T) {
 		pkt, err := hex.DecodeString(pkt)
 		require.NoError(t, err)
 
-		metadata, err := sniff.UDPTracker(context.TODO(), pkt)
-		require.NoError(t, err)
-		require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		sniffdata := make(chan sniff.SniffData, 1)
+		var data sniff.SniffData
+		var wg sync.WaitGroup
+		wg.Add(1)
+		sniff.UDPTracker(context.TODO(), pkt, sniffdata, &wg)
+		data, ok := <-sniffdata
+		if ok {
+			metadata := data.GetMetadata()
+			err := data.GetErr()
+			require.NoError(t, err)
+			require.Equal(t, C.ProtocolBitTorrent, metadata.Protocol)
+		}
 	}
 }
