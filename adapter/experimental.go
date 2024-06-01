@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/urltest"
-	"github.com/sagernet/sing-dns"
+	dns "github.com/sagernet/sing-dns"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/rw"
 )
@@ -109,11 +109,18 @@ type OutboundGroup interface {
 	Outbound
 	Now() string
 	All() []string
+	UpdateOutbounds(tag string) error
 }
 
 type URLTestGroup interface {
 	OutboundGroup
 	URLTest(ctx context.Context) (map[string]uint16, error)
+	PerformUpdateCheck(tag string, force bool)
+}
+
+type SelectorGroup interface {
+	OutboundGroup
+	UpdateSelected(tag string) bool
 }
 
 func OutboundTag(detour Outbound) string {
