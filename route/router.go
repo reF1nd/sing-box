@@ -1230,8 +1230,14 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 			r.logger.DebugContext(ctx, "found reserve mapped domain: ", metadata.Domain)
 		}
 	}
-	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
-		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(metadata.InboundOptions.DomainStrategy))
+	if metadata.Destination.IsFqdn() && (dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS || dns.DomainStrategy(metadata.InboundOptions.UDPDomainStrategy) != dns.DomainStrategyAsIS) {
+		var domainStrategy option.DomainStrategy
+		if dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) != dns.DomainStrategyAsIS {
+			domainStrategy = metadata.InboundOptions.DomainStrategy
+		} else if dns.DomainStrategy(metadata.InboundOptions.UDPDomainStrategy) != dns.DomainStrategyAsIS {
+			domainStrategy = metadata.InboundOptions.UDPDomainStrategy
+		}
+		addresses, err := r.Lookup(adapter.WithContext(ctx, &metadata), metadata.Destination.Fqdn, dns.DomainStrategy(domainStrategy))
 		if err != nil {
 			return err
 		}
@@ -1341,7 +1347,7 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 		}
 	}
 	resolveStatus := -1
-	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) == dns.DomainStrategyAsIS && r.routeStrategy == 2 {
+	if metadata.Destination.IsFqdn() && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) == dns.DomainStrategyAsIS && dns.DomainStrategy(metadata.InboundOptions.UDPDomainStrategy) == dns.DomainStrategyAsIS && r.routeStrategy == 2 {
 		resolveStatus = 0
 	}
 	for i, rule := range r.rules {
@@ -1374,7 +1380,7 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 			r.logger.ErrorContext(ctx, "outbound not found: ", detour)
 		}
 	}
-	if metadata.Destination.IsFqdn() && r.routeStrategy == 1 && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) == dns.DomainStrategyAsIS && !metadata.NonMatch {
+	if metadata.Destination.IsFqdn() && r.routeStrategy == 1 && dns.DomainStrategy(metadata.InboundOptions.DomainStrategy) == dns.DomainStrategyAsIS && dns.DomainStrategy(metadata.InboundOptions.UDPDomainStrategy) == dns.DomainStrategyAsIS && !metadata.NonMatch {
 		metadata.NonMatch = true
 	}
 	if len(metadata.CacheIPs) > 0 && r.FindoutRealOutboundType(defaultOutbound, metadata.Network) {
