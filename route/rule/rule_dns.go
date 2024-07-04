@@ -317,8 +317,8 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
-	if options.ClashMode != "" {
-		item := NewClashModeItem(ctx, options.ClashMode)
+	if clashModes := option.NormalizeClashModes(options.ClashMode); len(clashModes) > 0 {
+		item := NewClashModeItem(ctx, clashModes)
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}

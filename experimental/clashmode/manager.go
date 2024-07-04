@@ -14,13 +14,15 @@ import (
 )
 
 type Manager struct {
-	ctx          context.Context
-	logger       log.Logger
-	dnsRouter    adapter.DNSRouter
-	mode         string
-	modeList     []string
-	updateAccess sync.Mutex
-	updateHooks  []*observable.Subscriber[struct{}]
+	ctx           context.Context
+	logger        log.Logger
+	dnsRouter     adapter.DNSRouter
+	setModeAccess sync.Mutex
+	modeAccess    sync.RWMutex
+	mode          string
+	modeList      []string
+	updateAccess  sync.Mutex
+	updateHooks   []*observable.Subscriber[struct{}]
 }
 
 func NewManager(ctx context.Context, logger log.Logger, defaultMode string, modeList []string) *Manager {
@@ -47,19 +49,25 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	m.setModeAccess.Lock()
+	defer m.setModeAccess.Unlock()
 	cacheFile := service.FromContext[adapter.CacheFile](m.ctx)
 	if cacheFile != nil {
 		mode := cacheFile.LoadMode()
 		if common.Any(m.modeList, func(it string) bool {
 			return strings.EqualFold(it, mode)
 		}) {
+			m.modeAccess.Lock()
 			m.mode = mode
+			m.modeAccess.Unlock()
 		}
 	}
 	return nil
 }
 
 func (m *Manager) Mode() string {
+	m.modeAccess.RLock()
+	defer m.modeAccess.RUnlock()
 	return m.mode
 }
 
@@ -82,16 +90,23 @@ func (m *Manager) SetMode(newMode string) {
 	if !common.Contains(m.modeList, newMode) {
 		return
 	}
+	m.setModeAccess.Lock()
+	defer m.setModeAccess.Unlock()
+	m.modeAccess.Lock()
 	if newMode == m.mode {
+		m.modeAccess.Unlock()
 		return
 	}
 	m.mode = newMode
+	m.modeAccess.Unlock()
 	m.updateAccess.Lock()
 	for _, hook := range m.updateHooks {
 		hook.Emit(struct{}{})
 	}
 	m.updateAccess.Unlock()
-	m.dnsRouter.ClearCache()
+	if m.dnsRouter != nil {
+		m.dnsRouter.ClearCache()
+	}
 	cacheFile := service.FromContext[adapter.CacheFile](m.ctx)
 	if cacheFile != nil {
 		err := cacheFile.StoreMode(newMode)

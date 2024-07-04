@@ -161,7 +161,7 @@ type RawDefaultDNSRule struct {
 	User                     badoption.Listable[string]                                                  `json:"user,omitempty"`
 	UserID                   badoption.Listable[int32]                                                   `json:"user_id,omitempty"`
 	Outbound                 badoption.Listable[string]                                                  `json:"outbound,omitempty" reference:"outbound" schema:"omit"`
-	ClashMode                string                                                                      `json:"clash_mode,omitempty"`
+	ClashMode                badoption.Listable[string]                                                  `json:"clash_mode,omitempty"`
 	NetworkType              badoption.Listable[InterfaceType]                                           `json:"network_type,omitempty"`
 	NetworkIsExpensive       bool                                                                        `json:"network_is_expensive,omitempty"`
 	NetworkIsConstrained     bool                                                                        `json:"network_is_constrained,omitempty"`
@@ -220,6 +220,7 @@ func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) 
 	if err != nil {
 		return err
 	}
+	r.RawDefaultDNSRule.ClashMode = NormalizeClashModes(r.RawDefaultDNSRule.ClashMode)
 	err = badjson.UnmarshallExcludedContext(ctx, data, &r.RawDefaultDNSRule, &r.DNSRuleAction)
 	if err != nil {
 		return err
@@ -231,6 +232,7 @@ func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) 
 }
 
 func (r DefaultDNSRule) IsValid() bool {
+	r.ClashMode = NormalizeClashModes(r.ClashMode)
 	var defaultValue DefaultDNSRule
 	defaultValue.Invert = r.Invert
 	return !reflect.DeepEqual(r, defaultValue)
