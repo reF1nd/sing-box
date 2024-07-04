@@ -170,7 +170,7 @@ type RawDefaultRule struct {
 	PackageNameRegex         badoption.Listable[string]                                                  `json:"package_name_regex,omitempty"`
 	User                     badoption.Listable[string]                                                  `json:"user,omitempty"`
 	UserID                   badoption.Listable[int32]                                                   `json:"user_id,omitempty"`
-	ClashMode                string                                                                      `json:"clash_mode,omitempty"`
+	ClashMode                badoption.Listable[string]                                                  `json:"clash_mode,omitempty"`
 	NetworkType              badoption.Listable[InterfaceType]                                           `json:"network_type,omitempty"`
 	NetworkIsExpensive       bool                                                                        `json:"network_is_expensive,omitempty"`
 	NetworkIsConstrained     bool                                                                        `json:"network_is_constrained,omitempty"`
@@ -200,15 +200,27 @@ func (r DefaultRule) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(r.RawDefaultRule, r.RuleAction)
 }
 
+func NormalizeClashModes(modes []string) badoption.Listable[string] {
+	var normalized badoption.Listable[string]
+	for _, mode := range modes {
+		if mode != "" {
+			normalized = append(normalized, mode)
+		}
+	}
+	return normalized
+}
+
 func (r *DefaultRule) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &r.RawDefaultRule)
 	if err != nil {
 		return err
 	}
+	r.RawDefaultRule.ClashMode = NormalizeClashModes(r.RawDefaultRule.ClashMode)
 	return badjson.UnmarshallExcluded(data, &r.RawDefaultRule, &r.RuleAction)
 }
 
 func (r DefaultRule) IsValid() bool {
+	r.ClashMode = NormalizeClashModes(r.ClashMode)
 	var defaultValue DefaultRule
 	defaultValue.Invert = r.Invert
 	return !reflect.DeepEqual(r, defaultValue)
@@ -262,6 +274,7 @@ func unmarshalDefaultRuleContext(ctx context.Context, data []byte, rule *Default
 	if err != nil {
 		return err
 	}
+	rule.RawDefaultRule.ClashMode = NormalizeClashModes(rule.RawDefaultRule.ClashMode)
 	err = badjson.UnmarshallExcludedContext(ctx, data, &rule.RawDefaultRule, &rule.RuleAction)
 	if err != nil {
 		return err
