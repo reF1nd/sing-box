@@ -94,7 +94,7 @@ type RawDefaultRule struct {
 	PackageName              badoption.Listable[string]        `json:"package_name,omitempty"`
 	User                     badoption.Listable[string]        `json:"user,omitempty"`
 	UserID                   badoption.Listable[int32]         `json:"user_id,omitempty"`
-	ClashMode                string                            `json:"clash_mode,omitempty"`
+	ClashMode                badoption.Listable[string]        `json:"clash_mode,omitempty"`
 	NetworkType              badoption.Listable[InterfaceType] `json:"network_type,omitempty"`
 	NetworkIsExpensive       bool                              `json:"network_is_expensive,omitempty"`
 	NetworkIsConstrained     bool                              `json:"network_is_constrained,omitempty"`
