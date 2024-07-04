@@ -36,8 +36,8 @@ func extraClashModeFromRule(rules []option.Rule) []string {
 	for _, rule := range rules {
 		switch rule.Type {
 		case C.RuleTypeDefault:
-			if rule.DefaultOptions.ClashMode != "" {
-				clashMode = append(clashMode, rule.DefaultOptions.ClashMode)
+			if len(rule.DefaultOptions.ClashMode) > 0 {
+				clashMode = append(clashMode, rule.DefaultOptions.ClashMode...)
 			}
 		case C.RuleTypeLogical:
 			clashMode = append(clashMode, extraClashModeFromRule(rule.LogicalOptions.Rules)...)
@@ -51,8 +51,8 @@ func extraClashModeFromDNSRule(rules []option.DNSRule) []string {
 	for _, rule := range rules {
 		switch rule.Type {
 		case C.RuleTypeDefault:
-			if rule.DefaultOptions.ClashMode != "" {
-				clashMode = append(clashMode, rule.DefaultOptions.ClashMode)
+			if len(rule.DefaultOptions.ClashMode) > 0 {
+				clashMode = append(clashMode, rule.DefaultOptions.ClashMode...)
 			}
 		case C.RuleTypeLogical:
 			clashMode = append(clashMode, extraClashModeFromDNSRule(rule.LogicalOptions.Rules)...)
