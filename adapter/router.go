@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	M "github.com/sagernet/sing/common/metadata"
@@ -22,6 +23,7 @@ type Router interface {
 	PreMatch(metadata InboundContext) error
 	ConnectionRouterEx
 	RuleSet(tag string) (RuleSet, bool)
+	RuleSets() []RuleSet
 	NeedWIFIState() bool
 	Rules() []Rule
 	SetTracker(tracker ConnectionTracker)
@@ -49,6 +51,7 @@ type ConnectionRouterEx interface {
 
 type RuleSet interface {
 	Name() string
+	Type() string
 	StartContext(ctx context.Context, startContext *HTTPStartContext) error
 	PostStart() error
 	Metadata() RuleSetMetadata
@@ -58,6 +61,7 @@ type RuleSet interface {
 	Cleanup()
 	RegisterCallback(callback RuleSetUpdateCallback) *list.Element[RuleSetUpdateCallback]
 	UnregisterCallback(element *list.Element[RuleSetUpdateCallback])
+	Update(ctx context.Context) error
 	Close() error
 	HeadlessRule
 }
@@ -68,6 +72,11 @@ type RuleSetMetadata struct {
 	ContainsProcessRule bool
 	ContainsWIFIRule    bool
 	ContainsIPCIDRRule  bool
+
+	//
+	Format      string
+	RuleNum     int
+	LastUpdated time.Time
 }
 type HTTPStartContext struct {
 	ctx             context.Context

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
@@ -37,6 +38,7 @@ type LocalRuleSet struct {
 	callbackAccess sync.Mutex
 	callbacks      list.List[adapter.RuleSetUpdateCallback]
 	refs           atomic.Int32
+	localFilePath  string
 }
 
 func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.RuleSet) (*LocalRuleSet, error) {
@@ -57,6 +59,7 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.R
 	} else {
 		filePath := filemanager.BasePath(ctx, options.LocalOptions.Path)
 		filePath, _ = filepath.Abs(filePath)
+		ruleSet.localFilePath = filePath
 		err := ruleSet.reloadFile(filePath)
 		if err != nil {
 			return nil, err
@@ -80,6 +83,10 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.R
 
 func (s *LocalRuleSet) Name() string {
 	return s.tag
+}
+
+func (s *LocalRuleSet) Type() string {
+	return "local"
 }
 
 func (s *LocalRuleSet) String() string {
@@ -141,6 +148,9 @@ func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 	metadata.ContainsProcessRule = hasHeadlessRule(headlessRules, isProcessHeadlessRule)
 	metadata.ContainsWIFIRule = hasHeadlessRule(headlessRules, isWIFIHeadlessRule)
 	metadata.ContainsIPCIDRRule = hasHeadlessRule(headlessRules, isIPCIDRHeadlessRule)
+	metadata.Format = s.fileFormat
+	metadata.LastUpdated = time.Now()
+	metadata.RuleNum = len(rules)
 	s.rules = rules
 	s.metadata = metadata
 	s.callbackAccess.Lock()
@@ -190,6 +200,17 @@ func (s *LocalRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetU
 	s.callbackAccess.Lock()
 	defer s.callbackAccess.Unlock()
 	s.callbacks.Remove(element)
+}
+
+func (s *LocalRuleSet) Update(_ context.Context) error {
+	var err error
+	if s.localFilePath != "" {
+		err = s.reloadFile(s.localFilePath)
+		if err != nil {
+			s.logger.Error(E.Cause(err, "reload rule-set ", s.tag))
+		}
+	}
+	return err
 }
 
 func (s *LocalRuleSet) Close() error {
