@@ -52,6 +52,7 @@ type RemoteRuleSet struct {
 	callbackAccess sync.Mutex
 	callbacks      list.List[adapter.RuleSetUpdateCallback]
 	refs           atomic.Int32
+	updateChan     chan context.CancelCauseFunc
 }
 
 func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, options option.RuleSet) *RemoteRuleSet {
@@ -70,11 +71,16 @@ func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, options 
 		options:        options,
 		updateInterval: updateInterval,
 		pauseManager:   service.FromContext[pause.Manager](ctx),
+		updateChan:     make(chan context.CancelCauseFunc),
 	}
 }
 
 func (s *RemoteRuleSet) Name() string {
 	return s.options.Tag
+}
+
+func (s *RemoteRuleSet) Type() string {
+	return "remote"
 }
 
 func (s *RemoteRuleSet) String() string {
@@ -188,6 +194,9 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 	s.metadata.ContainsProcessRule = hasHeadlessRule(plainRuleSet.Rules, isProcessHeadlessRule)
 	s.metadata.ContainsWIFIRule = hasHeadlessRule(plainRuleSet.Rules, isWIFIHeadlessRule)
 	s.metadata.ContainsIPCIDRRule = hasHeadlessRule(plainRuleSet.Rules, isIPCIDRHeadlessRule)
+	s.metadata.Format = s.options.Format
+	s.metadata.LastUpdated = time.Now()
+	s.metadata.RuleNum = len(rules)
 	s.rules = rules
 	s.callbackAccess.Lock()
 	callbacks := s.callbacks.Array()
@@ -220,6 +229,15 @@ func (s *RemoteRuleSet) loopUpdate() {
 			} else if s.refs.Load() == 0 {
 				s.rules = nil
 			}
+		case cancel := <-s.updateChan:
+			s.pauseManager.WaitActive()
+			err := s.fetchOnce(s.ctx, nil)
+			if err != nil {
+				s.logger.Error("fetch rule-set ", s.options.Tag, ": ", err)
+			} else if s.refs.Load() == 0 {
+				s.rules = nil
+			}
+			cancel(err)
 		}
 	}
 }
@@ -305,12 +323,31 @@ func (s *RemoteRuleSet) fetchOnce(ctx context.Context, startContext *adapter.HTT
 	return nil
 }
 
+func (s *RemoteRuleSet) Update(ctx context.Context) error {
+	var err error
+	waitCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	select {
+	case <-s.ctx.Done():
+	case <-ctx.Done():
+	case s.updateChan <- cancel:
+		select {
+		case <-s.ctx.Done():
+		case <-ctx.Done():
+		case <-waitCtx.Done():
+			err = context.Cause(waitCtx)
+		}
+	}
+	return err
+}
+
 func (s *RemoteRuleSet) Close() error {
 	s.rules = nil
 	s.cancel()
 	if s.updateTicker != nil {
 		s.updateTicker.Stop()
 	}
+	close(s.updateChan)
 	return nil
 }
 
