@@ -28,6 +28,7 @@ var _ ServerConfigCompat = (*RealityServerConfig)(nil)
 type RealityServerConfig struct {
 	config           *utls.RealityConfig
 	handshakeTimeout time.Duration
+	rejectUnknownSNI bool
 }
 
 func NewRealityServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
@@ -140,6 +141,7 @@ func NewRealityServer(ctx context.Context, logger log.ContextLogger, options opt
 	var config ServerConfig = &RealityServerConfig{
 		config:           &tlsConfig,
 		handshakeTimeout: handshakeTimeout,
+		rejectUnknownSNI: options.RejectUnknownSNI,
 	}
 	if options.KernelTx || options.KernelRx {
 		if !C.IsLinux {
@@ -203,6 +205,14 @@ func (c *RealityServerConfig) ServerHandshake(ctx context.Context, conn net.Conn
 	tlsConn, err := utls.RealityServer(ctx, conn, c.config)
 	if err != nil {
 		return nil, err
+	}
+	if c.rejectUnknownSNI {
+		sni := tlsConn.ConnectionState().ServerName
+		loadedSNI := c.config.ServerNames[sni]
+		if !loadedSNI && sni != c.config.ServerName {
+			_ = tlsConn.Close()
+			return nil, E.Cause(err, "unknown server name")
+		}
 	}
 	return &realityConnWrapper{Conn: tlsConn}, nil
 }
