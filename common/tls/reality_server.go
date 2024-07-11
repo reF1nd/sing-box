@@ -25,7 +25,8 @@ import (
 var _ ServerConfigCompat = (*RealityServerConfig)(nil)
 
 type RealityServerConfig struct {
-	config *utls.RealityConfig
+	config           *utls.RealityConfig
+	rejectUnknownSNI bool
 }
 
 func NewRealityServer(ctx context.Context, logger log.Logger, options option.InboundTLSOptions) (*RealityServerConfig, error) {
@@ -119,7 +120,7 @@ func NewRealityServer(ctx context.Context, logger log.Logger, options option.Inb
 		return handshakeDialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 	}
 
-	return &RealityServerConfig{&tlsConfig}, nil
+	return &RealityServerConfig{&tlsConfig, options.RejectUnknownSNI}, nil
 }
 
 func (c *RealityServerConfig) ServerName() string {
@@ -162,6 +163,14 @@ func (c *RealityServerConfig) ServerHandshake(ctx context.Context, conn net.Conn
 	tlsConn, err := utls.RealityServer(ctx, conn, c.config)
 	if err != nil {
 		return nil, err
+	}
+	if c.rejectUnknownSNI {
+		sni := tlsConn.ConnectionState().ServerName
+		loadedSNI := c.config.ServerNames[sni]
+		if !loadedSNI && sni != c.config.ServerName {
+			_ = tlsConn.Close()
+			return nil, E.Cause(err, "unknown server name")
+		}
 	}
 	return &realityConnWrapper{Conn: tlsConn}, nil
 }
