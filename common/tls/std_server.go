@@ -3,6 +3,7 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"os"
 	"strings"
@@ -19,14 +20,15 @@ import (
 var errInsecureUnused = E.New("tls: insecure unused")
 
 type STDServerConfig struct {
-	config          *tls.Config
-	logger          log.Logger
-	acmeService     adapter.Service
-	certificate     []byte
-	key             []byte
-	certificatePath string
-	keyPath         string
-	watcher         *fswatch.Watcher
+	config           *tls.Config
+	logger           log.Logger
+	acmeService      adapter.Service
+	certificate      []byte
+	key              []byte
+	certificatePath  string
+	keyPath          string
+	watcher          *fswatch.Watcher
+	rejectUnknownSNI bool
 }
 
 func (c *STDServerConfig) ServerName() string {
@@ -128,7 +130,12 @@ func (c *STDServerConfig) certificateUpdated(path string) error {
 	if err != nil {
 		return E.Cause(err, "reload key pair")
 	}
-	c.config.Certificates = []tls.Certificate{keyPair}
+	c.config.GetCertificate = func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		return &keyPair, nil
+	}
+	if c.rejectUnknownSNI {
+		setRejectUnknownSNIStandard(c.config)
+	}
 	c.logger.Info("reloaded TLS certificate")
 	return nil
 }
@@ -217,6 +224,9 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			key = content
 		}
 		if certificate == nil && key == nil && options.Insecure {
+			if options.RejectUnknownSNI {
+				return nil, E.New("enabled insecure with reject_unknown_sni")
+			}
 			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 				return GenerateCertificate(ntp.TimeFuncFromContext(ctx), info.ServerName)
 			}
@@ -231,16 +241,46 @@ func NewSTDServer(ctx context.Context, logger log.Logger, options option.Inbound
 			if err != nil {
 				return nil, E.Cause(err, "parse x509 key pair")
 			}
-			tlsConfig.Certificates = []tls.Certificate{keyPair}
+			tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				return &keyPair, nil
+			}
+			if options.RejectUnknownSNI {
+				setRejectUnknownSNIStandard(tlsConfig)
+			}
 		}
 	}
 	return &STDServerConfig{
-		config:          tlsConfig,
-		logger:          logger,
-		acmeService:     acmeService,
-		certificate:     certificate,
-		key:             key,
-		certificatePath: options.CertificatePath,
-		keyPath:         options.KeyPath,
+		config:           tlsConfig,
+		logger:           logger,
+		acmeService:      acmeService,
+		certificate:      certificate,
+		key:              key,
+		certificatePath:  options.CertificatePath,
+		keyPath:          options.KeyPath,
+		rejectUnknownSNI: options.RejectUnknownSNI,
 	}, nil
+}
+
+func setRejectUnknownSNIStandard(config *tls.Config) {
+	getCertificate := config.GetCertificate
+	config.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		cert, err := getCertificate(info)
+		if err != nil {
+			return nil, err
+		}
+		if info.ServerName == config.ServerName {
+			return cert, nil
+		}
+		if cert.Leaf == nil {
+			cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = cert.Leaf.VerifyHostname(info.ServerName)
+		if err != nil {
+			return nil, E.Cause(err, "cert is not valid for SNI")
+		}
+		return cert, nil
+	}
 }
