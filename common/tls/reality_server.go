@@ -26,7 +26,8 @@ import (
 var _ ServerConfigCompat = (*RealityServerConfig)(nil)
 
 type RealityServerConfig struct {
-	config *utls.RealityConfig
+	config           *utls.RealityConfig
+	rejectUnknownSNI bool
 }
 
 func NewRealityServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
@@ -126,7 +127,7 @@ func NewRealityServer(ctx context.Context, logger log.ContextLogger, options opt
 	if options.ECH != nil && options.ECH.Enabled {
 		return nil, E.New("Reality is conflict with ECH")
 	}
-	var config ServerConfig = &RealityServerConfig{&tlsConfig}
+	var config ServerConfig = &RealityServerConfig{&tlsConfig, options.RejectUnknownSNI}
 	if options.KernelTx || options.KernelRx {
 		if !C.IsLinux {
 			return nil, E.New("kTLS is only supported on Linux")
@@ -181,6 +182,14 @@ func (c *RealityServerConfig) ServerHandshake(ctx context.Context, conn net.Conn
 	tlsConn, err := utls.RealityServer(ctx, conn, c.config)
 	if err != nil {
 		return nil, err
+	}
+	if c.rejectUnknownSNI {
+		sni := tlsConn.ConnectionState().ServerName
+		loadedSNI := c.config.ServerNames[sni]
+		if !loadedSNI && sni != c.config.ServerName {
+			_ = tlsConn.Close()
+			return nil, E.Cause(err, "unknown server name")
+		}
 	}
 	return &realityConnWrapper{Conn: tlsConn}, nil
 }
