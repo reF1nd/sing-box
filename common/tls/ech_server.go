@@ -5,6 +5,7 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/pem"
 	"net"
 	"os"
@@ -19,14 +20,15 @@ import (
 )
 
 type echServerConfig struct {
-	config          *cftls.Config
-	logger          log.Logger
-	certificate     []byte
-	key             []byte
-	certificatePath string
-	keyPath         string
-	echKeyPath      string
-	watcher         *fswatch.Watcher
+	config           *cftls.Config
+	logger           log.Logger
+	certificate      []byte
+	key              []byte
+	certificatePath  string
+	keyPath          string
+	echKeyPath       string
+	watcher          *fswatch.Watcher
+	rejectUnknownSNI bool
 }
 
 func (c *echServerConfig) ServerName() string {
@@ -120,7 +122,9 @@ func (c *echServerConfig) credentialsUpdated(path string) error {
 		if err != nil {
 			return E.Cause(err, "parse key pair")
 		}
-		c.config.Certificates = []cftls.Certificate{keyPair}
+		c.config.GetCertificate = func(_ *cftls.ClientHelloInfo) (*cftls.Certificate, error) {
+			return &keyPair, nil
+		}
 		c.logger.Info("reloaded TLS certificate")
 	} else {
 		echKeyContent, err := os.ReadFile(c.echKeyPath)
@@ -227,7 +231,12 @@ func NewECHServer(ctx context.Context, logger log.Logger, options option.Inbound
 	if err != nil {
 		return nil, E.Cause(err, "parse x509 key pair")
 	}
-	tlsConfig.Certificates = []cftls.Certificate{keyPair}
+	tlsConfig.GetCertificate = func(_ *cftls.ClientHelloInfo) (*cftls.Certificate, error) {
+		return &keyPair, nil
+	}
+	if options.RejectUnknownSNI {
+		setRejectUnknownSNIECH(&tlsConfig)
+	}
 
 	var echKey []byte
 	if len(options.ECH.Key) > 0 {
@@ -263,12 +272,37 @@ func NewECHServer(ctx context.Context, logger log.Logger, options option.Inbound
 	tlsConfig.ServerECHProvider = echKeySet
 
 	return &echServerConfig{
-		config:          &tlsConfig,
-		logger:          logger,
-		certificate:     certificate,
-		key:             key,
-		certificatePath: options.CertificatePath,
-		keyPath:         options.KeyPath,
-		echKeyPath:      options.ECH.KeyPath,
+		config:           &tlsConfig,
+		logger:           logger,
+		certificate:      certificate,
+		key:              key,
+		certificatePath:  options.CertificatePath,
+		keyPath:          options.KeyPath,
+		echKeyPath:       options.ECH.KeyPath,
+		rejectUnknownSNI: options.RejectUnknownSNI,
 	}, nil
+}
+
+func setRejectUnknownSNIECH(config *cftls.Config) {
+	getCertificate := config.GetCertificate
+	config.GetCertificate = func(info *cftls.ClientHelloInfo) (*cftls.Certificate, error) {
+		cert, err := getCertificate(info)
+		if err != nil {
+			return nil, err
+		}
+		if info.ServerName == config.ServerName {
+			return cert, nil
+		}
+		if cert.Leaf == nil {
+			cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = cert.Leaf.VerifyHostname(info.ServerName)
+		if err != nil {
+			return nil, E.Cause(err, "cert is not valid for SNI")
+		}
+		return cert, nil
+	}
 }
