@@ -35,6 +35,8 @@ type InboundTLSOptions struct {
 
 	ECH     *InboundECHOptions     `json:"ech,omitempty"`
 	Reality *InboundRealityOptions `json:"reality,omitempty"`
+
+	RejectUnknownSNI bool `json:"reject_unknown_sni,omitempty"`
 }
 
 type ClientAuthType tls.ClientAuthType
