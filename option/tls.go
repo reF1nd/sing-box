@@ -17,6 +17,8 @@ type InboundTLSOptions struct {
 	ACME            *InboundACMEOptions        `json:"acme,omitempty"`
 	ECH             *InboundECHOptions         `json:"ech,omitempty"`
 	Reality         *InboundRealityOptions     `json:"reality,omitempty"`
+
+	RejectUnknownSNI bool `json:"reject_unknown_sni,omitempty"`
 }
 
 type InboundTLSOptionsContainer struct {
