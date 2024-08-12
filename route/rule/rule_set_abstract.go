@@ -21,9 +21,11 @@ type abstractRuleSet struct {
 	logger      logger.ContextLogger
 	tag         string
 	access      sync.RWMutex
+	sType       string
 	path        string
 	format      string
 	rules       []adapter.HeadlessRule
+	ruleCount   uint64
 	metadata    adapter.RuleSetMetadata
 	lastUpdated time.Time
 	refs        atomic.Int32
@@ -31,6 +33,22 @@ type abstractRuleSet struct {
 
 func (s *abstractRuleSet) Name() string {
 	return s.tag
+}
+
+func (s *abstractRuleSet) Type() string {
+	return s.sType
+}
+
+func (s *abstractRuleSet) Format() string {
+	return s.format
+}
+
+func (s *abstractRuleSet) RuleCount() uint64 {
+	return s.ruleCount
+}
+
+func (s *abstractRuleSet) UpdatedTime() time.Time {
+	return s.lastUpdated
 }
 
 func (s *abstractRuleSet) String() string {
@@ -67,12 +85,14 @@ func (s *abstractRuleSet) Cleanup() {
 
 func (s *abstractRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 	rules := make([]adapter.HeadlessRule, len(headlessRules))
-	var err error
+	var ruleCount uint64
 	for i, ruleOptions := range headlessRules {
-		rules[i], err = NewHeadlessRule(s.ctx, ruleOptions)
+		rule, err := NewHeadlessRule(s.ctx, ruleOptions)
 		if err != nil {
 			return E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
+		rules[i] = rule
+		ruleCount += rule.RuleCount()
 	}
 	var metadata adapter.RuleSetMetadata
 	metadata.ContainsProcessRule = hasHeadlessRule(headlessRules, isProcessHeadlessRule)
@@ -80,6 +100,7 @@ func (s *abstractRuleSet) reloadRules(headlessRules []option.HeadlessRule) error
 	metadata.ContainsIPCIDRRule = hasHeadlessRule(headlessRules, isIPCIDRHeadlessRule)
 	s.access.Lock()
 	s.rules = rules
+	s.ruleCount = ruleCount
 	s.metadata = metadata
 	return nil
 }
