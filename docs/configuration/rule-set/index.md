@@ -42,6 +42,7 @@
       "type": "remote",
       "tag": "",
       "format": "source", // or binary
+      "path": "",
       "url": "",
       "download_detour": "", // optional
       "update_interval": "" // optional
@@ -81,8 +82,6 @@ List of [Headless Rule](./headless-rule/).
 Format of rule-set file, `source` or `binary`.
 
 Optional when `path` or `url` uses `json` or `srs` as extension.
-
-### Local Fields
 
 #### path
 
