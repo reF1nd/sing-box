@@ -16684,6 +16684,94 @@
             "url": {
               "type": "string"
             },
+            "http_client": {
+              "$ref": "#/$defs/HTTPClientReference"
+            },
+            "update_interval": {
+              "$ref": "#/$defs/Duration"
+            }
+          },
+          "required": [
+            "type",
+            "tag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remote"
+            },
+            "tag": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "source",
+                "binary"
+              ]
+            },
+            "url": {
+              "type": "string"
+            },
+            "http_client": {
+              "$ref": "#/$defs/HTTPClientReference"
+            },
+            "update_interval": {
+              "$ref": "#/$defs/Duration"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "tag",
+            "path"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remote"
+            },
+            "tag": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "source",
+                "binary"
+              ]
+            },
+            "url": {
+              "type": "string"
+            },
             "initial_path": {
               "type": "string"
             },
@@ -16696,7 +16784,8 @@
           },
           "required": [
             "type",
-            "tag"
+            "tag",
+            "initial_path"
           ],
           "additionalProperties": false
         }
