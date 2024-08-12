@@ -61,7 +61,7 @@ func (u *RuleSetUpdater) loopUpdate() {
 			if now.Before(nextUpdates[i]) {
 				continue
 			}
-			ruleSet.updateOnce()
+			ruleSet.update()
 			nextUpdates[i] = now.Add(ruleSet.updateInterval)
 			updated = true
 		}
