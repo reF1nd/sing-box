@@ -49,8 +49,8 @@
       "type": "remote",
       "tag": "", // or []
       "format": "source", // or binary
+      "path": "",
       "url": "",
-      "initial_path": "",
       "http_client": "", // or {}
       "update_interval": "",
 
@@ -103,17 +103,19 @@ Format of rule-set file, `source` or `binary`.
 
 Optional when `path` or `url` uses `json` or `srs` as extension.
 
-### Local Fields
-
 #### path
 
-==Required==
+==Required for local rule-sets==
 
 !!! note ""
 
     Will be automatically reloaded if file modified since sing-box 1.10.0.
 
 File path of rule-set.
+
+For remote rule-sets, downloaded content is stored at this path while cache metadata is stored in `cache.db`. When empty, the content itself is stored in `cache.db`.
+
+Conflicts with `initial_path` for remote rule-sets.
 
 ### Remote Fields
 
@@ -129,9 +131,9 @@ Download URL of rule-set.
 
 File path of the initial rule-set content.
 
-Read once at startup when no cached rule-set is available, so startup is not
-blocked by the initial download. The rule-set is still updated in the background
-immediately after startup.
+Requires rule-set caching in `cache.db`. It is read once at startup only when no cached rule-set is available, so startup is not blocked by the initial download. The rule-set is still updated in the background immediately after startup.
+
+Conflicts with `path`.
 
 #### http_client
 

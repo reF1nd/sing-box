@@ -1351,15 +1351,19 @@ func headlessLogicalRule(mode string, invert bool, rules ...adapter.HeadlessRule
 
 func newLocalRuleSetForTest(tag string, rules ...adapter.HeadlessRule) *LocalRuleSet {
 	return &LocalRuleSet{
-		tag:   tag,
-		rules: rules,
+		abstractRuleSet: abstractRuleSet{
+			tag:   tag,
+			rules: rules,
+		},
 	}
 }
 
 func newRemoteRuleSetForTest(tag string, rules ...adapter.HeadlessRule) *RemoteRuleSet {
 	return &RemoteRuleSet{
-		tag:   tag,
-		rules: rules,
+		abstractRuleSet: abstractRuleSet{
+			tag:   tag,
+			rules: rules,
+		},
 	}
 }
 
