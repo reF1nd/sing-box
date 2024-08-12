@@ -10,7 +10,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/convertor/adguard"
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/option"
 	slogger "github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -1103,15 +1102,19 @@ func headlessLogicalRule(mode string, invert bool, rules ...adapter.HeadlessRule
 
 func newLocalRuleSetForTest(tag string, rules ...adapter.HeadlessRule) *LocalRuleSet {
 	return &LocalRuleSet{
-		tag:   tag,
-		rules: rules,
+		abstractRuleSet: abstractRuleSet{
+			tag:   tag,
+			rules: rules,
+		},
 	}
 }
 
 func newRemoteRuleSetForTest(tag string, rules ...adapter.HeadlessRule) *RemoteRuleSet {
 	return &RemoteRuleSet{
-		options: option.RuleSet{Tag: tag},
-		rules:   rules,
+		abstractRuleSet: abstractRuleSet{
+			tag:   tag,
+			rules: rules,
+		},
 	}
 }
 

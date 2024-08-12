@@ -47,6 +47,7 @@
       "type": "remote",
       "tag": "",
       "format": "source", // or binary
+      "path": "",
       "url": "",
       "http_client": "", // 或 {}
       "update_interval": "",
@@ -90,8 +91,6 @@
 规则集格式， `source` 或 `binary`。
 
 当 `path` 或 `url` 使用 `json` 或 `srs` 作为扩展名时可选。
-
-### 本地字段
 
 #### path
 
