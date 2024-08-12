@@ -135,6 +135,16 @@ func (s *RemoteRuleSet) update() {
 	}
 }
 
+func (s *RemoteRuleSet) Update(ctx context.Context) error {
+	err := s.fetch(log.ContextWithNewID(ctx), nil)
+	if err != nil {
+		return err
+	} else if s.refs.Load() == 0 {
+		s.rules = nil
+	}
+	return nil
+}
+
 func (s *RemoteRuleSet) fetch(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	s.logger.DebugContext(ctx, "updating rule-set ", s.tag, " from URL: ", s.options.URL)
 	var httpClient *http.Client
