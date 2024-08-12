@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"os"
 	"sync/atomic"
 	"testing"
 
@@ -10,8 +11,9 @@ import (
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
-	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 
 	"github.com/stretchr/testify/require"
 )
@@ -41,9 +43,12 @@ func TestLocalRuleSetReloadRulesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 		},
 	})
 	ruleSet := &LocalRuleSet{
-		ctx:        ctx,
-		tag:        "dynamic-set",
-		fileFormat: C.RuleSetFormatSource,
+		abstractRuleSet: abstractRuleSet{
+			ctx:    ctx,
+			tag:    "dynamic-set",
+			format: C.RuleSetFormatSource,
+			logger: logger.NOP(),
+		},
 	}
 	_ = ruleSet.callbacks.PushBack(func(adapter.RuleSet) {
 		callbackCount.Add(1)
@@ -54,7 +59,7 @@ func TestLocalRuleSetReloadRulesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 		DefaultOptions: option.DefaultHeadlessRule{
 			Domain: badoption.Listable[string]{"example.com"},
 		},
-	}})
+	}}, ruleSet)
 	require.NoError(t, err)
 	require.Equal(t, int32(1), callbackCount.Load())
 	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
@@ -65,7 +70,7 @@ func TestLocalRuleSetReloadRulesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 		DefaultOptions: option.DefaultHeadlessRule{
 			QueryType: badoption.Listable[option.DNSQueryType]{option.DNSQueryType(1)},
 		},
-	}})
+	}}, ruleSet)
 	require.ErrorContains(t, err, "dns conflict")
 	require.Equal(t, int32(1), callbackCount.Load())
 	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
@@ -85,25 +90,26 @@ func TestRemoteRuleSetLoadBytesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 			return nil
 		},
 	})
+	ctx = filemanager.WithDefault(ctx, "", t.TempDir(), os.Getuid(), os.Getgid())
 	ruleSet := &RemoteRuleSet{
-		ctx: ctx,
-		tag: "dynamic-set",
-		options: option.RuleSet{
-			Format: C.RuleSetFormatSource,
+		abstractRuleSet: abstractRuleSet{
+			ctx:    ctx,
+			tag:    "dynamic-set",
+			format: C.RuleSetFormatSource,
 		},
-		callbacks: list.List[adapter.RuleSetUpdateCallback]{},
+		options: option.RemoteRuleSet{},
 	}
 	_ = ruleSet.callbacks.PushBack(func(adapter.RuleSet) {
 		callbackCount.Add(1)
 	})
 
-	err := ruleSet.loadBytes([]byte(`{"version":4,"rules":[{"domain":["example.com"]}]}`))
+	err := ruleSet.loadBytes([]byte(`{"version":4,"rules":[{"domain":["example.com"]}]}`), ruleSet)
 	require.NoError(t, err)
 	require.Equal(t, int32(1), callbackCount.Load())
 	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
 	require.True(t, ruleSet.Match(&adapter.InboundContext{Domain: "example.com"}))
 
-	err = ruleSet.loadBytes([]byte(`{"version":4,"rules":[{"query_type":["A"]}]}`))
+	err = ruleSet.loadBytes([]byte(`{"version":4,"rules":[{"query_type":["A"]}]}`), ruleSet)
 	require.ErrorContains(t, err, "dns conflict")
 	require.Equal(t, int32(1), callbackCount.Load())
 	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
