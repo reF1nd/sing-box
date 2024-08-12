@@ -195,6 +195,18 @@ func NewDefaultHeadlessRule(ctx context.Context, options option.DefaultHeadlessR
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	switch true {
+	case len(rule.allItems) == len(rule.destinationAddressItems)+len(rule.destinationIPCIDRItems):
+		rule.ruleCount = uint64(len(rule.destinationAddressItems) + len(rule.destinationIPCIDRItems))
+	case len(rule.allItems) == len(rule.sourceAddressItems):
+		rule.ruleCount = uint64(len(rule.sourceAddressItems))
+	case len(rule.allItems) == len(rule.sourcePortItems):
+		rule.ruleCount = uint64(len(rule.sourcePortItems))
+	case len(rule.allItems) == len(rule.destinationPortItems):
+		rule.ruleCount = uint64(len(rule.destinationPortItems))
+	default:
+		rule.ruleCount = 1
+	}
 	return rule, nil
 }
 
@@ -231,5 +243,6 @@ func NewLogicalHeadlessRule(ctx context.Context, options option.LogicalHeadlessR
 		}
 		r.rules[i] = rule
 	}
+	r.ruleCount = 1
 	return r, nil
 }
