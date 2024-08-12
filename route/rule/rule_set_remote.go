@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -44,6 +45,7 @@ type RemoteRuleSet struct {
 	lastEtag       string
 	cacheFile      adapter.CacheFile
 	pauseManager   pause.Manager
+	updating       atomic.Bool
 }
 
 func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag string, options option.RuleSet) (*RemoteRuleSet, error) {
@@ -74,6 +76,7 @@ func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag stri
 			ctx:    ctx,
 			logger: logger,
 			tag:    tag,
+			sType:  options.Type,
 			path:   path,
 			format: options.Format,
 		},
@@ -136,7 +139,20 @@ func (s *RemoteRuleSet) update() {
 	}
 }
 
+func (s *RemoteRuleSet) Update(ctx context.Context) error {
+	err := s.fetch(log.ContextWithNewID(ctx), false)
+	if err != nil {
+		return err
+	}
+	s.Cleanup()
+	return nil
+}
+
 func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
+	if s.updating.Swap(true) {
+		return E.New("rule-set is updating")
+	}
+	defer s.updating.Store(false)
 	s.logger.DebugContext(ctx, "updating rule-set ", s.tag, " from URL: ", s.url)
 	request, err := http.NewRequest("GET", s.url, nil)
 	if err != nil {
@@ -156,10 +172,11 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
 	switch response.StatusCode {
 	case http.StatusOK:
 	case http.StatusNotModified:
-		s.lastUpdated = time.Now()
+		lastUpdated := time.Now()
+		s.setUpdatedTime(lastUpdated)
 		if s.cacheFile != nil {
 			if savedRuleSet := s.cacheFile.LoadRuleSet(s.tag); savedRuleSet != nil {
-				savedRuleSet.LastUpdated = s.lastUpdated
+				savedRuleSet.LastUpdated = lastUpdated
 				savedRuleSet.URLHash = s.urlHash[:]
 				if err = s.cacheFile.SaveRuleSet(s.tag, savedRuleSet); err != nil {
 					s.logger.Error("save rule-set updated time: ", err)
@@ -189,10 +206,11 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
 	if eTagHeader != "" {
 		s.lastEtag = eTagHeader
 	}
-	s.lastUpdated = time.Now()
+	lastUpdated := time.Now()
+	s.setUpdatedTime(lastUpdated)
 	if s.cacheFile != nil {
 		savedRuleSet := &adapter.SavedBinary{
-			LastUpdated: s.lastUpdated,
+			LastUpdated: lastUpdated,
 			LastEtag:    s.lastEtag,
 			URLHash:     s.urlHash[:],
 		}
@@ -295,7 +313,8 @@ func (s *RemoteRuleSet) loadCacheFile() (bool, error) {
 	if err := s.loadBytes(content, s); err != nil {
 		return false, err
 	}
-	s.lastUpdated, s.lastEtag = lastUpdated, lastEtag
+	s.setUpdatedTime(lastUpdated)
+	s.lastEtag = lastEtag
 	return true, nil
 }
 

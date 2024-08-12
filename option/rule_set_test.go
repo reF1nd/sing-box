@@ -61,3 +61,23 @@ func TestRemoteRuleSetMultipleTagsPath(t *testing.T) {
 		})
 	}
 }
+
+func TestInlineRuleSetMarshalOmitsFormat(t *testing.T) {
+	t.Parallel()
+
+	var ruleSet RuleSet
+	err := json.Unmarshal([]byte(`{
+		"type": "inline",
+		"tag": "inline-test",
+		"rules": [{"domain": ["example.com"]}]
+	}`), &ruleSet)
+	require.NoError(t, err)
+	require.Empty(t, ruleSet.Format)
+
+	encoded, err := json.Marshal(ruleSet)
+	require.NoError(t, err)
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(encoded, &raw))
+	_, hasFormat := raw["format"]
+	require.False(t, hasFormat, "inline rule-set MarshalJSON must not emit format: %s", string(encoded))
+}

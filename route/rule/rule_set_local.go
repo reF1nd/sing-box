@@ -31,9 +31,12 @@ func NewLocalRuleSet(ctx context.Context, logger logger.ContextLogger, tag strin
 			ctx:    ctx,
 			logger: logger,
 			tag:    tag,
+			sType:  options.Type,
+			format: options.Format,
 		},
 	}
 	if options.Type == C.RuleSetTypeInline {
+		ruleSet.format = C.RuleSetFormatSource
 		if len(options.InlineOptions.Rules) == 0 {
 			return nil, E.New("empty inline rule-set")
 		}
@@ -42,7 +45,6 @@ func NewLocalRuleSet(ctx context.Context, logger logger.ContextLogger, tag strin
 			return nil, err
 		}
 	} else {
-		ruleSet.format = options.Format
 		path, err := ruleSet.getPath(ctx, strings.ReplaceAll(options.Path, C.RuleSetTagPlaceholder, tag))
 		if err != nil {
 			return nil, err
@@ -93,7 +95,7 @@ func (s *LocalRuleSet) reloadFile(path string) error {
 	if err != nil {
 		return err
 	}
-	s.lastUpdated = info.ModTime()
+	s.setUpdatedTime(info.ModTime())
 	return nil
 }
 
@@ -117,6 +119,10 @@ func (s *LocalRuleSet) getPath(ctx context.Context, path string) (string, error)
 		return "", E.Cause(err, "check rule-set path")
 	}
 	return path, nil
+}
+
+func (s *LocalRuleSet) Update(ctx context.Context) error {
+	return nil
 }
 
 func (s *LocalRuleSet) Close() error {
