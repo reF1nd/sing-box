@@ -20,12 +20,17 @@ type abstractDefaultRule struct {
 	allItems                []RuleItem
 	ruleSetItem             RuleItem
 	domainMatchStrategy     C.DomainMatchStrategy
+	ruleCount               uint64
 	invert                  bool
 	action                  adapter.RuleAction
 }
 
 func (r *abstractDefaultRule) Type() string {
 	return C.RuleTypeDefault
+}
+
+func (r *abstractDefaultRule) RuleCount() uint64 {
+	return r.ruleCount
 }
 
 func (r *abstractDefaultRule) Start() error {
@@ -155,10 +160,15 @@ type abstractLogicalRule struct {
 	domainMatchStrategy C.DomainMatchStrategy
 	invert              bool
 	action              adapter.RuleAction
+	ruleCount           uint64
 }
 
 func (r *abstractLogicalRule) Type() string {
 	return C.RuleTypeLogical
+}
+
+func (r *abstractLogicalRule) RuleCount() uint64 {
+	return r.ruleCount
 }
 
 func (r *abstractLogicalRule) Start() error {
