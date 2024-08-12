@@ -130,8 +130,9 @@ type ruleSetContentProvider interface {
 }
 
 type ruleSetContent struct {
-	rules    []adapter.HeadlessRule
-	metadata adapter.RuleSetMetadata
+	rules     []adapter.HeadlessRule
+	metadata  adapter.RuleSetMetadata
+	ruleCount uint64
 }
 
 func (c *ruleSetContent) mergeableRule() *DefaultHeadlessRule {
@@ -167,6 +168,10 @@ func (c *ruleSetContent) Match(metadata *adapter.InboundContext) bool {
 		metadata.DeferredIPCIDRMatchGroups |= deferredGroups
 	}
 	return matched
+}
+
+func (c *ruleSetContent) RuleCount() uint64 {
+	return c.ruleCount
 }
 
 func (c *ruleSetContent) String() string {

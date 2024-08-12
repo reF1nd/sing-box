@@ -27,7 +27,8 @@ type abstractRuleSet struct {
 	ctx         context.Context
 	logger      logger.ContextLogger
 	tag         string
-	access      sync.Mutex
+	access      sync.RWMutex
+	sType       string
 	path        string
 	format      string
 	content     atomic.Pointer[ruleSetContent]
@@ -38,6 +39,30 @@ type abstractRuleSet struct {
 
 func (s *abstractRuleSet) Name() string {
 	return s.tag
+}
+
+func (s *abstractRuleSet) Type() string {
+	return s.sType
+}
+
+func (s *abstractRuleSet) Format() string {
+	return s.format
+}
+
+func (s *abstractRuleSet) RuleCount() uint64 {
+	return s.loadContent().RuleCount()
+}
+
+func (s *abstractRuleSet) UpdatedTime() time.Time {
+	s.access.RLock()
+	defer s.access.RUnlock()
+	return s.lastUpdated
+}
+
+func (s *abstractRuleSet) setUpdatedTime(updatedAt time.Time) {
+	s.access.Lock()
+	defer s.access.Unlock()
+	s.lastUpdated = updatedAt
 }
 
 func (s *abstractRuleSet) String() string {
@@ -69,7 +94,11 @@ func (s *abstractRuleSet) Cleanup() {
 }
 
 func (s *abstractRuleSet) clearContent() {
-	s.content.Store(nil)
+	s.access.Lock()
+	defer s.access.Unlock()
+	if content := s.content.Load(); content != nil {
+		s.content.Store(&ruleSetContent{ruleCount: content.ruleCount})
+	}
 }
 
 func (s *abstractRuleSet) RegisterCallback(callback adapter.RuleSetUpdateCallback) *list.Element[adapter.RuleSetUpdateCallback] {
@@ -170,18 +199,21 @@ func (s *abstractRuleSet) reloadRules(headlessRules []option.HeadlessRule, ruleS
 func (s *abstractRuleSet) prepareRules(headlessRules []option.HeadlessRule) (*ruleSetContent, error) {
 	rules := make([]adapter.HeadlessRule, len(headlessRules))
 	var err error
+	var ruleCount uint64
 	for i, ruleOptions := range headlessRules {
-		rules[i], err = NewHeadlessRule(s.ctx, ruleOptions)
+		rule, err := NewHeadlessRule(s.ctx, ruleOptions)
 		if err != nil {
 			return nil, E.Cause(err, "parse rule_set.rules.[", i, "]")
 		}
+		rules[i] = rule
+		ruleCount += rule.RuleCount()
 	}
 	metadata := buildRuleSetMetadata(headlessRules)
 	err = validateRuleSetMetadataUpdate(s.ctx, s.tag, metadata)
 	if err != nil {
 		return nil, err
 	}
-	return &ruleSetContent{rules: rules, metadata: metadata}, nil
+	return &ruleSetContent{rules: rules, metadata: metadata, ruleCount: ruleCount}, nil
 }
 
 func (s *abstractRuleSet) publishContent(content *ruleSetContent, ruleSet adapter.RuleSet) {
