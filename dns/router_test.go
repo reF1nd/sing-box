@@ -24,6 +24,10 @@ func (r *legacyAliasRule) Match(*adapter.InboundContext) bool {
 	return true
 }
 
+func (r *legacyAliasRule) RuleCount() uint64 {
+	return 1
+}
+
 func (r *legacyAliasRule) String() string {
 	return ""
 }
