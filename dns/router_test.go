@@ -122,6 +122,15 @@ func (r *fakeRouter) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
 	return 0
 }
 func (r *fakeRouter) Reload() {}
+func (r *fakeRouter) RuleSets() []adapter.RuleSet {
+	r.access.RLock()
+	defer r.access.RUnlock()
+	var result []adapter.RuleSet
+	for _, rs := range r.ruleSets {
+		result = append(result, rs)
+	}
+	return result
+}
 
 type fakeRuleSet struct {
 	access                   sync.Mutex
@@ -135,6 +144,10 @@ type fakeRuleSet struct {
 }
 
 func (s *fakeRuleSet) Name() string                                                  { return "fake-rule-set" }
+func (s *fakeRuleSet) Type() string                                                  { return "local" }
+func (s *fakeRuleSet) Format() string                                                { return "source" }
+func (s *fakeRuleSet) UpdatedTime() time.Time                                        { return time.Time{} }
+func (s *fakeRuleSet) Update(context.Context) error                                  { return nil }
 func (s *fakeRuleSet) StartContext(context.Context, *adapter.HTTPStartContext) error { return nil }
 func (s *fakeRuleSet) PostStart() error                                              { return nil }
 func (s *fakeRuleSet) Metadata() adapter.RuleSetMetadata {
@@ -184,7 +197,8 @@ func (s *fakeRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSetUp
 	defer s.access.Unlock()
 	s.callbacks.Remove(element)
 }
-func (s *fakeRuleSet) Close() error { return nil }
+func (s *fakeRuleSet) Close() error      { return nil }
+func (s *fakeRuleSet) RuleCount() uint64 { return 0 }
 func (s *fakeRuleSet) Match(metadata *adapter.InboundContext) bool {
 	s.access.Lock()
 	match := s.match
