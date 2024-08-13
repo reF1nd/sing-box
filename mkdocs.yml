@@ -149,6 +149,11 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+      - Outbound Provider:
+          - configuration/provider/index.md
+          - Local: configuration/provider/local.md
+          - Remote: configuration/provider/remote.md
+          - Outbound Override: configuration/provider/outbound_override.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
@@ -242,5 +247,8 @@ plugins:
             Outbound: 出站
 
             Manual: 手册
+
+            Outbound Provider: 出站提供者
+            Outbound Override: 出站覆写
       reconfigure_material: true
       reconfigure_search: true

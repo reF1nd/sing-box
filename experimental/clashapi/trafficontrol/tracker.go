@@ -140,7 +140,7 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundCont
 	}
 	for {
 		chain = append(chain, next)
-		detour, loaded := router.Outbound(next)
+		detour, loaded := router.OutboundWithProvider(next)
 		if !loaded {
 			break
 		}
@@ -227,7 +227,7 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.Inbound
 	}
 	for {
 		chain = append(chain, next)
-		detour, loaded := router.Outbound(next)
+		detour, loaded := router.OutboundWithProvider(next)
 		if !loaded {
 			break
 		}

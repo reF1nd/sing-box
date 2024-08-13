@@ -49,6 +49,7 @@ func NewShadowsocksR(ctx context.Context, router adapter.Router, logger log.Cont
 			router:       router,
 			logger:       logger,
 			tag:          tag,
+			port:         options.ServerPort,
 			dependencies: withDialerDependency(options.DialerOptions),
 		},
 		dialer:     outboundDialer,
