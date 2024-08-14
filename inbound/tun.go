@@ -17,7 +17,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -414,6 +414,7 @@ func (t *Tun) NewConnection(ctx context.Context, conn net.Conn, upstreamMetadata
 	metadata.InboundOptions = t.inboundOptions
 	if upstreamMetadata.Protocol != "" {
 		t.logger.InfoContext(ctx, "inbound ", upstreamMetadata.Protocol, " connection from ", metadata.Source)
+		metadata.InboundType = upstreamMetadata.Protocol
 	} else {
 		t.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	}
