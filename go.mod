@@ -57,7 +57,7 @@ require (
 )
 
 require (
-    github.com/ipsn/go-libtor v1.0.380 // indirect
+	github.com/ipsn/go-libtor v1.0.380 // indirect
 	github.com/robertkrimen/otto v0.2.1 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 )
@@ -100,6 +100,7 @@ require (
 	github.com/zeebo/blake3 v0.2.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8 // indirect
+	golang.org/x/mobile v0.0.0-20240604190613-2782386b8afd // indirect
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
