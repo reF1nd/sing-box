@@ -46,6 +46,7 @@ var (
 	sharedTags  []string
 	iosTags     []string
 	memcTags    []string
+	reF1ndTags  []string
 	debugTags   []string
 )
 
@@ -62,6 +63,7 @@ func init() {
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api")
 	iosTags = append(iosTags, "with_dhcp", "with_low_memory", "with_conntrack")
 	memcTags = append(memcTags, "with_tailscale")
+	reF1ndTags = append(reF1ndTags, "with_conntrack")
 	debugTags = append(debugTags, "debug")
 }
 
@@ -109,6 +111,7 @@ func buildAndroid() {
 	}
 
 	tags := append(sharedTags, memcTags...)
+	tags = append(tags, reF1ndTags...)
 	if debugEnabled {
 		tags = append(tags, debugTags...)
 	}
