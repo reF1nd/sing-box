@@ -160,6 +160,10 @@ func (s *Selector) All() []string {
 	return slices.Clone(s.tags)
 }
 
+func (s *Selector) Selected() adapter.Outbound {
+	return s.selected.Load()
+}
+
 func (s *Selector) SelectOutbound(tag string) bool {
 	s.providerAccess.Lock()
 	s.stateAccess.RLock()
