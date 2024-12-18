@@ -161,6 +161,10 @@ func (s *Selector) All() []string {
 	return slices.Clone(s.tags)
 }
 
+func (s *Selector) Selected() adapter.Outbound {
+	return s.selected.Load()
+}
+
 func (s *Selector) SelectPreMatchOutbound(metadata *adapter.InboundContext, selectOutbound func(adapter.Outbound) (adapter.Outbound, adapter.PreMatchAction)) (adapter.Outbound, adapter.PreMatchAction) {
 	return selectOutbound(s.selected.Load())
 }
