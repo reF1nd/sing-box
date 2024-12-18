@@ -12376,6 +12376,21 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "pass"
+            },
+            "tag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "selector"
             },
             "tag": {
