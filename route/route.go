@@ -405,6 +405,14 @@ match:
 		var routeOptions *rule.RuleActionRouteOptions
 		switch action := currentRule.Action().(type) {
 		case *rule.RuleActionRoute:
+			if selectedOutbound, loaded := r.outbound.Outbound(action.Outbound); loaded {
+				if selectedOutbound.Type() == C.TypeSelector {
+					selectedOutbound = selectedOutbound.(adapter.SelectorGroup).Selected()
+				}
+				if selectedOutbound.Type() == C.TypePass {
+					continue
+				}
+			}
 			routeOptions = &action.RuleActionRouteOptions
 		case *rule.RuleActionRouteOptions:
 			routeOptions = action
