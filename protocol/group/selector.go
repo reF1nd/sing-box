@@ -166,6 +166,10 @@ func (s *Selector) References() []string {
 	return []string{s.Now()}
 }
 
+func (s *Selector) Selected() adapter.Outbound {
+	return s.selected.Load()
+}
+
 func (s *Selector) SelectPreMatchOutbound(metadata *adapter.InboundContext, selectOutbound func(adapter.Outbound) (adapter.Outbound, adapter.PreMatchAction)) (adapter.Outbound, adapter.PreMatchAction) {
 	return selectOutbound(s.selected.Load())
 }
