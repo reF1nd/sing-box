@@ -406,6 +406,9 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 		case *R.RuleActionRouteOptions:
 			applyRouteOptionsOverride(&metadata, action)
 		case *R.RuleActionRoute:
+			if isPassOutbound(r.outbound, action.Outbound) {
+				continue
+			}
 			applyRouteOptionsOverride(&metadata, &action.RuleActionRouteOptions)
 			return r.preMatchFlow(ctx, &metadata, packetDestination, currentRule, action.Outbound)
 		case *R.RuleActionBypass:
@@ -678,6 +681,9 @@ match:
 		var routeOptions *R.RuleActionRouteOptions
 		switch action := currentRule.Action().(type) {
 		case *R.RuleActionRoute:
+			if isPassOutbound(r.outbound, action.Outbound) {
+				continue
+			}
 			routeOptions = &action.RuleActionRouteOptions
 		case *R.RuleActionRouteOptions:
 			routeOptions = action
@@ -1026,4 +1032,24 @@ func isAllIPv6(addresses []netip.Addr) bool {
 		}
 	}
 	return true
+}
+
+// Pass applies to a direct route target or the selected member of one selector,
+// matching the pass outbound's routing semantics without consuming dynamic selection.
+func isPassOutbound(manager adapter.OutboundManager, tag string) bool {
+	if tag == "" {
+		return false
+	}
+	outbound, loaded := manager.Outbound(tag)
+	if !loaded || outbound == nil {
+		return false
+	}
+	if outbound.Type() == C.TypeSelector {
+		group, ok := outbound.(adapter.SelectorGroup)
+		if !ok {
+			return false
+		}
+		outbound = group.Selected()
+	}
+	return outbound != nil && outbound.Type() == C.TypePass
 }
