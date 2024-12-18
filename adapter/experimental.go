@@ -212,3 +212,7 @@ type LoadBalanceGroup interface {
 	OutboundGroup
 	URLTest(ctx context.Context) (map[string]uint16, error)
 }
+
+type SelectorGroup interface {
+	Selected() Outbound
+}
