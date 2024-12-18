@@ -140,6 +140,10 @@ func (s *Selector) All() []string {
 	return s.tags
 }
 
+func (s *Selector) Selected() adapter.Outbound {
+	return s.selected.Load()
+}
+
 func (s *Selector) SelectOutbound(tag string) bool {
 	detour, loaded := s.outbounds[tag]
 	if !loaded {
