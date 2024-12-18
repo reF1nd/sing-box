@@ -30,7 +30,7 @@ func (h *Outbound) UnmarshalJSONContext(ctx context.Context, content []byte) err
 		return err
 	}
 	switch h.Type {
-	case C.TypeDirect, C.TypeBlock, C.TypeDNS, C.TypeSelector, C.TypeURLTest:
+	case C.TypeDirect, C.TypeBlock, C.TypeDNS, C.TypeSelector, C.TypeURLTest, C.TypePass:
 		return nil
 	}
 	registry := service.FromContext[option.OutboundOptionsRegistry](ctx)
@@ -63,7 +63,7 @@ func ParseBoxSubscription(ctx context.Context, content string) ([]option.Outboun
 	var outbounds []option.Outbound
 	for _, out := range options.Outbounds {
 		switch out.Type {
-		case C.TypeDirect, C.TypeBlock, C.TypeDNS, C.TypeSelector, C.TypeURLTest:
+		case C.TypeDirect, C.TypeBlock, C.TypeDNS, C.TypeSelector, C.TypeURLTest, C.TypePass:
 		default:
 			outbounds = append(outbounds, (option.Outbound)(out))
 		}
