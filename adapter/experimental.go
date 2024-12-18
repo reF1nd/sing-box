@@ -141,6 +141,10 @@ type LoadBalanceGroup interface {
 	URLTest(ctx context.Context) (map[string]uint16, error)
 }
 
+type SelectorGroup interface {
+	Selected() Outbound
+}
+
 func OutboundTag(detour Outbound) string {
 	if group, isGroup := detour.(OutboundGroup); isGroup {
 		return group.Now()
