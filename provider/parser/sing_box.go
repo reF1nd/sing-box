@@ -43,7 +43,7 @@ func (o *SingBoxDocument) UnmarshalJSONContext(ctx context.Context, inputContent
 				return E.New("outbound[", i, "] type must be a string")
 			}
 			switch outboundType {
-			case C.TypeDirect, C.TypeBlock, C.TypeDNS, C.TypeSelector, C.TypeURLTest:
+			case C.TypeDirect, C.TypeBlock, C.TypeDNS, C.TypeSelector, C.TypeURLTest, C.TypePass:
 				continue
 			default:
 				outs = append(outs, outbound)
