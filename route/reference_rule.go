@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 )
@@ -129,7 +130,7 @@ func collectDNSRulePreferredBy(rule option.DNSRule, outbounds *[]string) {
 	}
 }
 
-func collectRuleReferences(rules []option.Rule, mode string, outbounds *[]string, transports *[]string) (shadowed bool) {
+func collectRuleReferences(rules []option.Rule, mode string, manager adapter.OutboundManager, outbounds *[]string, transports *[]string) (shadowed bool) {
 	for _, rule := range rules {
 		match := evaluateRule(rule, mode)
 		if match == staticMatchNever {
@@ -148,7 +149,7 @@ func collectRuleReferences(rules []option.Rule, mode string, outbounds *[]string
 		switch action.Action {
 		case C.RuleActionTypeRoute:
 			*outbounds = append(*outbounds, action.RouteOptions.Outbound)
-			final = true
+			final = !isPassOutbound(manager, action.RouteOptions.Outbound)
 		case C.RuleActionTypeBypass:
 			if action.BypassOptions.Outbound != "" {
 				*outbounds = append(*outbounds, action.BypassOptions.Outbound)
