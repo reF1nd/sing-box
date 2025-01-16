@@ -20,8 +20,8 @@ require (
 	github.com/miekg/dns v1.1.62
 	github.com/ooni/go-libtor v1.1.8
 	github.com/oschwald/maxminddb-golang v1.12.0
-	github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1
 	github.com/pires/go-proxyproto v0.7.0
+	github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cloudflare-tls v0.0.0-20231208171750-a4483c1b7cd1
 	github.com/sagernet/cors v1.2.1
@@ -59,6 +59,10 @@ require (
 )
 
 //replace github.com/sagernet/sing => ../sing
+replace (
+	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.48.2-beta.1.1
+	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.3.2-beta.2
+)
 
 require (
 	github.com/Dreamacro/protobytes v0.0.0-20230617041236-6500a9f4f158 // indirect
