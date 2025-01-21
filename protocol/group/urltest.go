@@ -550,6 +550,7 @@ func (g *URLTestGroup) urlTestWait(ctx context.Context, force bool) (map[string]
 }
 
 func (g *URLTestGroup) urlTestLocked(ctx context.Context, force bool) (map[string]uint16, error) {
+	ctx = urltest.ContextWithUnifiedDelay(ctx, urltest.UnifiedDelayFromContext(g.ctx))
 	result := URLTestOutbounds(ctx, g.outbound, g.history, g.logger, g.loadOutbounds(), g.link, g.interval, force)
 	select {
 	case <-ctx.Done():
