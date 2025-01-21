@@ -169,6 +169,8 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "create log factory")
 	}
 
+	C.URLTestUnifiedDelay = experimentalOptions.URLTestUnifiedDelay
+
 	var internalServices []adapter.LifecycleService
 	certificateOptions := common.PtrValueOrDefault(options.Certificate)
 	if C.IsAndroid || certificateOptions.Store != "" && certificateOptions.Store != C.CertificateStoreSystem ||
