@@ -21,6 +21,21 @@ import (
 	"github.com/sagernet/sing/common/observable"
 )
 
+type unifiedDelayKey struct{}
+
+// ContextWithUnifiedDelay binds the measurement policy to one instance or request.
+func ContextWithUnifiedDelay(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, unifiedDelayKey{}, enabled)
+}
+
+func UnifiedDelayFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	enabled, _ := ctx.Value(unifiedDelayKey{}).(bool)
+	return enabled
+}
+
 type HistoryStorage struct {
 	access       sync.RWMutex
 	delayHistory map[string]*adapter.URLTestHistory
@@ -150,6 +165,18 @@ func urlTest(ctx context.Context, link string, detour N.Dialer) (t uint16, err e
 		return
 	}
 	resp.Body.Close()
-	t = uint16(time.Since(start) / time.Millisecond)
+	elapsed := time.Since(start)
+	if UnifiedDelayFromContext(ctx) {
+		second := time.Now()
+		var ignoredErr error
+		var secondResp *http.Response
+		secondResp, ignoredErr = client.Do(req.WithContext(ctx))
+		if ignoredErr == nil {
+			resp = secondResp
+			resp.Body.Close()
+			elapsed = time.Since(second)
+		}
+	}
+	t = uint16(elapsed / time.Millisecond)
 	return
 }
