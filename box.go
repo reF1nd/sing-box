@@ -200,6 +200,8 @@ func New(options Options) (*Box, error) {
 	}
 	service.MustRegister[log.Factory](ctx, logFactory)
 
+	C.URLTestUnifiedDelay = experimentalOptions.URLTestUnifiedDelay
+
 	var internalServices []adapter.LifecycleService
 	routeOptions := common.PtrValueOrDefault(options.Route)
 	certificateOptions := common.PtrValueOrDefault(options.Certificate)
