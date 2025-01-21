@@ -126,6 +126,17 @@ func URLTest(ctx context.Context, link string, detour N.Dialer) (t uint16, err e
 		return
 	}
 	resp.Body.Close()
+	if C.URLTestUnifiedDelay {
+		second := time.Now()
+		var ignoredErr error
+		var secondResp *http.Response
+		secondResp, ignoredErr = client.Do(req.WithContext(ctx))
+		if ignoredErr == nil {
+			resp = secondResp
+			resp.Body.Close()
+			start = second
+		}
+	}
 	t = uint16(time.Since(start) / time.Millisecond)
 	return
 }
