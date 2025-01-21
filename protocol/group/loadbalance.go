@@ -493,6 +493,7 @@ func (g *LoadBalanceGroup) urlTestWait(ctx context.Context, force bool) (map[str
 }
 
 func (g *LoadBalanceGroup) urlTestLocked(ctx context.Context, force bool) (map[string]uint16, error) {
+	ctx = urltest.ContextWithUnifiedDelay(ctx, urltest.UnifiedDelayFromContext(g.ctx))
 	outbounds := g.loadOutbounds()
 	result := URLTestOutbounds(ctx, g.outbound, g.history, g.logger, outbounds, g.link, g.interval, force)
 	if g.tag != "" {
