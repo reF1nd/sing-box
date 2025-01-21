@@ -185,6 +185,8 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "create log factory")
 	}
 
+	C.URLTestUnifiedDelay = experimentalOptions.URLTestUnifiedDelay
+
 	var internalServices []adapter.LifecycleService
 	routeOptions := common.PtrValueOrDefault(options.Route)
 	certificateOptions := common.PtrValueOrDefault(options.Certificate)
