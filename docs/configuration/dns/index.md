@@ -24,6 +24,7 @@ icon: material/alert-decagram
     "disable_cache": false,
     "disable_expire": false,
     "independent_cache": false,
+    "round_robin_cache": false,
     "cache_capacity": 0,
     "min_cache_ttl": 0,
     "max_cache_ttl": 0,
@@ -66,6 +67,10 @@ Disable dns cache expire.
 #### independent_cache
 
 Make each DNS server's cache independent for special purposes. If enabled, will slightly degrade performance.
+
+#### round_robin_cache
+
+Make the order of cached response addresses rotated in round robin manner.
 
 #### cache_capacity
 

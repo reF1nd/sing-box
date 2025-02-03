@@ -24,6 +24,7 @@ icon: material/alert-decagram
     "disable_cache": false,
     "disable_expire": false,
     "independent_cache": false,
+    "round_robin_cache": false,
     "cache_capacity": 0,
     "min_cache_ttl": 0,
     "max_cache_ttl": 0,
@@ -65,6 +66,10 @@ icon: material/alert-decagram
 #### independent_cache
 
 使每个 DNS 服务器的缓存独立，以满足特殊目的。如果启用，将轻微降低性能。
+
+#### round_robin_cache
+
+响应缓存时轮转缓存地址的顺序。
 
 #### cache_capacity
 
