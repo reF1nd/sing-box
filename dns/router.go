@@ -56,6 +56,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		DisableCache:     options.DNSClientOptions.DisableCache,
 		DisableExpire:    options.DNSClientOptions.DisableExpire,
 		IndependentCache: options.DNSClientOptions.IndependentCache,
+		RoundRobinCache:  options.DNSClientOptions.RoundRobinCache,
 		CacheCapacity:    options.DNSClientOptions.CacheCapacity,
 		ClientSubnet:     options.DNSClientOptions.ClientSubnet.Build(netip.Prefix{}),
 		MinCacheTTL:      options.DNSClientOptions.MinCacheTTL,
