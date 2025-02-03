@@ -41,6 +41,8 @@ type Client struct {
 	disableExpire     bool
 	optimisticTimeout time.Duration
 	cacheCapacity     uint32
+	minCacheTTL       uint32
+	maxCacheTTL       uint32
 	clientSubnet      netip.Prefix
 	rdrc              adapter.RDRCStore
 	initRDRCFunc      func() adapter.RDRCStore
@@ -60,6 +62,8 @@ type ClientOptions struct {
 	DisableExpire     bool
 	OptimisticTimeout time.Duration
 	CacheCapacity     uint32
+	MinCacheTTL       uint32
+	MaxCacheTTL       uint32
 	ClientSubnet      netip.Prefix
 	RDRC              func() adapter.RDRCStore
 	DNSCache          func() adapter.DNSCacheStore
@@ -75,10 +79,15 @@ func NewClient(options ClientOptions) *Client {
 		disableExpire:     options.DisableExpire,
 		optimisticTimeout: options.OptimisticTimeout,
 		cacheCapacity:     cacheCapacity,
+		minCacheTTL:       options.MinCacheTTL,
+		maxCacheTTL:       options.MaxCacheTTL,
 		clientSubnet:      options.ClientSubnet,
 		initRDRCFunc:      options.RDRC,
 		initDNSCacheFunc:  options.DNSCache,
 		logger:            options.Logger,
+	}
+	if client.maxCacheTTL > 0 && client.minCacheTTL > client.maxCacheTTL {
+		client.maxCacheTTL = client.minCacheTTL
 	}
 	if client.timeout == 0 {
 		client.timeout = C.DNSTimeout
@@ -305,7 +314,7 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 					close(cond)
 				}
 			}
-			response, ttl, isStale := c.loadResponse(cacheKey)
+			response, ttl, isStale := c.loadResponseWithOptions(cacheKey, options)
 			if response != nil && (!isStale || !options.DisableOptimisticCache) {
 				operation.release()
 				if isStale {
@@ -377,7 +386,7 @@ func (c *Client) finishExchange(transport adapter.DNSTransport, operation *excha
 			return response, ErrResponseRejected
 		}
 	}
-	timeToLive := applyResponseOptions(question, response, operation.options)
+	timeToLive := c.applyResponseOptions(question, response, operation.options)
 	if !disableCache {
 		cacheKey, storable := c.finishCacheKey(transport, operation.cacheKey)
 		if storable {
@@ -569,7 +578,7 @@ func (c *Client) lookupToExchange(ctx context.Context, transport adapter.DNSTran
 func (c *Client) questionCache(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool) ([]netip.Addr, error) {
 	question := message.Question[0]
 	cacheKey := c.newCacheKey(transport, question, message, options)
-	response, _, isStale := c.loadResponse(cacheKey)
+	response, _, isStale := c.loadResponseWithOptions(cacheKey, options)
 	if response == nil {
 		return nil, ErrNotCached
 	}
@@ -593,8 +602,12 @@ func (c *Client) questionCache(ctx context.Context, transport adapter.DNSTranspo
 }
 
 func (c *Client) loadResponse(key dnsCacheKey) (*dns.Msg, int, bool) {
+	return c.loadResponseWithOptions(key, adapter.DNSQueryOptions{})
+}
+
+func (c *Client) loadResponseWithOptions(key dnsCacheKey, options adapter.DNSQueryOptions) (*dns.Msg, int, bool) {
 	if c.dnsCache != nil {
-		return c.loadPersistentResponse(key)
+		return c.loadPersistentResponseWithOptions(key, options)
 	}
 	if c.cache == nil {
 		return nil, 0, false
@@ -627,6 +640,10 @@ func (c *Client) loadResponse(key dnsCacheKey) (*dns.Msg, int, bool) {
 }
 
 func (c *Client) loadPersistentResponse(key dnsCacheKey) (*dns.Msg, int, bool) {
+	return c.loadPersistentResponseWithOptions(key, adapter.DNSQueryOptions{})
+}
+
+func (c *Client) loadPersistentResponseWithOptions(key dnsCacheKey, options adapter.DNSQueryOptions) (*dns.Msg, int, bool) {
 	rawMessage, expireAt, loaded := c.dnsCache.LoadDNSCache(key.persistentName(), key.Name, key.Qtype)
 	if !loaded {
 		return nil, 0, false
@@ -640,7 +657,13 @@ func (c *Client) loadPersistentResponse(key dnsCacheKey) (*dns.Msg, int, bool) {
 		c.dnsCache.DeleteDNSCache(key.persistentName(), key.Name, key.Qtype, rawMessage)
 		return nil, 0, false
 	}
+	storedTTL := computeTimeToLive(response)
 	if c.disableExpire {
+		if options.RewriteTTL != nil {
+			normalizeTTL(response, *options.RewriteTTL)
+		} else if c.maxCacheTTL > 0 && storedTTL > c.maxCacheTTL {
+			normalizeTTL(response, c.maxCacheTTL)
+		}
 		return response, 0, false
 	}
 	timeNow := time.Now()
@@ -652,11 +675,30 @@ func (c *Client) loadPersistentResponse(key dnsCacheKey) (*dns.Msg, int, bool) {
 		return nil, 0, false
 	}
 	nowTTL := max(int(expireAt.Sub(timeNow).Seconds()), 0)
+	var effectiveCap uint32
+	if options.RewriteTTL != nil {
+		effectiveCap = *options.RewriteTTL
+	} else {
+		effectiveCap = c.maxCacheTTL
+	}
+	if effectiveCap > 0 || options.RewriteTTL != nil {
+		expiredByAge := false
+		if storedTTL > effectiveCap {
+			storedAt := expireAt.Add(-time.Duration(storedTTL) * time.Second)
+			if !timeNow.Before(storedAt.Add(time.Duration(effectiveCap) * time.Second)) {
+				expiredByAge = true
+			}
+		}
+		if uint32(nowTTL) > effectiveCap || expiredByAge {
+			c.dnsCache.DeleteDNSCache(key.persistentName(), key.Name, key.Qtype, rawMessage)
+			return nil, 0, false
+		}
+	}
 	normalizeTTL(response, uint32(nowTTL))
 	return response, nowTTL, false
 }
 
-func applyResponseOptions(question dns.Question, response *dns.Msg, options adapter.DNSQueryOptions) uint32 {
+func (c *Client) applyResponseOptions(question dns.Question, response *dns.Msg, options adapter.DNSQueryOptions) uint32 {
 	if question.Qtype == dns.TypeHTTPS && (options.Strategy == C.DomainStrategyIPv4Only || options.Strategy == C.DomainStrategyIPv6Only) {
 		for _, rr := range response.Answer {
 			https, isHTTPS := rr.(*dns.HTTPS)
@@ -673,7 +715,10 @@ func applyResponseOptions(question dns.Question, response *dns.Msg, options adap
 			https.SVCB = content
 		}
 	}
-	timeToLive := computeTimeToLive(response)
+	timeToLive := max(computeTimeToLive(response), c.minCacheTTL)
+	if c.maxCacheTTL > 0 {
+		timeToLive = min(timeToLive, c.maxCacheTTL)
+	}
 	if options.RewriteTTL != nil {
 		timeToLive = *options.RewriteTTL
 	}
@@ -709,7 +754,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, key dnsCac
 		if !storable {
 			return
 		}
-		timeToLive := applyResponseOptions(key.Question, response, options)
+		timeToLive := c.applyResponseOptions(key.Question, response, options)
 		c.storeCache(storeKey, response, timeToLive)
 		logRefreshedResponse(c.logger, ctx, response, timeToLive)
 	}()
