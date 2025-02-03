@@ -31,6 +31,8 @@ icon: material/alert-decagram
     "disable_expire": false,
     "independent_cache": false,
     "cache_capacity": 0,
+    "min_cache_ttl": 0,
+    "max_cache_ttl": 0,
     "optimistic": false, // or {}
     "timeout": "",
     "reverse_mapping": false,
@@ -87,6 +89,26 @@ icon: material/alert-decagram
 LRU 缓存容量。
 
 小于 1024 的值将被忽略。
+
+#### min_cache_ttl
+
+DNS 缓存的最小 TTL，单位为秒。
+
+缓存并返回 DNS 响应前，低于此值的 TTL 将被延长。
+
+设为 `0` 时不限制最小 TTL。
+
+#### max_cache_ttl
+
+DNS 缓存的最大 TTL，单位为秒。
+
+缓存并返回 DNS 响应前，高于此值的 TTL 将被缩短。
+
+设为 `0` 时不限制最大 TTL。两个选项均未设置时，将保留从 DNS 响应中计算出的 TTL。
+
+当 `min_cache_ttl` 大于非零的 `max_cache_ttl` 时，将使用 `min_cache_ttl` 作为两者的有效值。
+
+规则级 `rewrite_ttl` 动作在这些限制之后应用，并拥有更高优先级。
 
 #### optimistic
 
