@@ -880,6 +880,9 @@
         "disable_expire": {
           "type": "boolean"
         },
+        "round_robin_cache": {
+          "type": "boolean"
+        },
         "cache_capacity": {
           "type": "integer",
           "minimum": 0,
