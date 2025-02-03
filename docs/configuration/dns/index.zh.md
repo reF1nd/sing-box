@@ -30,6 +30,8 @@ icon: material/alert-decagram
     "disable_expire": false,
     "independent_cache": false,
     "cache_capacity": 0,
+    "min_cache_ttl": 0,
+    "max_cache_ttl": 0,
     "optimistic": false, // or {}
     "reverse_mapping": false,
     "client_subnet": "",
@@ -85,6 +87,14 @@ icon: material/alert-decagram
 LRU 缓存容量。
 
 小于 1024 的值将被忽略。
+
+#### min_cache_ttl
+
+缓存时将低于此设置的 TTL 值延长到指定时间。
+
+#### max_cache_ttl
+
+缓存时将高于此设置的 TTL 值缩短到指定时间。
 
 #### optimistic
 
