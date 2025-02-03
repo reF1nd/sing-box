@@ -36,6 +36,8 @@ type Client struct {
 	disableExpire     bool
 	optimisticTimeout time.Duration
 	cacheCapacity     uint32
+	minCacheTTL       uint32
+	maxCacheTTL       uint32
 	clientSubnet      netip.Prefix
 	rdrc              adapter.RDRCStore
 	initRDRCFunc      func() adapter.RDRCStore
@@ -54,6 +56,8 @@ type ClientOptions struct {
 	DisableExpire     bool
 	OptimisticTimeout time.Duration
 	CacheCapacity     uint32
+	MinCacheTTL       uint32
+	MaxCacheTTL       uint32
 	ClientSubnet      netip.Prefix
 	RDRC              func() adapter.RDRCStore
 	DNSCache          func() adapter.DNSCacheStore
@@ -69,10 +73,18 @@ func NewClient(options ClientOptions) *Client {
 		disableExpire:     options.DisableExpire,
 		optimisticTimeout: options.OptimisticTimeout,
 		cacheCapacity:     cacheCapacity,
+		minCacheTTL:       options.MinCacheTTL,
+		maxCacheTTL:       options.MaxCacheTTL,
 		clientSubnet:      options.ClientSubnet,
 		initRDRCFunc:      options.RDRC,
 		initDNSCacheFunc:  options.DNSCache,
 		logger:            options.Logger,
+	}
+	if client.maxCacheTTL == 0 {
+		client.maxCacheTTL = 86400
+	}
+	if client.minCacheTTL > client.maxCacheTTL {
+		client.maxCacheTTL = client.minCacheTTL
 	}
 	if client.timeout == 0 {
 		client.timeout = C.DNSTimeout
@@ -239,7 +251,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			return response, ErrResponseRejected
 		}
 	}
-	timeToLive := applyResponseOptions(question, response, options)
+	timeToLive := c.applyResponseOptions(question, response, options)
 	if !disableCache {
 		c.storeCache(transport, question, response, timeToLive)
 	}
@@ -459,7 +471,7 @@ func (c *Client) loadPersistentResponse(question dns.Question, transport adapter
 	return response, nowTTL, false
 }
 
-func applyResponseOptions(question dns.Question, response *dns.Msg, options adapter.DNSQueryOptions) uint32 {
+func (c *Client) applyResponseOptions(question dns.Question, response *dns.Msg, options adapter.DNSQueryOptions) uint32 {
 	if question.Qtype == dns.TypeHTTPS && (options.Strategy == C.DomainStrategyIPv4Only || options.Strategy == C.DomainStrategyIPv6Only) {
 		for _, rr := range response.Answer {
 			https, isHTTPS := rr.(*dns.HTTPS)
@@ -476,7 +488,7 @@ func applyResponseOptions(question dns.Question, response *dns.Msg, options adap
 			https.SVCB = content
 		}
 	}
-	timeToLive := computeTimeToLive(response)
+	timeToLive := min(max(computeTimeToLive(response), c.minCacheTTL), c.maxCacheTTL)
 	if options.RewriteTTL != nil {
 		timeToLive = *options.RewriteTTL
 	}
@@ -519,7 +531,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, question d
 		} else if response.Rcode != dns.RcodeSuccess && response.Rcode != dns.RcodeNameError {
 			return
 		}
-		timeToLive := applyResponseOptions(question, response, options)
+		timeToLive := c.applyResponseOptions(question, response, options)
 		c.storeCache(transport, question, response, timeToLive)
 		logRefreshedResponse(c.logger, ctx, response, timeToLive)
 	}()
