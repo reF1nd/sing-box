@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -29,6 +30,77 @@ var (
 
 var _ adapter.DNSClient = (*Client)(nil)
 
+func rotateSlice[T any](slice []T, steps int32) []T {
+	if len(slice) <= 1 {
+		return slice
+	}
+	steps = steps % int32(len(slice))
+	return append(slice[steps:], slice[:steps]...)
+}
+
+func reverseRotateSlice[T any](slice []T, steps int32) []T {
+	if len(slice) <= 1 {
+		return slice
+	}
+	steps = steps % int32(len(slice))
+	return append(slice[len(slice)-int(steps):], slice[:len(slice)-int(steps)]...)
+}
+
+func removeAnswersOfType(answers []dns.RR, rrType uint16) []dns.RR {
+	var filteredAnswers []dns.RR
+	for _, ans := range answers {
+		if ans.Header().Rrtype != rrType {
+			filteredAnswers = append(filteredAnswers, ans)
+		}
+	}
+	return filteredAnswers
+}
+
+type dnsMsg struct {
+	ipv4Index int32
+	ipv6Index int32
+	msg       *dns.Msg
+}
+
+func (dm *dnsMsg) applyRoundRobin(msg *dns.Msg) {
+	var (
+		ipv4Answers []*dns.A
+		ipv6Answers []*dns.AAAA
+	)
+	for _, ans := range msg.Answer {
+		switch a := ans.(type) {
+		case *dns.A:
+			ipv4Answers = append(ipv4Answers, a)
+		case *dns.AAAA:
+			ipv6Answers = append(ipv6Answers, a)
+		}
+	}
+	if len(ipv4Answers) > 1 {
+		newIndex := (atomic.AddInt32(&dm.ipv4Index, 1) % int32(len(ipv4Answers)))
+		atomic.StoreInt32(&dm.ipv4Index, newIndex)
+		rotatedIPv4 := reverseRotateSlice(ipv4Answers, newIndex)
+		msg.Answer = removeAnswersOfType(msg.Answer, dns.TypeA)
+		for _, ipv4 := range rotatedIPv4 {
+			msg.Answer = append(msg.Answer, ipv4)
+		}
+	}
+	if len(ipv6Answers) > 1 {
+		newIndex := (atomic.AddInt32(&dm.ipv6Index, 1) % int32(len(ipv6Answers)))
+		atomic.StoreInt32(&dm.ipv6Index, newIndex)
+		rotatedIPv6 := reverseRotateSlice(ipv6Answers, newIndex)
+		msg.Answer = removeAnswersOfType(msg.Answer, dns.TypeAAAA)
+		for _, ipv6 := range rotatedIPv6 {
+			msg.Answer = append(msg.Answer, ipv6)
+		}
+	}
+}
+
+func (dm *dnsMsg) RoundRobin() *dns.Msg {
+	rotatedMsg := dm.msg.Copy()
+	dm.applyRoundRobin(rotatedMsg)
+	return rotatedMsg
+}
+
 type Client struct {
 	ctx               context.Context
 	timeout           time.Duration
@@ -36,6 +108,7 @@ type Client struct {
 	disableExpire     bool
 	optimisticTimeout time.Duration
 	cacheCapacity     uint32
+	roundRobinCache   bool
 	minCacheTTL       uint32
 	maxCacheTTL       uint32
 	clientSubnet      netip.Prefix
@@ -44,7 +117,8 @@ type Client struct {
 	dnsCache          adapter.DNSCacheStore
 	initDNSCacheFunc  func() adapter.DNSCacheStore
 	logger            logger.ContextLogger
-	cache             freelru.Cache[dnsCacheKey, *dns.Msg]
+	cache             freelru.Cache[dnsCacheKey, *dnsMsg]
+	roundRobinIndex   freelru.Cache[dnsCacheKey, *dnsMsg]
 	cacheLock         compatible.Map[dnsCacheKey, chan struct{}]
 	backgroundRefresh compatible.Map[dnsCacheKey, struct{}]
 }
@@ -55,6 +129,7 @@ type ClientOptions struct {
 	DisableCache      bool
 	DisableExpire     bool
 	OptimisticTimeout time.Duration
+	RoundRobinCache   bool
 	CacheCapacity     uint32
 	MinCacheTTL       uint32
 	MaxCacheTTL       uint32
@@ -76,6 +151,7 @@ func NewClient(options ClientOptions) *Client {
 		disableExpire:     options.DisableExpire,
 		optimisticTimeout: options.OptimisticTimeout,
 		cacheCapacity:     cacheCapacity,
+		roundRobinCache:   options.RoundRobinCache,
 		minCacheTTL:       options.MinCacheTTL,
 		maxCacheTTL:       options.MaxCacheTTL,
 		clientSubnet:      options.ClientSubnet,
@@ -112,6 +188,8 @@ func (c *Client) Start() {
 	}
 	if c.dnsCache == nil {
 		c.initializeMemoryCache()
+	} else if c.roundRobinCache {
+		c.roundRobinIndex = common.Must1(freelru.NewSharded[dnsCacheKey, *dnsMsg](c.cacheCapacity, maphash.NewHasher[dnsCacheKey]().Hash32))
 	}
 }
 
@@ -119,7 +197,7 @@ func (c *Client) initializeMemoryCache() {
 	if c.disableCache || c.cache != nil {
 		return
 	}
-	c.cache = common.Must1(freelru.NewSharded[dnsCacheKey, *dns.Msg](c.cacheCapacity, maphash.NewHasher[dnsCacheKey]().Hash32))
+	c.cache = common.Must1(freelru.NewSharded[dnsCacheKey, *dnsMsg](c.cacheCapacity, maphash.NewHasher[dnsCacheKey]().Hash32))
 }
 
 func extractNegativeTTL(response *dns.Msg) (uint32, bool) {
@@ -354,9 +432,9 @@ func (c *Client) storeCache(transport adapter.DNSTransport, question dns.Questio
 	}
 	key := dnsCacheKey{Question: question, transportTag: transport.Tag()}
 	if c.disableExpire {
-		c.cache.Add(key, message.Copy())
+		c.cache.Add(key, &dnsMsg{msg: message.Copy()})
 	} else {
-		c.cache.AddWithLifetime(key, message.Copy(), time.Second*time.Duration(timeToLive))
+		c.cache.AddWithLifetime(key, &dnsMsg{msg: message.Copy()}, time.Second*time.Duration(timeToLive))
 	}
 }
 
@@ -408,29 +486,47 @@ func (c *Client) questionCache(ctx context.Context, transport adapter.DNSTranspo
 	return MessageToAddresses(response), nil
 }
 
+func (c *Client) getRoundRobin(response *dnsMsg) *dns.Msg {
+	if c.roundRobinCache {
+		return response.RoundRobin()
+	} else {
+		return response.msg.Copy()
+	}
+}
+
 func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransport) (*dns.Msg, int, bool) {
 	if c.dnsCache != nil {
-		return c.loadPersistentResponse(question, transport)
+		response, ttl, isStale := c.loadPersistentResponse(question, transport)
+		if response != nil && c.roundRobinIndex != nil {
+			key := dnsCacheKey{Question: question, transportTag: transport.Tag()}
+			state, loaded := c.roundRobinIndex.Get(key)
+			if !loaded {
+				state = &dnsMsg{}
+				c.roundRobinIndex.Add(key, state)
+			}
+			state.applyRoundRobin(response)
+		}
+		return response, ttl, isStale
 	}
 	if c.cache == nil {
 		return nil, 0, false
 	}
 	key := dnsCacheKey{Question: question, transportTag: transport.Tag()}
 	if c.disableExpire {
-		response, loaded := c.cache.Get(key)
+		cached, loaded := c.cache.Get(key)
 		if !loaded {
 			return nil, 0, false
 		}
-		return response.Copy(), 0, false
+		return c.getRoundRobin(cached), 0, false
 	}
-	response, expireAt, loaded := c.cache.GetWithLifetimeNoExpire(key)
+	cached, expireAt, loaded := c.cache.GetWithLifetimeNoExpire(key)
 	if !loaded {
 		return nil, 0, false
 	}
 	timeNow := time.Now()
 	if timeNow.After(expireAt) {
 		if c.optimisticTimeout > 0 && timeNow.Before(expireAt.Add(c.optimisticTimeout)) {
-			response = response.Copy()
+			response := c.getRoundRobin(cached)
 			normalizeTTL(response, 1)
 			return response, 0, true
 		}
@@ -441,7 +537,7 @@ func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransp
 	if nowTTL < 0 {
 		nowTTL = 0
 	}
-	response = response.Copy()
+	response := c.getRoundRobin(cached)
 	normalizeTTL(response, uint32(nowTTL))
 	return response, nowTTL, false
 }
