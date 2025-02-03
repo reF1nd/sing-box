@@ -885,6 +885,16 @@
           "minimum": 0,
           "maximum": 4294967295
         },
+        "min_cache_ttl": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "max_cache_ttl": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
         "optimistic": {
           "anyOf": [
             {
