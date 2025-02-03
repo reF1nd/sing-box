@@ -25,6 +25,8 @@ icon: material/alert-decagram
     "disable_expire": false,
     "independent_cache": false,
     "cache_capacity": 0,
+    "min_cache_ttl": 0,
+    "max_cache_ttl": 0,
     "reverse_mapping": false,
     "client_subnet": "",
     "fakeip": {}
@@ -72,6 +74,14 @@ Make each DNS server's cache independent for special purposes. If enabled, will 
 LRU cache capacity.
 
 Value less than 1024 will be ignored.
+
+#### min_cache_ttl
+
+Extend short TTL values to the time given when caching them.
+
+#### max_cache_ttl
+
+Set a maximum TTL value for entries in the cache.
 
 #### reverse_mapping
 
