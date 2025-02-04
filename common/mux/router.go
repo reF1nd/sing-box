@@ -20,9 +20,6 @@ type Router struct {
 }
 
 func NewRouterWithOptions(router adapter.ConnectionRouterEx, logger logger.ContextLogger, options option.InboundMultiplexOptions) (adapter.ConnectionRouterEx, error) {
-	if !options.Enabled {
-		return router, nil
-	}
 	var brutalOptions mux.BrutalOptions
 	if options.Brutal != nil && options.Brutal.Enabled {
 		brutalOptions = mux.BrutalOptions{
