@@ -57,6 +57,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		DisableExpire:    options.DNSClientOptions.DisableExpire,
 		IndependentCache: options.DNSClientOptions.IndependentCache,
 		RoundRobinCache:  options.DNSClientOptions.RoundRobinCache,
+		LazyCache:        options.DNSClientOptions.LazyCacheTTL,
 		CacheCapacity:    options.DNSClientOptions.CacheCapacity,
 		ClientSubnet:     options.DNSClientOptions.ClientSubnet.Build(netip.Prefix{}),
 		MinCacheTTL:      options.DNSClientOptions.MinCacheTTL,
@@ -221,8 +222,13 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	var (
 		transport adapter.DNSTransport
 		err       error
+		response  *mDNS.Msg
+		cached    bool
+		stale     bool
 	)
-	response, cached := r.client.ExchangeCache(ctx, message)
+	if !r.client.UpdateDnsCacheFromContext(ctx) {
+		response, cached, stale = r.client.ExchangeCache(ctx, message)
+	}
 	if !cached {
 		var metadata *adapter.InboundContext
 		ctx, metadata = adapter.ExtendContext(ctx)
@@ -248,7 +254,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 			if options.Strategy == C.DomainStrategyAsIS {
 				options.Strategy = r.defaultDomainStrategy
 			}
-			response, err = r.client.Exchange(ctx, transport, message, options, nil)
+			response, err, stale = r.client.Exchange(ctx, transport, message, options, nil)
 		} else {
 			var (
 				rule      adapter.DNSRule
@@ -299,7 +305,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 				if dnsOptions.Strategy == C.DomainStrategyAsIS {
 					dnsOptions.Strategy = r.defaultDomainStrategy
 				}
-				response, err = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
+				response, err, stale = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
 				var rejected bool
 				if err != nil {
 					if errors.Is(err, ErrResponseRejectedCached) {
@@ -324,6 +330,13 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	if err != nil {
 		return nil, err
 	}
+	if stale {
+		r.logger.DebugContext(ctx, "updating stale cache ", FormatQuestion(message.Question[0].String()))
+		go func(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) {
+			r.Exchange(r.client.UpdateDnsCacheToContext(ctx), message, options)
+		}(ctx, message, options)
+		return response, nil
+	}
 	if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
 		if transport == nil || transport.Type() != C.DNSTypeFakeIP {
 			for _, answer := range response.Answer {
@@ -343,6 +356,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 	var (
 		responseAddrs []netip.Addr
 		cached        bool
+		stale         bool
 		err           error
 	)
 	printResult := func() {
@@ -362,10 +376,18 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 			err = E.Cause(err, "lookup ", domain)
 		}
 	}
-	responseAddrs, cached = r.client.LookupCache(domain, options.Strategy)
+	if !r.client.UpdateDnsCacheFromContext(ctx) {
+		responseAddrs, cached, stale = r.client.LookupCache(domain, options.Strategy)
+	}
 	if cached {
 		if len(responseAddrs) == 0 {
 			return nil, E.New("lookup ", domain, ": empty result (cached)")
+		}
+		if stale {
+			r.logger.DebugContext(ctx, "updating stale cache ", domain)
+			go func(ctx context.Context, domain string, options adapter.DNSQueryOptions) {
+				r.Lookup(r.client.UpdateDnsCacheToContext(ctx), domain, options)
+			}(ctx, domain, options)
 		}
 		return responseAddrs, nil
 	}
@@ -386,7 +408,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 		if options.Strategy == C.DomainStrategyAsIS {
 			options.Strategy = r.defaultDomainStrategy
 		}
-		responseAddrs, err = r.client.Lookup(ctx, transport, domain, options, nil)
+		responseAddrs, err, stale = r.client.Lookup(ctx, transport, domain, options, nil)
 	} else {
 		var (
 			transport adapter.DNSTransport
@@ -428,7 +450,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 			if dnsOptions.Strategy == C.DomainStrategyAsIS {
 				dnsOptions.Strategy = r.defaultDomainStrategy
 			}
-			responseAddrs, err = r.client.Lookup(dnsCtx, transport, domain, dnsOptions, responseCheck)
+			responseAddrs, err, stale = r.client.Lookup(dnsCtx, transport, domain, dnsOptions, responseCheck)
 			if responseCheck == nil || err == nil {
 				break
 			}
@@ -439,6 +461,12 @@ response:
 	printResult()
 	if len(responseAddrs) > 0 {
 		r.logger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
+	}
+	if stale {
+		r.logger.DebugContext(ctx, "updating stale cache ", domain)
+		go func(ctx context.Context, domain string, options adapter.DNSQueryOptions) {
+			r.Lookup(r.client.UpdateDnsCacheToContext(ctx), domain, options)
+		}(ctx, domain, options)
 	}
 	return responseAddrs, err
 }
