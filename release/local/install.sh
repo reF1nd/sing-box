@@ -10,7 +10,7 @@ DIR=$(dirname "$0")
 PROJECT=$DIR/../..
 
 pushd $PROJECT
-go install -v -trimpath -ldflags "-s -w -buildid=" -tags with_quic,with_wireguard,with_acme ./cmd/sing-box
+TAGS="with_quic,with_wireguard,with_utls,with_clash_api,with_gvisor" make build
 popd
 
 sudo cp $(go env GOPATH)/bin/sing-box /usr/local/bin/
