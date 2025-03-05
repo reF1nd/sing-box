@@ -21,7 +21,7 @@ import (
 	"github.com/go-chi/render"
 )
 
-func proxyRouter(server *Server, router adapter.Router) http.Handler {
+func proxyRouter(server *Server) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getProxies(server))
 
