@@ -10,6 +10,13 @@
     "proxy-b",
     "proxy-c"
   ],
+  "providers": [
+    "provider-a",
+    "provider-b",
+  ],
+  "use_all_providers": false,
+  "exclude": "",
+  "include": "",
   "default": "proxy-c",
   "interrupt_exist_connections": false
 }
@@ -23,9 +30,23 @@
 
 #### outbounds
 
-==必填==
-
 用于选择的出站标签列表。
+
+#### providers
+
+用于选择的[订阅](/zh/configuration/provider)标签列表。
+
+#### use_all_providers
+
+使用所有[订阅](/zh/configuration/provider)填充 `outbounds`。
+
+#### exclude
+
+排除 `providers` 节点的正则表达式。排除表达式的优先级高于包含表达式。
+
+#### include
+
+包含 `providers` 节点的正则表达式。
 
 #### default
 
