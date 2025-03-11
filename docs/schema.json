@@ -108,6 +108,12 @@
         "$ref": "#/$defs/Outbound"
       }
     },
+    "providers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provider"
+      }
+    },
     "route": {
       "$ref": "#/$defs/RouteOptions"
     },
@@ -12145,6 +12151,22 @@
                 "x-tag-reference": "outbound"
               }
             },
+            "providers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "x-tag-reference": "provider"
+              }
+            },
+            "exclude": {
+              "type": "string"
+            },
+            "include": {
+              "type": "string"
+            },
+            "use_all_providers": {
+              "type": "boolean"
+            },
             "default": {
               "type": "string",
               "x-tag-reference": "outbound"
@@ -14417,6 +14439,22 @@
                 "x-tag-reference": "outbound"
               }
             },
+            "providers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "x-tag-reference": "provider"
+              }
+            },
+            "exclude": {
+              "type": "string"
+            },
+            "include": {
+              "type": "string"
+            },
+            "use_all_providers": {
+              "type": "boolean"
+            },
             "url": {
               "type": "string"
             },
@@ -15123,6 +15161,300 @@
             "random",
             "randomized"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "OverrideDialerOptions": {
+      "type": "object",
+      "properties": {
+        "detour": {
+          "type": "string",
+          "x-tag-reference": "outbound"
+        },
+        "bind_interface": {
+          "type": "string"
+        },
+        "inet4_bind_address": {
+          "type": "string"
+        },
+        "inet6_bind_address": {
+          "type": "string"
+        },
+        "protect_path": {
+          "type": "string"
+        },
+        "routing_mark": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "reuse_addr": {
+          "type": "boolean"
+        },
+        "connect_timeout": {
+          "$ref": "#/$defs/Duration"
+        },
+        "tcp_fast_open": {
+          "type": "boolean"
+        },
+        "tcp_multi_path": {
+          "type": "boolean"
+        },
+        "udp_fragment": {
+          "type": "boolean"
+        },
+        "domain_resolver": {
+          "$ref": "#/$defs/DomainResolver"
+        },
+        "network_strategy": {
+          "type": "string",
+          "enum": [
+            "default",
+            "fallback",
+            "hybrid"
+          ]
+        },
+        "network_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InterfaceType"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/InterfaceType"
+              }
+            }
+          ]
+        },
+        "fallback_network_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InterfaceType"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/InterfaceType"
+              }
+            }
+          ]
+        },
+        "fallback_delay": {
+          "$ref": "#/$defs/Duration"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Provider": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "inline"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "outbounds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Outbound"
+              }
+            },
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Endpoint"
+              }
+            },
+            "health_check": {
+              "$ref": "#/$defs/ProviderHealthCheckOptions"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "local"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "health_check": {
+              "$ref": "#/$defs/ProviderHealthCheckOptions"
+            },
+            "override_dialer": {
+              "$ref": "#/$defs/OverrideDialerOptions"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "remote"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "user_agent": {
+                  "type": "string"
+                },
+                "http_client": {
+                  "$ref": "#/$defs/HTTPClientReference"
+                },
+                "update_interval": {
+                  "$ref": "#/$defs/Duration"
+                },
+                "exclude": {
+                  "type": "string"
+                },
+                "include": {
+                  "type": "string"
+                },
+                "health_check": {
+                  "$ref": "#/$defs/ProviderHealthCheckOptions"
+                },
+                "override_dialer": {
+                  "$ref": "#/$defs/OverrideDialerOptions"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "remote"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "user_agent": {
+                  "type": "string"
+                },
+                "http_client": {
+                  "$ref": "#/$defs/HTTPClientReference"
+                },
+                "update_interval": {
+                  "$ref": "#/$defs/Duration"
+                },
+                "exclude": {
+                  "type": "string"
+                },
+                "include": {
+                  "type": "string"
+                },
+                "health_check": {
+                  "$ref": "#/$defs/ProviderHealthCheckOptions"
+                },
+                "override_dialer": {
+                  "$ref": "#/$defs/OverrideDialerOptions"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "remote"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "initial_path": {
+                  "type": "string"
+                },
+                "user_agent": {
+                  "type": "string"
+                },
+                "http_client": {
+                  "$ref": "#/$defs/HTTPClientReference"
+                },
+                "update_interval": {
+                  "$ref": "#/$defs/Duration"
+                },
+                "exclude": {
+                  "type": "string"
+                },
+                "include": {
+                  "type": "string"
+                },
+                "health_check": {
+                  "$ref": "#/$defs/ProviderHealthCheckOptions"
+                },
+                "override_dialer": {
+                  "$ref": "#/$defs/OverrideDialerOptions"
+                }
+              },
+              "required": [
+                "type",
+                "initial_path"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      ]
+    },
+    "ProviderHealthCheckOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string"
+        },
+        "interval": {
+          "$ref": "#/$defs/Duration"
+        },
+        "timeout": {
+          "$ref": "#/$defs/Duration"
         }
       },
       "additionalProperties": false

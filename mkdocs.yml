@@ -204,6 +204,9 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+      - Provider:
+          - configuration/provider/index.md
+          - Dialer Fields Override: configuration/provider/override_dialer.md
       - Service:
           - configuration/service/index.md
           - sing-box API: configuration/service/api.md
@@ -317,7 +320,9 @@ plugins:
             Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
+            Provider: 提供者
             Certificate Provider: 证书提供者
+            Dialer Fields Override: 拨号字段覆写
 
             Manual: 手册
       reconfigure_material: true
