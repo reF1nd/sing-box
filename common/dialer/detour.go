@@ -3,7 +3,6 @@ package dialer
 import (
 	"context"
 	"net"
-	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common"
@@ -21,9 +20,6 @@ type DetourDialer struct {
 	detour                  string
 	defaultOutbound         bool
 	disableEmptyDirectCheck bool
-	dialer                  N.Dialer
-	initOnce                sync.Once
-	initErr                 error
 }
 
 func NewDetour(outboundManager adapter.OutboundManager, detour string, disableEmptyDirectCheck bool) N.Dialer {
@@ -50,31 +46,25 @@ func InitializeDetour(dialer N.Dialer) error {
 }
 
 func (d *DetourDialer) Dialer() (N.Dialer, error) {
-	d.initOnce.Do(d.init)
-	return d.dialer, d.initErr
-}
-
-func (d *DetourDialer) init() {
 	var dialer adapter.Outbound
 	if d.detour != "" {
 		var loaded bool
 		dialer, loaded = d.outboundManager.Outbound(d.detour)
 		if !loaded {
-			d.initErr = E.New("outbound detour not found: ", d.detour)
-			return
+			return nil, E.New("outbound detour not found: ", d.detour)
 		}
 	} else {
 		dialer = d.outboundManager.Default()
 	}
+	if dialer == nil {
+		return nil, E.New("default outbound not found")
+	}
 	if !d.defaultOutbound && !d.disableEmptyDirectCheck {
-		if directDialer, isDirect := dialer.(DirectDialer); isDirect {
-			if directDialer.IsEmpty() {
-				d.initErr = E.New("detour to an empty direct outbound makes no sense")
-				return
-			}
+		if direct, ok := dialer.(DirectDialer); ok && direct.IsEmpty() {
+			return nil, E.New("detour to an empty direct outbound makes no sense")
 		}
 	}
-	d.dialer = dialer
+	return dialer, nil
 }
 
 func (d *DetourDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

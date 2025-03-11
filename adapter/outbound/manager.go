@@ -15,6 +15,10 @@ import (
 var _ adapter.OutboundManager = (*Manager)(nil)
 
 type Manager struct {
+	mutation  sync.Mutex
+	lifecycle *adapter.LifecycleGroup
+	stage     adapter.StartStage
+
 	registry                adapter.OutboundRegistry
 	endpoint                adapter.EndpointManager
 	defaultTag              string
@@ -39,6 +43,12 @@ func (m *Manager) Initialize(defaultOutboundFallback func() (adapter.Outbound, e
 }
 
 func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	m.mutation.Lock()
+	defer m.mutation.Unlock()
+	m.stage = stage
+	if stage == adapter.StartStateInitialize {
+		m.lifecycle = adapter.NewLifecycleGroup(scope)
+	}
 	m.access.Lock()
 	if stage == adapter.StartStateInitialize {
 		if m.defaultTag != "" && m.defaultOutbound == nil {
@@ -71,7 +81,7 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			continue
 		}
 		name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
-		err := scope.Start(name, lifecycle, stage)
+		err := m.lifecycle.Start(name, lifecycle, stage)
 		if err != nil {
 			return err
 		}
@@ -109,7 +119,7 @@ func (m *Manager) startOutbounds(scope *adapter.Scope, outbounds []adapter.Outbo
 				continue
 			}
 			name := "outbound/" + outboundToStart.Type() + "[" + outboundTag + "]"
-			err := scope.Start(name, lifecycle, adapter.StartStateStart)
+			err := m.lifecycle.Start(name, lifecycle, adapter.StartStateStart)
 			if err != nil {
 				return err
 			}
@@ -147,7 +157,7 @@ func (m *Manager) startOutbounds(scope *adapter.Scope, outbounds []adapter.Outbo
 func (m *Manager) Outbounds() []adapter.Outbound {
 	m.access.RLock()
 	defer m.access.RUnlock()
-	return m.outbounds
+	return append([]adapter.Outbound(nil), m.outbounds...)
 }
 
 func (m *Manager) Outbound(tag string) (adapter.Outbound, bool) {
@@ -184,6 +194,79 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	m.outboundByTag[tag] = outbound
 	if tag == m.defaultTag || (m.defaultTag == "" && m.defaultOutbound == nil) {
 		m.defaultOutbound = outbound
+	}
+	return nil
+}
+
+// Replace prepares a provider node before publishing it. Static Create retains
+// its duplicate-tag validation.
+func (m *Manager) Replace(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, outboundType string, options any) error {
+	m.mutation.Lock()
+	defer m.mutation.Unlock()
+	node, err := m.registry.CreateOutbound(ctx, router, logger, tag, outboundType, options)
+	if err != nil {
+		return err
+	}
+	if lifecycle, ok := node.(adapter.Lifecycle); ok && m.lifecycle != nil {
+		for _, stage := range adapter.ListStartStages {
+			if stage > m.stage {
+				break
+			}
+			if err = m.lifecycle.Start("outbound/"+node.Type()+"["+tag+"]", lifecycle, stage); err != nil {
+				return E.Errors(err, m.lifecycle.Remove(lifecycle))
+			}
+		}
+	}
+	m.access.Lock()
+	old := m.outboundByTag[tag]
+	if old == nil {
+		m.outbounds = append(m.outbounds, node)
+	} else {
+		for i, item := range m.outbounds {
+			if item == old {
+				m.outbounds[i] = node
+				break
+			}
+		}
+	}
+	m.outboundByTag[tag] = node
+	if m.defaultOutbound == old && old != nil {
+		m.defaultOutbound = node
+	}
+	m.access.Unlock()
+	if lifecycle, ok := old.(adapter.Lifecycle); ok && m.lifecycle != nil {
+		if closeErr := m.lifecycle.Remove(lifecycle); closeErr != nil {
+			logger.Error(closeErr, "close replaced outbound ", tag)
+		}
+	}
+	return nil
+}
+
+func (m *Manager) Remove(tag string) error {
+	m.mutation.Lock()
+	defer m.mutation.Unlock()
+	m.access.Lock()
+	old := m.outboundByTag[tag]
+	if old == nil {
+		m.access.Unlock()
+		return nil
+	}
+	delete(m.outboundByTag, tag)
+	for i, item := range m.outbounds {
+		if item == old {
+			m.outbounds = append(m.outbounds[:i], m.outbounds[i+1:]...)
+			break
+		}
+	}
+	if m.defaultOutbound == old {
+		m.defaultOutbound = nil
+		if len(m.outbounds) > 0 {
+			m.defaultOutbound = m.outbounds[0]
+		}
+	}
+	m.access.Unlock()
+	if lifecycle, ok := old.(adapter.Lifecycle); ok && m.lifecycle != nil {
+		return m.lifecycle.Remove(lifecycle)
 	}
 	return nil
 }
