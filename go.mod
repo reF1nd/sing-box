@@ -15,6 +15,7 @@ require (
 	github.com/libdns/alidns v1.0.5-libdns.v1.beta1
 	github.com/libdns/cloudflare v0.2.2-0.20250708034226-c574dccb31a6
 	github.com/logrusorgru/aurora v2.0.3+incompatible
+	github.com/metacubex/mihomo v1.18.9
 	github.com/metacubex/tfo-go v0.0.0-20241231083714-66613d49c422
 	github.com/metacubex/utls v1.8.0
 	github.com/mholt/acmez/v3 v3.1.2
@@ -53,6 +54,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
+	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 )
 
@@ -131,6 +133,5 @@ require (
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
