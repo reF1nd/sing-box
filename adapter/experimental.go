@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/sagernet/sing-box/common/hash"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/varbin"
 )
@@ -48,9 +49,13 @@ type CacheFile interface {
 	SaveRuleSet(tag string, set *SavedBinary) error
 	LoadExternalUI(tag string) *SavedBinary
 	SaveExternalUI(tag string, info *SavedBinary) error
+	LoadSubscription(tag string) *SavedBinary
+	SaveSubscription(tag string, sub *SavedBinary) error
 }
 
 type SavedBinary struct {
+	// Hash is stored only by the private cache envelope.
+	Hash        hash.HashType
 	Content     []byte
 	LastUpdated time.Time
 	LastEtag    string
@@ -95,6 +100,7 @@ func (s *SavedBinary) MarshalBinary() ([]byte, error) {
 }
 
 func (s *SavedBinary) UnmarshalBinary(data []byte) error {
+	*s = SavedBinary{}
 	reader := bytes.NewReader(data)
 	var version uint8
 	err := binary.Read(reader, binary.BigEndian, &version)
