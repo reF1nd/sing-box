@@ -10,11 +10,16 @@
     "proxy-b",
     "proxy-c"
   ],
+  "providers": [
+    "provider-a",
+    "provider-b",
+  ],
+  "use_all_providers": false,
+  "exclude": "",
+  "include": "",
   "url": "",
-  "interval": "",
-  "tolerance": 0,
-  "idle_timeout": "",
-  "interrupt_exist_connections": false
+  "interval": "1m",
+  "tolerance": 50
 }
 ```
 
@@ -22,9 +27,19 @@
 
 #### outbounds
 
-==Required==
-
 List of outbound tags to test.
+
+#### providers
+
+List of [Provider](/configuration/provider) tags to test.
+
+#### exclude
+
+Exclude regular expression to filter `providers` nodes. The priority of the exclude expression is higher than the include expression.
+
+#### include
+
+Include regular expression to filter `providers` nodes.
 
 #### url
 
@@ -37,13 +52,3 @@ The test interval. `3m` will be used if empty.
 #### tolerance
 
 The test tolerance in milliseconds. `50` will be used if empty.
-
-#### idle_timeout
-
-The idle timeout. `30m` will be used if empty.
-
-#### interrupt_exist_connections
-
-Interrupt existing connections when the selected outbound has changed.
-
-Only inbound connections are affected by this setting, internal connections will always be interrupted.
