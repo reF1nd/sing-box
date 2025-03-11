@@ -175,6 +175,8 @@ nav:
           - DERP: configuration/service/derp.md
           - Resolved: configuration/service/resolved.md
           - SSM API: configuration/service/ssm-api.md
+      - Provider:
+          - configuration/provider/index.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
@@ -269,6 +271,7 @@ plugins:
             Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
+            Provider: 提供者
 
             Manual: 手册
       reconfigure_material: true
