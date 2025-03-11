@@ -21,11 +21,13 @@ import (
 )
 
 var (
-	bucketSelected   = []byte("selected")
-	bucketExpand     = []byte("group_expand")
-	bucketMode       = []byte("clash_mode")
-	bucketRuleSet    = []byte("rule_set")
-	bucketExternalUI = []byte("external_ui")
+	bucketSelected         = []byte("selected")
+	bucketExpand           = []byte("group_expand")
+	bucketMode             = []byte("clash_mode")
+	bucketRuleSet          = []byte("rule_set")
+	bucketExternalUI       = []byte("external_ui")
+	bucketBranch           = []byte("ref1nd")
+	bucketOutboundProvider = []byte("outbound_provider")
 
 	bucketNameList = []string{
 		string(bucketSelected),
@@ -33,6 +35,7 @@ var (
 		string(bucketMode),
 		string(bucketRuleSet),
 		string(bucketExternalUI),
+		string(bucketBranch),
 		string(bucketRDRC),
 		string(bucketDNSCache),
 	}
@@ -444,36 +447,11 @@ func (c *CacheFile) StoreGroupExpand(group string, isExpand bool) error {
 }
 
 func (c *CacheFile) LoadRuleSet(tag string) *adapter.SavedBinary {
-	var savedSet adapter.SavedBinary
-	err := c.view(func(t *bbolt.Tx) error {
-		bucket := c.bucket(t, bucketRuleSet)
-		if bucket == nil {
-			return os.ErrNotExist
-		}
-		setBinary := bucket.Get([]byte(tag))
-		if len(setBinary) == 0 {
-			return os.ErrInvalid
-		}
-		return savedSet.UnmarshalBinary(setBinary)
-	})
-	if err != nil {
-		return nil
-	}
-	return &savedSet
+	return c.loadBranchBinary(bucketRuleSet, tag, true)
 }
 
 func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedBinary) error {
-	return c.batch(func(t *bbolt.Tx) error {
-		bucket, err := c.createBucket(t, bucketRuleSet)
-		if err != nil {
-			return err
-		}
-		setBinary, err := set.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		return bucket.Put([]byte(tag), setBinary)
-	})
+	return c.saveBranchBinary(bucketRuleSet, tag, set)
 }
 
 func (c *CacheFile) LoadExternalUI(tag string) *adapter.SavedBinary {
@@ -507,4 +485,12 @@ func (c *CacheFile) SaveExternalUI(tag string, info *adapter.SavedBinary) error 
 		}
 		return bucket.Put([]byte(tag), setBinary)
 	})
+}
+
+func (c *CacheFile) LoadSubscription(tag string) *adapter.SavedBinary {
+	return c.loadBranchBinary(bucketOutboundProvider, tag, false)
+}
+
+func (c *CacheFile) SaveSubscription(tag string, sub *adapter.SavedBinary) error {
+	return c.saveBranchBinary(bucketOutboundProvider, tag, sub)
 }
