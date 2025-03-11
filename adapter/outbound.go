@@ -63,3 +63,11 @@ type IdleConnectionKeeper interface {
 type Referrer interface {
 	References() []string
 }
+
+// DynamicOutboundManager supports provider-owned components without allowing
+// duplicate tags in the static configuration.
+type DynamicOutboundManager interface {
+	OutboundManager
+	Replace(ctx context.Context, router Router, logger log.ContextLogger, tag string, componentType string, options any) error
+	Remove(tag string) error
+}
