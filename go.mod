@@ -84,7 +84,9 @@ require (
 )
 
 replace (
+	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.66.0-sing-box-mod.1.0.20261126073502-d4615144fb01
 	github.com/sagernet/sing-anytls => github.com/reF1nd/sing-anytls v0.0.0-20261125081744-08981c57ec31
+	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261126075647-7ca8b8c21f75
 	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20261126085318-32cdba1b822c
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.7-0.20261126054119-6ba2b41fb95d
 )
@@ -203,6 +205,7 @@ require (
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v1.0.1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 	lukechampine.com/blake3 v1.3.0 // indirect
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )

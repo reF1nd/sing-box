@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 	"slices"
+	"sync"
 	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -16,7 +17,10 @@ import (
 	"github.com/sagernet/sing/service/pause"
 )
 
-var _ adapter.LifecycleService = (*ReferenceManager)(nil)
+var (
+	_ adapter.LifecycleService               = (*ReferenceManager)(nil)
+	_ adapter.DomainResolverReferenceTracker = (*ReferenceManager)(nil)
+)
 
 type domainResolverKey struct {
 	tag      string
@@ -30,6 +34,7 @@ type ReferenceManager struct {
 	dnsRules               []option.DNSRule
 	staticOutbounds        []string
 	staticTransports       []string
+	domainResolversAccess  sync.RWMutex
 	domainResolvers        map[domainResolverKey][]string
 	subscriber             *observable.Subscriber[struct{}]
 	pauseManager           pause.Manager
@@ -127,19 +132,55 @@ func (m *ReferenceManager) Name() string {
 	return "reference manager"
 }
 
+func (m *ReferenceManager) UpdateDomainResolvers(tag string, isEndpoint bool, rawOptions any) {
+	if tag == "" {
+		return
+	}
+	key := domainResolverKey{tag: tag, endpoint: isEndpoint}
+	resolvers := appendDomainResolver(nil, rawOptions)
+	m.domainResolversAccess.Lock()
+	if len(resolvers) > 0 {
+		m.domainResolvers[key] = resolvers
+	} else {
+		delete(m.domainResolvers, key)
+	}
+	subscriber := m.subscriber
+	m.domainResolversAccess.Unlock()
+	if subscriber != nil {
+		subscriber.Emit(struct{}{})
+	}
+}
+
+func (m *ReferenceManager) RemoveDomainResolvers(tag string, isEndpoint bool) {
+	if tag == "" {
+		return
+	}
+	key := domainResolverKey{tag: tag, endpoint: isEndpoint}
+	m.domainResolversAccess.Lock()
+	delete(m.domainResolvers, key)
+	subscriber := m.subscriber
+	m.domainResolversAccess.Unlock()
+	if subscriber != nil {
+		subscriber.Emit(struct{}{})
+	}
+}
+
 func (m *ReferenceManager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStarted {
 		return nil
 	}
-	m.subscriber = observable.NewSubscriber[struct{}](1)
-	scope.Add(m.subscriber.Close)
+	subscriber := observable.NewSubscriber[struct{}](1)
+	m.domainResolversAccess.Lock()
+	m.subscriber = subscriber
+	m.domainResolversAccess.Unlock()
+	scope.Add(subscriber.Close)
 	history := service.PtrFromContext[urltest.HistoryStorage](m.ctx)
 	if history != nil {
-		history.AddUpdateHook(m.subscriber)
+		history.AddUpdateHook(subscriber)
 	}
 	clashMode := service.PtrFromContext[clashmode.Manager](m.ctx)
 	if clashMode != nil {
-		clashMode.AddUpdateHook(m.subscriber)
+		clashMode.AddUpdateHook(subscriber)
 	}
 	if m.pauseManager != nil {
 		m.devicePaused.Store(m.pauseManager.IsDevicePaused())
@@ -156,7 +197,7 @@ func (m *ReferenceManager) Start(stage adapter.StartStage, scope *adapter.Scope)
 			default:
 				return
 			}
-			m.subscriber.Emit(struct{}{})
+			subscriber.Emit(struct{}{})
 		})
 		scope.Add(func() error {
 			m.pauseManager.UnregisterCallback(pauseCallback)
@@ -270,7 +311,10 @@ func (m *ReferenceManager) update() {
 		}
 		referencedOutbounds[tag] = true
 		_, isEndpoint := outbound.(adapter.Endpoint)
-		transportQueue = append(transportQueue, m.domainResolvers[domainResolverKey{tag: tag, endpoint: isEndpoint}]...)
+		m.domainResolversAccess.RLock()
+		domainResolvers := m.domainResolvers[domainResolverKey{tag: tag, endpoint: isEndpoint}]
+		m.domainResolversAccess.RUnlock()
+		transportQueue = append(transportQueue, domainResolvers...)
 		outboundReferrer, isOutboundReferrer := outbound.(adapter.Referrer)
 		if isOutboundReferrer {
 			outbounds, dnsServers := outboundReferrer.References()
