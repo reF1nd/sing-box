@@ -23,11 +23,10 @@ func TestURLTestSelectPreMatchOutboundByNetwork(t *testing.T) {
 	tcpOutbound := new(preMatchTestOutbound)
 	udpOutbound := new(preMatchTestOutbound)
 	urlTest := &URLTest{
-		group: &URLTestGroup{
-			selectedOutboundTCP: tcpOutbound,
-			selectedOutboundUDP: udpOutbound,
-		},
+		group: new(URLTestGroup),
 	}
+	urlTest.group.selectedOutboundTCP.Store(tcpOutbound)
+	urlTest.group.selectedOutboundUDP.Store(udpOutbound)
 
 	selectedTCP, tcpAction := urlTest.SelectPreMatchOutbound(&adapter.InboundContext{Network: N.NetworkTCP}, selectPreMatchFlow)
 	selectedUDP, udpAction := urlTest.SelectPreMatchOutbound(&adapter.InboundContext{Network: N.NetworkUDP}, selectPreMatchFlow)
@@ -51,4 +50,8 @@ type preMatchTestOutbound struct {
 
 func (o *preMatchTestOutbound) Tag() string {
 	return o.tag
+}
+
+func (o *preMatchTestOutbound) Network() []string {
+	return []string{N.NetworkTCP, N.NetworkUDP}
 }
