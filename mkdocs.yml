@@ -169,6 +169,8 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+      - Provider:
+          - configuration/provider/index.md
 markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
@@ -263,6 +265,7 @@ plugins:
             Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
+            Provider: 提供者
 
             Manual: 手册
       reconfigure_material: true
