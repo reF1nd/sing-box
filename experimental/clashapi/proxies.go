@@ -3,6 +3,7 @@ package clashapi
 import (
 	"context"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -125,6 +126,8 @@ func getProxies(server *Server) func(w http.ResponseWriter, r *http.Request) {
 			"now":     defaultTag,
 		})
 
+		hasCompatible := false
+		needCompatible := defaultTag == "Compatible"
 		for i, detour := range outbounds {
 			var tag string
 			if detour.Tag() == "" {
@@ -132,7 +135,20 @@ func getProxies(server *Server) func(w http.ResponseWriter, r *http.Request) {
 			} else {
 				tag = detour.Tag()
 			}
+			if tag == "Compatible" {
+				hasCompatible = true
+			}
+			if group, isGroup := detour.(adapter.OutboundGroup); isGroup {
+				if slices.Contains(group.All(), "Compatible") {
+					needCompatible = true
+				}
+			}
 			proxyMap.Put(tag, proxyInfo(server, detour))
+		}
+		if needCompatible && !hasCompatible {
+			if compatible, loaded := server.outbound.Outbound("Compatible"); loaded {
+				proxyMap.Put(compatible.Tag(), proxyInfo(server, compatible))
+			}
 		}
 		var responseMap badjson.JSONObject
 		responseMap.Put("proxies", &proxyMap)
