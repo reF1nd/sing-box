@@ -11,19 +11,25 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service"
 )
 
 var _ adapter.OutboundManager = (*Manager)(nil)
 
 type Manager struct {
-	registry        adapter.OutboundRegistry
-	endpoint        adapter.EndpointManager
-	defaultTag      string
-	access          sync.RWMutex
-	outbounds       []adapter.Outbound
-	outboundByTag   map[string]adapter.Outbound
-	defaultOutbound adapter.Outbound
-	sortedOutbounds []adapter.Outbound
+	mutation         sync.Mutex
+	lifecycle        *adapter.LifecycleGroup
+	stage            adapter.StartStage
+	referenceTracker adapter.DomainResolverReferenceTracker
+
+	registry           adapter.OutboundRegistry
+	endpoint           adapter.EndpointManager
+	defaultTag         string
+	access             sync.RWMutex
+	outbounds          []adapter.Outbound
+	outboundByTag      map[string]adapter.Outbound
+	defaultOutbound    adapter.Outbound
+	compatibleOutbound adapter.Outbound
 }
 
 func NewManager(registry adapter.OutboundRegistry, endpoint adapter.EndpointManager, defaultTag string) *Manager {
@@ -35,37 +41,74 @@ func NewManager(registry adapter.OutboundRegistry, endpoint adapter.EndpointMana
 	}
 }
 
+func (m *Manager) RegisterCompatible(outbound adapter.Outbound) {
+	m.access.Lock()
+	m.compatibleOutbound = outbound
+	m.access.Unlock()
+}
+
 func (m *Manager) Initialize(defaultOutboundFallback func() (adapter.Outbound, error)) error {
 	m.access.Lock()
-	defer m.access.Unlock()
 	if m.defaultTag != "" && m.defaultOutbound == nil {
-		defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
-		if !loaded {
+		if defaultOutbound, loaded := m.outboundByTag[m.defaultTag]; loaded {
+			m.defaultOutbound = defaultOutbound
+		} else if defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag); loaded {
+			m.defaultOutbound = defaultEndpoint
+		} else if m.defaultTag == "Compatible" && m.compatibleOutbound != nil {
+			m.defaultOutbound = m.compatibleOutbound
+		} else {
+			m.access.Unlock()
 			return E.New("default outbound not found: ", m.defaultTag)
 		}
-		m.defaultOutbound = defaultEndpoint
 	}
 	if m.defaultOutbound == nil {
 		directOutbound, err := defaultOutboundFallback()
 		if err != nil {
+			m.access.Unlock()
 			return E.Cause(err, "create direct outbound for fallback")
 		}
 		m.outbounds = append(m.outbounds, directOutbound)
 		m.outboundByTag[directOutbound.Tag()] = directOutbound
 		m.defaultOutbound = directOutbound
 	}
-	sortedOutbounds, err := sortOutbounds(slices.Concat(m.outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })))
-	if err != nil {
-		return err
+	m.access.Unlock()
+	_, err := sortOutbounds(m.collectOutboundsForSort())
+	return err
+}
+
+func (m *Manager) collectOutboundsForSort() []adapter.Outbound {
+	m.access.RLock()
+	outbounds := append([]adapter.Outbound(nil), m.outbounds...)
+	compatible := m.compatibleOutbound
+	_, hasCompatibleOutbound := m.outboundByTag["Compatible"]
+	m.access.RUnlock()
+	endpoints := m.endpoint.Endpoints()
+	hasCompatibleEndpoint := false
+	for _, ep := range endpoints {
+		if ep.Tag() == "Compatible" {
+			hasCompatibleEndpoint = true
+			break
+		}
 	}
-	m.sortedOutbounds = sortedOutbounds
-	return nil
+	combined := slices.Concat(outbounds, common.Map(endpoints, func(it adapter.Endpoint) adapter.Outbound { return it }))
+	if compatible != nil && !hasCompatibleOutbound && !hasCompatibleEndpoint {
+		combined = append(combined, compatible)
+	}
+	return combined
 }
 
 func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
-	m.access.RLock()
-	sortedOutbounds := m.sortedOutbounds
-	m.access.RUnlock()
+	m.mutation.Lock()
+	defer m.mutation.Unlock()
+	m.stage = stage
+	if stage == adapter.StartStateInitialize {
+		m.lifecycle = adapter.NewLifecycleGroup(scope)
+		m.referenceTracker = service.FromContext[adapter.DomainResolverReferenceTracker](scope.Context())
+	}
+	sortedOutbounds, err := sortOutbounds(m.collectOutboundsForSort())
+	if err != nil {
+		return err
+	}
 	for _, outbound := range sortedOutbounds {
 		if endpoint, isEndpoint := outbound.(adapter.Endpoint); isEndpoint {
 			if stage == adapter.StartStateStart {
@@ -81,7 +124,7 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			continue
 		}
 		name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
-		err := scope.Start(name, lifecycle, stage)
+		err = m.lifecycle.Start(name, lifecycle, stage)
 		if err != nil {
 			return err
 		}
@@ -143,17 +186,24 @@ func sortOutbounds(outbounds []adapter.Outbound) ([]adapter.Outbound, error) {
 func (m *Manager) Outbounds() []adapter.Outbound {
 	m.access.RLock()
 	defer m.access.RUnlock()
-	return m.outbounds
+	return append([]adapter.Outbound(nil), m.outbounds...)
 }
 
 func (m *Manager) Outbound(tag string) (adapter.Outbound, bool) {
 	m.access.RLock()
 	outbound, found := m.outboundByTag[tag]
+	compatible := m.compatibleOutbound
 	m.access.RUnlock()
 	if found {
 		return outbound, true
 	}
-	return m.endpoint.Get(tag)
+	if endpoint, loaded := m.endpoint.Get(tag); loaded {
+		return endpoint, true
+	}
+	if tag == "Compatible" && compatible != nil {
+		return compatible, true
+	}
+	return nil, false
 }
 
 func (m *Manager) Default() adapter.Outbound {
@@ -180,6 +230,88 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	m.outboundByTag[tag] = outbound
 	if tag == m.defaultTag || (m.defaultTag == "" && m.defaultOutbound == nil) {
 		m.defaultOutbound = outbound
+	}
+	return nil
+}
+
+// Replace prepares a provider node before publishing it. Static Create retains
+// its duplicate-tag validation.
+func (m *Manager) Replace(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, outboundType string, options any) error {
+	m.mutation.Lock()
+	defer m.mutation.Unlock()
+	node, err := m.registry.CreateOutbound(ctx, router, logger, tag, outboundType, options)
+	if err != nil {
+		return err
+	}
+	if lifecycle, ok := node.(adapter.Lifecycle); ok && m.lifecycle != nil {
+		for _, stage := range adapter.ListStartStages {
+			if stage > m.stage {
+				break
+			}
+			if err = m.lifecycle.Start("outbound/"+node.Type()+"["+tag+"]", lifecycle, stage); err != nil {
+				return E.Errors(err, m.lifecycle.Remove(lifecycle))
+			}
+		}
+	}
+	m.access.Lock()
+	old := m.outboundByTag[tag]
+	if old == nil {
+		m.outbounds = append(m.outbounds, node)
+	} else {
+		for i, item := range m.outbounds {
+			if item == old {
+				m.outbounds[i] = node
+				break
+			}
+		}
+	}
+	m.outboundByTag[tag] = node
+	if m.defaultOutbound == old && old != nil {
+		m.defaultOutbound = node
+	}
+	m.access.Unlock()
+	if m.referenceTracker == nil {
+		m.referenceTracker = service.FromContext[adapter.DomainResolverReferenceTracker](ctx)
+	}
+	if m.referenceTracker != nil {
+		m.referenceTracker.UpdateDomainResolvers(tag, false, options)
+	}
+	if lifecycle, ok := old.(adapter.Lifecycle); ok && m.lifecycle != nil {
+		if closeErr := m.lifecycle.Remove(lifecycle); closeErr != nil {
+			logger.Error(closeErr, "close replaced outbound ", tag)
+		}
+	}
+	return nil
+}
+
+func (m *Manager) Remove(tag string) error {
+	m.mutation.Lock()
+	defer m.mutation.Unlock()
+	m.access.Lock()
+	old := m.outboundByTag[tag]
+	if old == nil {
+		m.access.Unlock()
+		return nil
+	}
+	delete(m.outboundByTag, tag)
+	for i, item := range m.outbounds {
+		if item == old {
+			m.outbounds = append(m.outbounds[:i], m.outbounds[i+1:]...)
+			break
+		}
+	}
+	if m.defaultOutbound == old {
+		m.defaultOutbound = nil
+		if len(m.outbounds) > 0 {
+			m.defaultOutbound = m.outbounds[0]
+		}
+	}
+	m.access.Unlock()
+	if m.referenceTracker != nil {
+		m.referenceTracker.RemoveDomainResolvers(tag, false)
+	}
+	if lifecycle, ok := old.(adapter.Lifecycle); ok && m.lifecycle != nil {
+		return m.lifecycle.Remove(lifecycle)
 	}
 	return nil
 }

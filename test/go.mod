@@ -217,3 +217,7 @@ require (
 replace github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.7-0.20261127192135-dd0f899962bd
 
 replace github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20261126085318-32cdba1b822c
+
+replace github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.61.0-sing-box-mod.15.0.20261127183425-c040dd3f73dc
+
+replace github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261127183450-5d94c8745b61

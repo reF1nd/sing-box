@@ -80,6 +80,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
+	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 )
 
@@ -194,7 +195,6 @@ require (
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
@@ -202,3 +202,7 @@ require (
 replace github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.7-0.20261127192135-dd0f899962bd
 
 replace github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20261126085318-32cdba1b822c
+
+replace github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.61.0-sing-box-mod.15.0.20261127183425-c040dd3f73dc
+
+replace github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261127183450-5d94c8745b61

@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,6 +35,7 @@ type Router struct {
 	logger                       log.ContextLogger
 	inbound                      adapter.InboundManager
 	outbound                     adapter.OutboundManager
+	provider                     adapter.ProviderManager
 	dns                          adapter.DNSRouter
 	dnsTransport                 adapter.DNSTransportManager
 	connection                   adapter.ConnectionManager
@@ -67,6 +69,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		logger:            logFactory.NewLogger("router"),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
+		provider:          service.FromContext[adapter.ProviderManager](ctx),
 		dns:               service.FromContext[adapter.DNSRouter](ctx),
 		dnsTransport:      service.FromContext[adapter.DNSTransportManager](ctx),
 		connection:        service.FromContext[adapter.ConnectionManager](ctx),
@@ -119,6 +122,14 @@ func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) erro
 }
 
 func (r *Router) ValidateRuleActions() error {
+	return r.validateRuleActions(true)
+}
+
+func (r *Router) ValidateDeferredRuleActions() error {
+	return r.validateRuleActions(false)
+}
+
+func (r *Router) validateRuleActions(deferDynamicProviders bool) error {
 	for i, rule := range r.rules {
 		var outboundTag, serverTag string
 		switch action := rule.Action().(type) {
@@ -131,7 +142,9 @@ func (r *Router) ValidateRuleActions() error {
 		}
 		if outboundTag != "" {
 			if _, loaded := r.outbound.Outbound(outboundTag); !loaded {
-				return E.New("rule[", i, "]: outbound not found: ", outboundTag)
+				if !deferDynamicProviders || !r.isDeferredProviderOutbound(outboundTag) {
+					return E.New("rule[", i, "]: outbound not found: ", outboundTag)
+				}
 			}
 		}
 		if serverTag != "" {
@@ -141,6 +154,22 @@ func (r *Router) ValidateRuleActions() error {
 		}
 	}
 	return nil
+}
+
+func (r *Router) isDeferredProviderOutbound(tag string) bool {
+	if r.provider == nil {
+		return false
+	}
+	for _, provider := range r.provider.Providers() {
+		switch provider.Type() {
+		case C.ProviderTypeLocal, C.ProviderTypeRemote:
+			prefix := provider.Tag() + "/"
+			if strings.HasPrefix(tag, prefix) && len(tag) > len(prefix) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {

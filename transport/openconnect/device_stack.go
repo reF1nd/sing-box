@@ -212,7 +212,7 @@ func (d *stackDevice) DialContext(ctx context.Context, network string, destinati
 		if err != nil {
 			return nil, err
 		}
-		return udpGroup.NewConn(udpConn, false), nil
+		return udpGroup.NewConn(udpConn, false, false), nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
@@ -229,7 +229,7 @@ func (d *stackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	if err != nil {
 		return nil, err
 	}
-	return udpGroup.NewPacketConn(udpConn, false), nil
+	return udpGroup.NewPacketConn(udpConn, false, false), nil
 }
 
 func (d *stackDevice) bindAddressLocked(destination M.Socksaddr) (tcpip.FullAddress, tcpip.NetworkProtocolNumber, *interrupt.Group, error) {

@@ -233,6 +233,10 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
+github.com/reF1nd/quic-go v0.61.0-sing-box-mod.15.0.20261127183425-c040dd3f73dc h1:sGeBoU9wrLMfOfQ1sAm7kh5wnidRFCMyA3Ior8d05V4=
+github.com/reF1nd/quic-go v0.61.0-sing-box-mod.15.0.20261127183425-c040dd3f73dc/go.mod h1:4JZ5DuMe1zsiMRdETvHFWFqCcvbBuZa0PYqpc4jYQhE=
+github.com/reF1nd/sing-quic v0.7.2-0.20261127183450-5d94c8745b61 h1:JENpoUTGySwReCKyrquXb4t96N6Qpv/2zwwPzcJPC/s=
+github.com/reF1nd/sing-quic v0.7.2-0.20261127183450-5d94c8745b61/go.mod h1:WeD2ClYnY+fazERJRBP7o6v+TSbZGAaN6C9ymo41U4I=
 github.com/reF1nd/sing-snell v0.0.0-20261126085318-32cdba1b822c h1:E7kAB47eGsL5U+qgAjm9EBhyzaOeDdthf0X4ZlqDEPA=
 github.com/reF1nd/sing-snell v0.0.0-20261126085318-32cdba1b822c/go.mod h1:9O6b0qRI/QjuycrYQVnftrRjztzHUV2qYuX6rmpDtCY=
 github.com/reF1nd/sing-tun v0.9.7-0.20261127192135-dd0f899962bd h1:QAofGWyIy34ZjlB4Pj9FmGGa3auE2F1pSowA6wslU+w=
@@ -320,8 +324,6 @@ github.com/sagernet/netlink v0.0.0-20261125120807-b006b90aa077 h1:L1pxwVWz02wU/o
 github.com/sagernet/netlink v0.0.0-20261125120807-b006b90aa077/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
 github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b h1:dgnXJAbP71bzUrl31YvQNO3DGqQq20tz7h8MaroD4fY=
 github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
-github.com/sagernet/quic-go v0.61.0-sing-box-mod.15 h1:bBw8CvMTBPw5kwJiF8dqZRUgJaJFnDkQxRxXv78mlEM=
-github.com/sagernet/quic-go v0.61.0-sing-box-mod.15/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
 github.com/sagernet/sing v0.9.7-0.20261127131305-db09250ecaed h1:gqJ4tOSPOhEwSU7hPrjojkLjAIJGS4FUMmsvcJb51JU=
 github.com/sagernet/sing v0.9.7-0.20261127131305-db09250ecaed/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/sagernet/sing-cloudflared v0.1.4-0.20261125132439-71e2e5ed8ed0 h1:xGM1kyl4+0Tq2AIjGgKjRROd+Nwb4RGYA4UbyEg5Pq4=
@@ -332,8 +334,6 @@ github.com/sagernet/sing-openconnect v0.1.1-0.20261126032024-f641df2c35c6 h1:55l
 github.com/sagernet/sing-openconnect v0.1.1-0.20261126032024-f641df2c35c6/go.mod h1:4AKZLVcvY3r54UaK2Gbnm7aN8pOwdLz+y4EP0QFZ5Eg=
 github.com/sagernet/sing-openvpn v0.1.1-0.20261125120933-494cce526aab h1:EvPC5IZLG3xkq9eCALjDnMc88HI8IGQR9QfmgivE7mE=
 github.com/sagernet/sing-openvpn v0.1.1-0.20261125120933-494cce526aab/go.mod h1:PWX7WygD8jpwfqfaGNySXpJYTn0SOwjBI1BKHHC2+Bw=
-github.com/sagernet/sing-quic v0.7.2-0.20261126024618-6fa4bb84d0bd h1:jIAfNxfT9t/+SAyPRfE6etO88W7Usjx5wRHtTw/AXaI=
-github.com/sagernet/sing-quic v0.7.2-0.20261126024618-6fa4bb84d0bd/go.mod h1:AOO1skHj0z1Iwz58ozMfJNY7p5dVg9O/HiSyWKTyrwY=
 github.com/sagernet/sing-shadowsocks v0.2.9-0.20260929204512-65740e0f0e3e h1:LKgE/uuqp/D2kgxYViOz8vf4slaCUfpFywXjtuwD5gU=
 github.com/sagernet/sing-shadowsocks v0.2.9-0.20260929204512-65740e0f0e3e/go.mod h1:lo7TWEMDcN5/h5B8S0ew+r78ZODn6SwVaFhvB6H+PTI=
 github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95 h1:nuxgfThM++EpCxofrB8chW9UF6p317rnLPGH7O1qXP4=
