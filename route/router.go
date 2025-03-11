@@ -26,6 +26,7 @@ type Router struct {
 	logger            log.ContextLogger
 	inbound           adapter.InboundManager
 	outbound          adapter.OutboundManager
+	provider          adapter.ProviderManager
 	dns               adapter.DNSRouter
 	dnsTransport      adapter.DNSTransportManager
 	connection        adapter.ConnectionManager
@@ -48,6 +49,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		logger:            logFactory.NewLogger("router"),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
+		provider:          service.FromContext[adapter.ProviderManager](ctx),
 		dns:               service.FromContext[adapter.DNSRouter](ctx),
 		dnsTransport:      service.FromContext[adapter.DNSTransportManager](ctx),
 		connection:        service.FromContext[adapter.ConnectionManager](ctx),
