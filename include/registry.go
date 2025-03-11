@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/adapter/provider"
 	"github.com/sagernet/sing-box/adapter/service"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -34,6 +35,8 @@ import (
 	"github.com/sagernet/sing-box/protocol/tun"
 	"github.com/sagernet/sing-box/protocol/vless"
 	"github.com/sagernet/sing-box/protocol/vmess"
+	providerLocal "github.com/sagernet/sing-box/provider/local"
+	"github.com/sagernet/sing-box/provider/remote"
 	"github.com/sagernet/sing-box/service/resolved"
 	"github.com/sagernet/sing-box/service/ssmapi"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -61,6 +64,16 @@ func InboundRegistry() *inbound.Registry {
 
 	registerQUICInbounds(registry)
 	registerStubForRemovedInbounds(registry)
+
+	return registry
+}
+
+func ProviderRegistry() *provider.Registry {
+	registry := provider.NewRegistry()
+
+	providerLocal.RegisterProviderInline(registry)
+	providerLocal.RegisterProviderLocal(registry)
+	remote.RegisterProvider(registry)
 
 	return registry
 }
