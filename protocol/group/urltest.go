@@ -1,8 +1,13 @@
+// !!! DO NOT USE THIS FILE !!!
+// This file is kept for avoiding code conflicts with the upstream project.
+// It is not used in this project.
+
 package group
 
 import (
 	"context"
 	"net"
+	"regexp"
 	"sync"
 	"time"
 
@@ -37,6 +42,7 @@ type URLTest struct {
 	ctx                          context.Context
 	router                       adapter.Router
 	outbound                     adapter.OutboundManager
+	provider                     adapter.ProviderManager
 	connection                   adapter.ConnectionManager
 	logger                       log.ContextLogger
 	tags                         []string
@@ -46,14 +52,39 @@ type URLTest struct {
 	idleTimeout                  time.Duration
 	group                        *URLTestGroup
 	interruptExternalConnections bool
+
+	include           *regexp.Regexp
+	exclude           *regexp.Regexp
+	providerTags      []string
+	use_all_providers bool
 }
 
 func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.URLTestOutboundOptions) (adapter.Outbound, error) {
+	if len(options.Outbounds)+len(options.Providers) == 0 && !options.UseAllProviders {
+		return nil, E.New("missing outbound and provider tags")
+	}
+	var (
+		err              error
+		exclude, include *regexp.Regexp
+	)
+	if options.Exclude != "" {
+		exclude, err = regexp.Compile(options.Exclude)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if options.Include != "" {
+		include, err = regexp.Compile(options.Include)
+		if err != nil {
+			return nil, err
+		}
+	}
 	outbound := &URLTest{
 		Adapter:                      outbound.NewAdapter(C.TypeURLTest, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.Outbounds),
 		ctx:                          ctx,
 		router:                       router,
 		outbound:                     service.FromContext[adapter.OutboundManager](ctx),
+		provider:                     service.FromContext[adapter.ProviderManager](ctx),
 		connection:                   service.FromContext[adapter.ConnectionManager](ctx),
 		logger:                       logger,
 		tags:                         options.Outbounds,
@@ -62,9 +93,10 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 		tolerance:                    options.Tolerance,
 		idleTimeout:                  time.Duration(options.IdleTimeout),
 		interruptExternalConnections: options.InterruptExistConnections,
-	}
-	if len(outbound.tags) == 0 {
-		return nil, E.New("missing tags")
+		include:                      include,
+		exclude:                      exclude,
+		providerTags:                 options.Providers,
+		use_all_providers:            options.UseAllProviders,
 	}
 	return outbound, nil
 }
@@ -83,6 +115,29 @@ func (s *URLTest) Start() error {
 		return err
 	}
 	s.group = group
+	if len(outbounds) == 0 {
+		detour, _ := s.outbound.Outbound("OUTBOUNDLESS")
+		s.group.access.Lock()
+		s.group.outbounds = append(s.group.outbounds, detour)
+		s.group.access.Unlock()
+		s.tags = append(s.tags, detour.Tag())
+	}
+	if s.use_all_providers {
+		providers := s.provider.Providers()
+		providerTags := make([]string, 0, len(providers))
+		for _, p := range providers {
+			providerTags = append(providerTags, p.Tag())
+		}
+		s.providerTags = providerTags
+	}
+	onProviderChange := s.createCallback(outbounds)
+	for _, tag := range s.providerTags {
+		provider, ok := s.provider.Provider(tag)
+		if !ok {
+			return E.New("provider not found: ", tag)
+		}
+		provider.RegisterCallback(onProviderChange)
+	}
 	return nil
 }
 
@@ -177,6 +232,49 @@ func (s *URLTest) InterfaceUpdated() {
 	return
 }
 
+func (s *URLTest) createCallback(outbounds []adapter.Outbound) adapter.ProviderUpdateCallback {
+	cache := make(map[string][]adapter.Outbound)
+	uses := append([]string{""}, s.providerTags...)
+	cache[uses[0]] = outbounds
+
+	return func(name string, outbounds []adapter.Outbound) {
+		tags := make([]string, 0, len(s.tags))
+		outs := make([]adapter.Outbound, 0, len(outbounds))
+		for _, tag := range uses {
+			if name != tag {
+				for _, out := range cache[tag] {
+					outs = append(outs, out)
+					tags = append(tags, out.Tag())
+				}
+				continue
+			}
+
+			cache[name] = make([]adapter.Outbound, 0, len(outbounds))
+			for _, out := range outbounds {
+				if s.include != nil && !s.include.MatchString(out.Tag()) {
+					continue
+				}
+				if s.exclude != nil && s.exclude.MatchString(out.Tag()) {
+					continue
+				}
+				cache[name] = append(cache[name], out)
+				outs = append(outs, out)
+				tags = append(tags, out.Tag())
+			}
+		}
+		if len(tags) == 0 {
+			detour, _ := s.outbound.Outbound("OUTBOUNDLESS")
+			outs = append(outs, detour)
+			tags = append(tags, detour.Tag())
+		}
+		s.tags = tags
+		s.group.access.Lock()
+		defer s.group.access.Unlock()
+		s.group.outbounds = outs
+		go s.group.CheckOutbounds(true)
+	}
+}
+
 type URLTestGroup struct {
 	ctx                          context.Context
 	router                       adapter.Router
@@ -232,6 +330,7 @@ func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManage
 		tolerance:                    tolerance,
 		idleTimeout:                  idleTimeout,
 		history:                      history,
+		checking:                     atomic.Bool{},
 		close:                        make(chan struct{}),
 		pauseManager:                 service.FromContext[pause.Manager](ctx),
 		interruptGroup:               interrupt.NewGroup(),

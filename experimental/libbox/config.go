@@ -30,7 +30,7 @@ func parseConfig(ctx context.Context, configContent string) (option.Options, err
 }
 
 func CheckConfig(configContent string) error {
-	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry())
+	ctx := box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.ProviderRegistry(), include.EndpointRegistry())
 	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func (s *platformInterfaceStub) SendNotification(notification *platform.Notifica
 }
 
 func FormatConfig(configContent string) (*StringBox, error) {
-	options, err := parseConfig(box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry()), configContent)
+	options, err := parseConfig(box.Context(context.Background(), include.InboundRegistry(), include.OutboundRegistry(), include.ProviderRegistry(), include.EndpointRegistry()), configContent)
 	if err != nil {
 		return nil, err
 	}
