@@ -4,6 +4,11 @@ icon: material/new-box
 
 # 路由
 
+!!! quote "本分支特性"
+
+    :material-plus: [prefer_use_fqdn](#prefer_use_fqdn)
+    :material-plus: [always_resolve_udp](#always_resolve_udp)
+
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-plus: [network_strategy](#network_strategy)  
@@ -27,6 +32,8 @@ icon: material/new-box
     "rules": [],
     "rule_set": [],
     "final": "",
+    "prefer_use_fqdn": false,
+    "always_resolve_udp": false,
     "auto_detect_interface": false,
     "override_android_vpn": false,
     "default_interface": "",
@@ -61,6 +68,20 @@ icon: material/new-box
 #### final
 
 默认出站标签。如果为空，将使用第一个可用于对应协议的出站。
+
+#### prefer_use_fqdn
+
+!!! question "本分支特性"
+
+拨号时优先使用 fqdn。
+
+#### always_resolve_udp
+
+!!! question "本分支特性"
+
+在路由出站过程中始终解析 udp 流量的域名，除非最终匹配到的规则动作为 reject。
+
+如果设置，对于 udp 流量，将覆盖 `prefer_use_fqdn` 的效果。
 
 #### auto_detect_interface
 

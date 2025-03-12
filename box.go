@@ -144,7 +144,7 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "initialize network manager")
 	}
 	service.MustRegister[adapter.NetworkManager](ctx, networkManager)
-	connectionManager := route.NewConnectionManager(logFactory.NewLogger("connection"))
+	connectionManager := route.NewConnectionManager(logFactory.NewLogger("connection"), routeOptions.PreferUseFqdn, routeOptions.AlwaysResolveUDP)
 	service.MustRegister[adapter.ConnectionManager](ctx, connectionManager)
 	router, err := route.NewRouter(ctx, logFactory, routeOptions, common.PtrValueOrDefault(options.DNS))
 	if err != nil {

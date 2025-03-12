@@ -4,6 +4,11 @@ icon: material/new-box
 
 # Route
 
+!!! quote "Feature in this fork"
+
+    :material-plus: [prefer_use_fqdn](#prefer_use_fqdn)
+    :material-plus: [always_resolve_udp](#always_resolve_udp)
+
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-plus: [default_network_strategy](#default_network_strategy)  
@@ -27,6 +32,8 @@ icon: material/new-box
     "rules": [],
     "rule_set": [],
     "final": "",
+    "prefer_use_fqdn": false,
+    "always_resolve_udp": false,
     "auto_detect_interface": false,
     "override_android_vpn": false,
     "default_interface": "",
@@ -58,6 +65,20 @@ List of [rule-set](/configuration/rule-set/)
 #### final
 
 Default outbound tag. the first outbound will be used if empty.
+
+#### prefer_use_fqdn
+
+!!! question "Feature in this fork"
+
+Prefer use fqdn when dialing.
+
+#### always_resolve_udp
+
+!!! question "Feature in this fork"
+
+Always resolve udp domain when routing, except action then reject route rule action.
+
+If set, `prefer_use_fqdn` will not work on udp.
 
 #### auto_detect_interface
 

@@ -68,6 +68,7 @@ type Router struct {
 	platformInterface       platform.Interface
 	needWIFIState           bool
 	started                 bool
+	alwaysResolveUDP        bool
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions) (*Router, error) {
@@ -92,6 +93,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		pauseManager:          service.FromContext[pause.Manager](ctx),
 		platformInterface:     service.FromContext[platform.Interface](ctx),
 		needWIFIState:         hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
+		alwaysResolveUDP:      options.AlwaysResolveUDP,
 	}
 	service.MustRegister[adapter.Router](ctx, router)
 	router.dnsClient = dns.NewClient(dns.ClientOptions{

@@ -264,6 +264,12 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if metadata.FakeIP {
 		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
+	if r.alwaysResolveUDP && len(metadata.DestinationAddresses) == 0 && metadata.Destination.IsFqdn() {
+		addresses, err := r.LookupDefault(ctx, metadata.Destination.Fqdn)
+		if err == nil {
+			metadata.DestinationAddresses = addresses
+		}
+	}
 	if outboundHandler, isHandler := selectedOutbound.(adapter.PacketConnectionHandlerEx); isHandler {
 		outboundHandler.NewPacketConnectionEx(ctx, conn, metadata, onClose)
 	} else {

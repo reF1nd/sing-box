@@ -27,14 +27,18 @@ import (
 var _ adapter.ConnectionManager = (*ConnectionManager)(nil)
 
 type ConnectionManager struct {
-	logger      logger.ContextLogger
-	access      sync.Mutex
-	connections list.List[io.Closer]
+	preferUseFqdn bool
+	UDPUseIP      bool
+	logger        logger.ContextLogger
+	access        sync.Mutex
+	connections   list.List[io.Closer]
 }
 
-func NewConnectionManager(logger logger.ContextLogger) *ConnectionManager {
+func NewConnectionManager(logger logger.ContextLogger, preferUseFqdn bool, UDPUseIP bool) *ConnectionManager {
 	return &ConnectionManager{
-		logger: logger,
+		preferUseFqdn: preferUseFqdn,
+		UDPUseIP:      UDPUseIP,
+		logger:        logger,
 	}
 }
 
@@ -58,7 +62,9 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		remoteConn net.Conn
 		err        error
 	)
-	if len(metadata.DestinationAddresses) > 0 || metadata.Destination.IsIP() {
+	if m.preferUseFqdn && metadata.Destination.IsFqdn() {
+		remoteConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
+	} else if len(metadata.DestinationAddresses) > 0 || metadata.Destination.IsIP() {
 		remoteConn, err = dialer.DialSerialNetwork(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 	} else {
 		remoteConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
@@ -100,7 +106,9 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 	)
 	if metadata.UDPConnect {
 		parallelDialer, isParallelDialer := this.(dialer.ParallelInterfaceDialer)
-		if len(metadata.DestinationAddresses) > 0 {
+		if !m.UDPUseIP && m.preferUseFqdn && metadata.Destination.IsFqdn() {
+			remoteConn, err = this.DialContext(ctx, N.NetworkUDP, metadata.Destination)
+		} else if len(metadata.DestinationAddresses) > 0 {
 			if isParallelDialer {
 				remoteConn, err = dialer.DialSerialNetwork(ctx, parallelDialer, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 			} else {
@@ -126,7 +134,9 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 			destinationAddress = connRemoteAddr
 		}
 	} else {
-		if len(metadata.DestinationAddresses) > 0 {
+		if !m.UDPUseIP && m.preferUseFqdn && metadata.Destination.IsFqdn() {
+			remotePacketConn, err = this.ListenPacket(ctx, metadata.Destination)
+		} else if len(metadata.DestinationAddresses) > 0 {
 			remotePacketConn, destinationAddress, err = dialer.ListenSerialNetworkPacket(ctx, this, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 		} else {
 			remotePacketConn, err = this.ListenPacket(ctx, metadata.Destination)
