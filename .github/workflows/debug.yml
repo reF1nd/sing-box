@@ -1,0 +1,78 @@
+name: Debug build
+
+on:
+  push:
+    branches:
+      - beta
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/debug.yml'
+
+jobs:
+  build:
+    name: Debug build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.24
+        continue-on-error: true
+      - name: Run Test
+        run: |
+          go test -v ./...
+  cross:
+    strategy:
+      matrix:
+        include:
+          # windows
+          - name: windows-amd64-v3
+            goos: windows
+            goarch: amd64
+            goamd64: v3
+          - name: windows-arm64
+            goos: windows
+            goarch: arm64
+          # linux
+          - name: linux-amd64-v3
+            goos: linux
+            goarch: amd64
+            goamd64: v3
+          - name: linux-arm64
+            goos: linux
+            goarch: arm64
+          # darwin
+          - name: darwin-amd64-v3
+            goos: darwin
+            goarch: amd64
+            goamd64: v3
+          - name: darwin-arm64
+            goos: darwin
+            goarch: arm64
+      fail-fast: true
+    runs-on: ubuntu-latest
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOAMD64: ${{ matrix.goamd64 }}
+      GOARM: ${{ matrix.goarm }}
+      GOMIPS: ${{ matrix.gomips }}
+      CGO_ENABLED: 0
+      TAGS: with_quic,with_dhcp,with_wireguard,with_utls,with_clash_api,with_gvisor,with_conntrack
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.24
+      - name: Build
+        id: build
+        run: make
