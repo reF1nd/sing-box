@@ -310,7 +310,7 @@ find:
 		metadata.SniffContext = fragments
 		return ErrClientHelloFragmented
 	}
-	metadata.Domain = fingerprint.ServerName
+	metadata.SniffHost = fingerprint.ServerName
 	for metadata.Client == "" {
 		if len(frameTypeList) == 1 {
 			metadata.Client = C.ClientFirefox
