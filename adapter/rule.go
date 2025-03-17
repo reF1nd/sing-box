@@ -36,7 +36,7 @@ type RuleAction interface {
 
 func IsFinalAction(action RuleAction) bool {
 	switch action.Type() {
-	case C.RuleActionTypeSniff, C.RuleActionTypeResolve, C.RuleActionTypeEvaluate:
+	case C.RuleActionTypeSniff, C.RuleActionTypeSniffOverrideDestination, C.RuleActionTypeResolve, C.RuleActionTypeEvaluate:
 		return false
 	default:
 		return true

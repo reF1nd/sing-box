@@ -16330,6 +16330,17 @@
           "type": "object",
           "properties": {
             "action": {
+              "const": "sniff-override-destination"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
               "const": "resolve"
             },
             "server": {
