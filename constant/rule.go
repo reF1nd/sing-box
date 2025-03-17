@@ -26,13 +26,14 @@ const (
 )
 
 const (
-	RuleActionTypeRoute        = "route"
-	RuleActionTypeRouteOptions = "route-options"
-	RuleActionTypeDirect       = "direct"
-	RuleActionTypeReject       = "reject"
-	RuleActionTypeHijackDNS    = "hijack-dns"
-	RuleActionTypeSniff        = "sniff"
-	RuleActionTypeResolve      = "resolve"
+	RuleActionTypeRoute                    = "route"
+	RuleActionTypeRouteOptions             = "route-options"
+	RuleActionTypeDirect                   = "direct"
+	RuleActionTypeReject                   = "reject"
+	RuleActionTypeHijackDNS                = "hijack-dns"
+	RuleActionTypeSniff                    = "sniff"
+	RuleActionTypeSniffOverrideDestination = "sniff-override-destination"
+	RuleActionTypeResolve                  = "resolve"
 )
 
 const (
