@@ -345,9 +345,11 @@ func (r *Router) matchRule(
 	if metadata.InboundOptions != common.DefaultValue[option.InboundOptions]() {
 		if !preMatch && metadata.InboundOptions.SniffEnabled {
 			newBuffer, newPackerBuffers, newErr := r.actionSniff(ctx, metadata, &rule.RuleActionSniff{
-				OverrideDestination: metadata.InboundOptions.SniffOverrideDestination,
-				Timeout:             time.Duration(metadata.InboundOptions.SniffTimeout),
+				Timeout: time.Duration(metadata.InboundOptions.SniffTimeout),
 			}, inputConn, inputPacketConn, nil)
+			if metadata.InboundOptions.SniffOverrideDestination && metadata.SniffHost != "" {
+				r.actionSniffOverrideDestination(ctx, metadata, inputConn, inputPacketConn)
+			}
 			if newErr != nil {
 				fatalErr = newErr
 				return
@@ -470,6 +472,10 @@ match:
 				selectedRuleIndex = currentRuleIndex
 				break match
 			}
+		case *rule.RuleActionSniffOverrideDestination:
+			if metadata.SniffHost != "" {
+				r.actionSniffOverrideDestination(ctx, metadata, inputConn, inputPacketConn)
+			}
 		case *rule.RuleActionResolve:
 			fatalErr = r.actionResolve(ctx, metadata, action)
 			if fatalErr != nil {
@@ -531,14 +537,6 @@ func (r *Router) actionSniff(
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost)
 			} else {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
-			}
-			//goland:noinspection GoDeprecation
-			if !metadata.Destination.IsFqdn() && action.OverrideDestination && M.IsDomainName(metadata.SniffHost) {
-				metadata.Destination = M.Socksaddr{
-					Fqdn: metadata.SniffHost,
-					Port: metadata.Destination.Port,
-				}
-				r.logger.DebugContext(ctx, "connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
 			}
 		}
 		if !sniffBuffer.IsEmpty() {
@@ -632,22 +630,34 @@ func (r *Router) actionSniff(
 					} else {
 						r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
 					}
-					//goland:noinspection GoDeprecation
-					if !metadata.Destination.IsFqdn() && action.OverrideDestination && M.IsDomainName(metadata.SniffHost) {
-						metadata.OriginDestination = metadata.Destination
-						metadata.Destination = M.Socksaddr{
-							Fqdn: metadata.SniffHost,
-							Port: metadata.Destination.Port,
-						}
-						metadata.DestOverride = true
-						r.logger.DebugContext(ctx, "packet connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
-					}
 				}
 			}
 			break
 		}
 	}
 	return
+}
+
+func (r *Router) actionSniffOverrideDestination(ctx context.Context, metadata *adapter.InboundContext, inputConn net.Conn, inputPacketConn N.PacketConn) {
+	if inputConn != nil {
+		if !metadata.Destination.IsFqdn() && M.IsDomainName(metadata.SniffHost) {
+			metadata.Destination = M.Socksaddr{
+				Fqdn: metadata.SniffHost,
+				Port: metadata.Destination.Port,
+			}
+			r.logger.DebugContext(ctx, "connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
+		}
+	} else if inputPacketConn != nil {
+		if !metadata.Destination.IsFqdn() && M.IsDomainName(metadata.SniffHost) {
+			metadata.OriginDestination = metadata.Destination
+			metadata.Destination = M.Socksaddr{
+				Fqdn: metadata.SniffHost,
+				Port: metadata.Destination.Port,
+			}
+			metadata.DestOverride = true
+			r.logger.DebugContext(ctx, "packet connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
+		}
+	}
 }
 
 func (r *Router) actionResolve(ctx context.Context, metadata *adapter.InboundContext, action *rule.RuleActionResolve) error {
