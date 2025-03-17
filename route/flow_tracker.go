@@ -16,8 +16,25 @@ import (
 var (
 	_ tun.FlowTracker = (*flowLogger)(nil)
 	_ tun.FlowTracker = (*flowInterrupter)(nil)
+	_ tun.FlowTracker = (*flowCloseCallback)(nil)
 	_ tun.FlowTracker = multiFlowTracker(nil)
 )
+
+type flowCloseCallback struct {
+	onClose N.CloseHandlerFunc
+}
+
+func (t *flowCloseCallback) AttachFlow(tun.FlowHandle) {}
+
+func (t *flowCloseCallback) CountForward(int) {}
+
+func (t *flowCloseCallback) CountReverse(int) {}
+
+func (t *flowCloseCallback) FlowEstablished() {}
+
+func (t *flowCloseCallback) CloseFlow(tun.FlowCloseReason) {
+	t.onClose(nil)
+}
 
 type flowLogger struct {
 	ctx         context.Context

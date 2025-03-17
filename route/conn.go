@@ -241,6 +241,9 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 	if err != nil {
 		conn.Close()
 		remotePacketConn.Close()
+		if onClose != nil {
+			onClose(err)
+		}
 		m.logger.ErrorContext(ctx, "report handshake success: ", err)
 		return
 	}
