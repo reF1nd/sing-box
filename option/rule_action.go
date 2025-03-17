@@ -16,7 +16,7 @@ import (
 )
 
 type _RuleAction struct {
-	Action              string                    `json:"action,omitempty" enum:"route,route-options,direct,bypass,reject,hijack-dns,sniff,resolve"`
+	Action              string                    `json:"action,omitempty" enum:"route,route-options,direct,bypass,reject,hijack-dns,sniff,sniff-override-destination,resolve"`
 	RouteOptions        RouteActionOptions        `json:"-"`
 	RouteOptionsOptions RouteOptionsActionOptions `json:"-"`
 	DirectOptions       DirectActionOptions       `json:"-"`
@@ -49,6 +49,8 @@ func (r RuleAction) MarshalJSON() ([]byte, error) {
 		v = nil
 	case C.RuleActionTypeSniff:
 		v = r.SniffOptions
+	case C.RuleActionTypeSniffOverrideDestination:
+		v = nil
 	case C.RuleActionTypeResolve:
 		v = r.ResolveOptions
 	default:
@@ -82,6 +84,8 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 		v = nil
 	case C.RuleActionTypeSniff:
 		v = &r.SniffOptions
+	case C.RuleActionTypeSniffOverrideDestination:
+		v = nil
 	case C.RuleActionTypeResolve:
 		v = &r.ResolveOptions
 	default:
@@ -430,6 +434,7 @@ func routeActionUnion(builder schema.Builder) (*schema.Node, error) {
 		{action: C.RuleActionTypeReject, build: rejectProperties},
 		{action: C.RuleActionTypeHijackDNS},
 		{action: C.RuleActionTypeSniff, structType: reflect.TypeFor[RouteActionSniff]()},
+		{action: C.RuleActionTypeSniffOverrideDestination},
 		{action: C.RuleActionTypeResolve, structType: reflect.TypeFor[RouteActionResolve]()},
 	})
 }
