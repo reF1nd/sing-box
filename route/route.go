@@ -12,10 +12,10 @@ import (
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	R "github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-mux"
-	"github.com/sagernet/sing-tun"
+	mux "github.com/sagernet/sing-mux"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
-	"github.com/sagernet/sing-vmess"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -278,15 +278,32 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	for _, tracker := range r.trackers {
 		conn = tracker.RoutedPacketConnection(ctx, conn, metadata, selectedRule, selectedOutbound)
 	}
-	if metadata.FakeIP {
+	if metadata.FakeIP || metadata.DestOverride {
 		conn = bufio.NewNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
+	onClose = r.wrapQUICSniffIdleCache(metadata, onClose)
 	if outboundHandler, isHandler := selectedOutbound.(adapter.PacketConnectionHandlerEx); isHandler {
 		outboundHandler.NewPacketConnectionEx(ctx, conn, metadata, onClose)
 	} else {
 		r.connection.NewPacketConnection(ctx, selectedOutbound, conn, metadata, onClose)
 	}
 	return nil
+}
+
+func (r *Router) wrapQUICSniffIdleCache(metadata adapter.InboundContext, onClose N.CloseHandlerFunc) N.CloseHandlerFunc {
+	if onClose == nil || metadata.Protocol != C.ProtocolQUIC || metadata.SniffHost == "" {
+		return onClose
+	}
+	source := metadata.Source
+	destination := metadata.Destination
+	if metadata.DestOverride && metadata.OriginDestination.IsValid() {
+		destination = metadata.OriginDestination
+	}
+	sniffHost := metadata.SniffHost
+	return func(err error) {
+		r.refreshQUICSniff(source, destination, sniffHost)
+		onClose(err)
+	}
 }
 
 func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration, supportBypass bool) (tun.DirectRouteDestination, error) {
@@ -605,19 +622,20 @@ func (r *Router) actionSniff(
 		metadata.SnifferNames = action.SnifferNames
 		metadata.SniffError = err
 		if err == nil {
-			//goland:noinspection GoDeprecation
-			if action.OverrideDestination && M.IsDomainName(metadata.Domain) {
-				metadata.Destination = M.Socksaddr{
-					Fqdn: metadata.Domain,
-					Port: metadata.Destination.Port,
-				}
-			}
-			if metadata.Domain != "" && metadata.Client != "" {
-				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain, ", client: ", metadata.Client)
-			} else if metadata.Domain != "" {
-				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			if metadata.SniffHost != "" && metadata.Client != "" {
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost, ", client: ", metadata.Client)
+			} else if metadata.SniffHost != "" {
+				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost)
 			} else {
 				r.logger.DebugContext(ctx, "sniffed protocol: ", metadata.Protocol)
+			}
+			//goland:noinspection GoDeprecation
+			if !metadata.Destination.IsDomain() && action.OverrideDestination && M.IsDomainName(metadata.SniffHost) {
+				metadata.Destination = M.Socksaddr{
+					Fqdn: metadata.SniffHost,
+					Port: metadata.Destination.Port,
+				}
+				r.logger.DebugContext(ctx, "connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
 			}
 		}
 		if !sniffBuffer.IsEmpty() {
@@ -642,6 +660,7 @@ func (r *Router) actionSniff(
 			packetSniffers = []sniff.PacketSniffer{
 				sniff.DomainNameQuery,
 				sniff.QUICClientHello,
+				sniff.QUICShortHeader,
 				sniff.STUNMessage,
 				sniff.UTP,
 				sniff.UDPTracker,
@@ -737,21 +756,34 @@ func (r *Router) actionSniff(
 		}
 	finally:
 		if err == nil {
-			//goland:noinspection GoDeprecation
-			if action.OverrideDestination && M.IsDomainName(metadata.Domain) {
-				metadata.Destination = M.Socksaddr{
-					Fqdn: metadata.Domain,
-					Port: metadata.Destination.Port,
+			if metadata.Protocol == C.ProtocolQUIC {
+				if metadata.SniffHost != "" {
+					r.cacheQUICSniff(metadata.Source, metadata.Destination, metadata.SniffHost)
+				} else {
+					if sniffHost, ok := r.lookupQUICSniff(metadata.Source, metadata.Destination); ok {
+						metadata.SniffHost = sniffHost
+						r.logger.DebugContext(ctx, "restored QUIC SNI from cache: ", sniffHost)
+					}
 				}
 			}
-			if metadata.Domain != "" && metadata.Client != "" {
-				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain, ", client: ", metadata.Client)
-			} else if metadata.Domain != "" {
-				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.Domain)
+			if metadata.SniffHost != "" && metadata.Client != "" {
+				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost, ", client: ", metadata.Client)
+			} else if metadata.SniffHost != "" {
+				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", domain: ", metadata.SniffHost)
 			} else if metadata.Client != "" {
 				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol, ", client: ", metadata.Client)
 			} else {
 				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
+			}
+			//goland:noinspection GoDeprecation
+			if !metadata.Destination.IsDomain() && action.OverrideDestination && M.IsDomainName(metadata.SniffHost) {
+				metadata.OriginDestination = metadata.Destination
+				metadata.Destination = M.Socksaddr{
+					Fqdn: metadata.SniffHost,
+					Port: metadata.Destination.Port,
+				}
+				metadata.DestOverride = true
+				r.logger.DebugContext(ctx, "packet connection destination is overridden as ", metadata.SniffHost, ":", metadata.Destination.Port)
 			}
 		}
 	}
