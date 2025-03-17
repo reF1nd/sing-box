@@ -87,6 +87,7 @@ icon: material/new-box
         "domain_regex": [
           "^stun\\..+"
         ],
+        "domain_is_ech": true,
         "geosite": [
           "cn"
         ],
@@ -282,6 +283,12 @@ Match domain using keyword.
 #### domain_regex
 
 Match domain using regular expression.
+
+#### domain_is_ech
+
+When set to true, matches after a TLS or QUIC ClientHello has been sniffed if it contains the ECH extension and its outer SNI matches the ECH public name learned for the original destination.
+
+Place rules that use this condition after a sniff action. The public name is learned from DNS HTTPS records when DNS reverse mapping or FakeIP is enabled. The outer SNI remains available as the sniffed hostname.
 
 #### geosite
 

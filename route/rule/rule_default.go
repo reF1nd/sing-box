@@ -100,6 +100,11 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.DomainIsECH {
+		item := domainIsECHItem{}
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if len(options.Domain) > 0 || len(options.DomainSuffix) > 0 {
 		item, err := NewDomainItem(options.Domain, options.DomainSuffix)
 		if err != nil {

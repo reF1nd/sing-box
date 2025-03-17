@@ -26,8 +26,9 @@ func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reade
 	}).HandshakeContext(ctx)
 	if clientHello != nil {
 		metadata.Protocol = C.ProtocolTLS
-		if domain := M.ParseSocksaddrHostPort(clientHello.ServerName, 0).Fqdn; domain != "" && (domain != metadata.ECHPublicName || !slices.Contains(clientHello.Extensions, extensionEncryptedClientHello)) {
-			metadata.Domain = domain
+		metadata.SniffHasECHExtension = slices.Contains(clientHello.Extensions, extensionEncryptedClientHello)
+		if domain := M.ParseSocksaddrHostPort(clientHello.ServerName, 0).Fqdn; domain != "" {
+			metadata.SniffHost = domain
 		}
 		return nil
 	}
