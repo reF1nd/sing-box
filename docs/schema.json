@@ -5324,6 +5324,9 @@
                 }
               ]
             },
+            "domain_is_ech": {
+              "type": "boolean"
+            },
             "source_ip_cidr": {
               "anyOf": [
                 {
@@ -9590,6 +9593,9 @@
                   }
                 }
               ]
+            },
+            "domain_is_ech": {
+              "type": "boolean"
             },
             "source_ip_cidr": {
               "anyOf": [
@@ -14608,6 +14614,9 @@
                       }
                     }
                   ]
+                },
+                "domain_is_ech": {
+                  "type": "boolean"
                 },
                 "source_ip_cidr": {
                   "anyOf": [

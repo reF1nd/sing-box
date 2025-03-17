@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"net"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/sniff"
+	sTLS "github.com/sagernet/sing-box/common/tls"
 
 	"github.com/stretchr/testify/require"
 )
@@ -63,14 +65,14 @@ func TestSniffQUICQuicGoFingerprint(t *testing.T) {
 		var metadata adapter.InboundContext
 		for i, pkt := range packets {
 			err := sniff.QUICClientHello(context.Background(), &metadata, pkt)
-			t.Logf("Packet %d: err=%v, domain=%s, client=%s", i, err, metadata.Domain, metadata.Client)
-			if metadata.Domain != "" {
+			t.Logf("Packet %d: err=%v, domain=%s, client=%s", i, err, metadata.SniffHost, metadata.Client)
+			if metadata.SniffHost != "" {
 				break
 			}
 		}
 
 		t.Logf("\n=== quic-go TLS Fingerprint Analysis ===")
-		t.Logf("Domain: %s", metadata.Domain)
+		t.Logf("Domain: %s", metadata.SniffHost)
 		t.Logf("Client: %s", metadata.Client)
 		t.Logf("Protocol: %s", metadata.Protocol)
 
@@ -87,8 +89,21 @@ func TestSniffQUICQuicGoFingerprint(t *testing.T) {
 
 func TestSniffQUICInitialFromQuicGo(t *testing.T) {
 	t.Parallel()
+	t.Run("plain", func(t *testing.T) {
+		testSniffQUICInitialFromQuicGo(t, nil, "test.example.com")
+	})
+	t.Run("ECH", func(t *testing.T) {
+		const publicName = "public.example.com"
+		configPEM, _, err := sTLS.ECHKeygenDefault(publicName)
+		require.NoError(t, err)
+		config, _ := pem.Decode([]byte(configPEM))
+		require.NotNil(t, config)
+		testSniffQUICInitialFromQuicGo(t, config.Bytes, publicName)
+	})
+}
 
-	const testSNI = "test.example.com"
+func testSniffQUICInitialFromQuicGo(t *testing.T, echConfig []byte, expectedSNI string) {
+	t.Helper()
 
 	// Create UDP listener to capture ALL initial packets
 	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
@@ -121,12 +136,13 @@ func TestSniffQUICInitialFromQuicGo(t *testing.T) {
 	defer clientConn.Close()
 
 	tlsConfig := &tls.Config{
-		ServerName:         testSNI,
-		InsecureSkipVerify: true,
-		NextProtos:         []string{"h3"},
+		ServerName:                     "test.example.com",
+		EncryptedClientHelloConfigList: echConfig,
+		InsecureSkipVerify:             true,
+		NextProtos:                     []string{"h3"},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 
 	// This will fail (no server) but sends initial packet
@@ -135,6 +151,7 @@ func TestSniffQUICInitialFromQuicGo(t *testing.T) {
 	// Wait for captured packets
 	select {
 	case packets := <-packetsChan:
+		require.NotEmpty(t, packets)
 		t.Logf("Captured %d QUIC packets", len(packets))
 
 		for i, packet := range packets {
@@ -143,12 +160,12 @@ func TestSniffQUICInitialFromQuicGo(t *testing.T) {
 
 		// Test sniffer with first packet
 		if len(packets) > 0 {
-			var metadata adapter.InboundContext
+			metadata := adapter.InboundContext{ECHPublicName: expectedSNI}
 			err := sniff.QUICClientHello(context.Background(), &metadata, packets[0])
 
 			t.Logf("First packet sniff error: %v", err)
 			t.Logf("Protocol: %s", metadata.Protocol)
-			t.Logf("Domain: %s", metadata.Domain)
+			t.Logf("Domain: %s", metadata.SniffHost)
 			t.Logf("Client: %s", metadata.Client)
 
 			// If first packet needs more data, try with subsequent packets
@@ -158,8 +175,8 @@ func TestSniffQUICInitialFromQuicGo(t *testing.T) {
 				for i := 1; i < len(packets); i++ {
 					// Reuse same metadata to accumulate fragments
 					err = sniff.QUICClientHello(context.Background(), &metadata, packets[i])
-					t.Logf("Packet %d sniff result: err=%v, domain=%s, sniffCtx=%v", i, err, metadata.Domain, metadata.SniffContext != nil)
-					if metadata.Domain != "" || (err != nil && !errors.Is(err, sniff.ErrNeedMoreData)) {
+					t.Logf("Packet %d sniff result: err=%v, domain=%s, sniffCtx=%v", i, err, metadata.SniffHost, metadata.SniffContext != nil)
+					if metadata.SniffHost != "" || (err != nil && !errors.Is(err, sniff.ErrNeedMoreData)) {
 						break
 					}
 				}
@@ -169,14 +186,16 @@ func TestSniffQUICInitialFromQuicGo(t *testing.T) {
 			t.Logf("First packet hex:\n%s", hex.Dump(packets[0][:min(256, len(packets[0]))]))
 
 			// Log final results
-			t.Logf("Final: Protocol=%s, Domain=%s, Client=%s", metadata.Protocol, metadata.Domain, metadata.Client)
+			t.Logf("Final: Protocol=%s, Domain=%s, Client=%s", metadata.Protocol, metadata.SniffHost, metadata.Client)
 
 			// Verify SNI extraction
-			if metadata.Domain == "" {
-				t.Errorf("Failed to extract SNI, expected: %s", testSNI)
+			if metadata.SniffHost == "" {
+				t.Errorf("Failed to extract SNI, expected: %s", expectedSNI)
 			} else {
-				require.Equal(t, testSNI, metadata.Domain, "SNI should match")
+				require.Equal(t, expectedSNI, metadata.SniffHost, "SNI should match")
 			}
+
+			require.Equal(t, len(echConfig) > 0, metadata.SniffHasECHExtension)
 
 			// Check client identification - quic-go should be identified as quic-go, not chromium
 			t.Logf("Client identified as: %s (expected: quic-go)", metadata.Client)

@@ -17,6 +17,7 @@ import (
 var (
 	_ tun.FlowTracker = (*flowLogger)(nil)
 	_ tun.FlowTracker = (*flowInterrupter)(nil)
+	_ tun.FlowTracker = (*flowCloseCallback)(nil)
 	_ tun.FlowTracker = (*multiFlowTracker)(nil)
 )
 
@@ -69,6 +70,22 @@ func (l *flowLogger) FlowEstablished() {
 func (l *flowLogger) CloseFlow(reason tun.FlowCloseReason) {
 	l.logger.DebugContext(l.ctx, "flow closed: ", reason,
 		", upload ", byteformats.FormatBytes(uint64(l.upload.Load())), ", download ", byteformats.FormatBytes(uint64(l.download.Load())))
+}
+
+type flowCloseCallback struct {
+	onClose N.CloseHandlerFunc
+}
+
+func (t *flowCloseCallback) AttachFlow(tun.FlowHandle) {}
+
+func (t *flowCloseCallback) CountForward(int) {}
+
+func (t *flowCloseCallback) CountReverse(int) {}
+
+func (t *flowCloseCallback) FlowEstablished() {}
+
+func (t *flowCloseCallback) CloseFlow(tun.FlowCloseReason) {
+	t.onClose(nil)
 }
 
 type multiFlowTracker struct {
