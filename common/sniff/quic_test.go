@@ -12,6 +12,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSniffQUICShortHeader(t *testing.T) {
+	t.Parallel()
+
+	for _, firstByte := range []byte{0x40, 0x43, 0x7f} {
+		pkt := append([]byte{firstByte}, make([]byte, 20)...)
+		var metadata adapter.InboundContext
+		err := sniff.QUICShortHeader(context.Background(), &metadata, pkt)
+		require.NoErrorf(t, err, "firstByte=0x%02x should be a valid short header", firstByte)
+		require.Equalf(t, C.ProtocolQUIC, metadata.Protocol, "firstByte=0x%02x", firstByte)
+		require.Emptyf(t, metadata.SniffHost, "short header should not produce SNI, firstByte=0x%02x", firstByte)
+	}
+
+	for _, firstByte := range []byte{0xc0, 0xc3, 0xff} {
+		pkt := append([]byte{firstByte}, make([]byte, 20)...)
+		var metadata adapter.InboundContext
+		err := sniff.QUICShortHeader(context.Background(), &metadata, pkt)
+		require.Errorf(t, err, "firstByte=0x%02x is long header, should fail", firstByte)
+		require.Emptyf(t, metadata.Protocol, "firstByte=0x%02x", firstByte)
+	}
+
+	for _, firstByte := range []byte{0x00, 0x01, 0x3f} {
+		pkt := append([]byte{firstByte}, make([]byte, 20)...)
+		var metadata adapter.InboundContext
+		err := sniff.QUICShortHeader(context.Background(), &metadata, pkt)
+		require.Errorf(t, err, "firstByte=0x%02x has no fixed bit, should fail", firstByte)
+		require.Emptyf(t, metadata.Protocol, "firstByte=0x%02x", firstByte)
+	}
+
+	var metadata adapter.InboundContext
+	err := sniff.QUICShortHeader(context.Background(), &metadata, []byte{})
+	require.Error(t, err)
+}
+
 func TestSniffQUICChromeNew(t *testing.T) {
 	t.Parallel()
 	pkt, err := hex.DecodeString("ca0000000108e241a0c601413b4f004046006d8f15dae9999edf39d58df6762822b9a2ab996d7f6a10044338af3b51b1814bc4ac0fa5a87c34c6ae604af8cabc5957c5240174deefc8e378719ffdab2ae4e15bf4514bea4489ad89c322f75f9a383c90d126a0b21104cb519c2bb32e6a134e86896452e942b26c519b8c7ac9e4c99fae5e1f65cf08fb98443b30e4567932e8fb0789820d8f33037b59ac8113530258c9467dfb52489396dae01f099d28b234efa107fa411f2a1ffa2abe74988e03d662d4296024e95ce0fe1671724937157f77b84990478a2d4060676cf0827b4e8c600654111750414dafa0cccb332f3020c2922a015f445df5edc9c7d2d1ceea9fddcc9ff821c9183aa39a70da20fcc057579e1051c1c899148d6cf9d08b4919822082d040d1ce03ca4f216be6cb7ef03db6df0993ef1ccce5c8c648980554f41704526e1809d2545739f5872e75ec797db1c99f5682e2eda9363cb32aa367b7b363c782ddbacf874183cc15c8a2db068dd4093eebdd096ad33832a7939deb0a872279744f5a56dc001ba62fac973bf680f3b362bdd336add4dd102f462b773bf70bfce1921070a802a92025273a177186d1a643081b42175eb789ccddadb71033ef4feacbf6fd282ab622cf61669d73cda559e411c6ccdd8f003443b6933b7729b7a357aa4aa2fba0f365f829a4d497afb5dc2648a53bc9f3e786d955069d0a4781088a5463747dfe9958ea19ea444eae947ec6a67640955f710f93640084f3fbb8ad259b68dbc0ee0b7fab2d81bffd83ed8a6d33522dbfef43bec0a0fb4bdf1cb712dc4ced0680c0687fa240fd157baa232b1c84e14adce6421cf9270f9b3972f98fc67b344b8a4f1fb551e26f7f76d484ed9f8197f231dc5d9a44cc0ddce73d7f810a620851f4e97eb5037ab5135d7c3be5b80cc32d19910b8387aca64c93c02dc3e35238b78e6aff470722078982e58802844932b6041446bfdcc97ba640cbb86721bcd0f40f27b77aa6287ce5674ec1720134b9302875482c3269787e004b9edb483d44f326eef38c0e83cb46af96488c2e696bc2524567fb29c1e8edcd5a73615496d172d46a9d29e0505c0018b7bbb00165eca0389e09c4b1d73b6cc4a2f735a720650134a2e98e8105e20695cf231b92586237dfe0f99c897414e51c21627496276535f07abb53fb2b554376fe520fa45a3e944fd91dfe7a72aead08842b6b63d8edf861fb911954c83bd9a896eb9da4af5eff646455069d747facd4e77c254096843bff7c3e9031dbdf8dc37ea45f1122922fcbc322ec1378f3c7c1af0da62e1052e6210f1b23073f93a82d90e14cb20bc4501d487a1c848674d57a7c269b13590b3a99d8b8b4f6d0dfbd1d2cbbe7a32c0d5c84ae7ec438b0b19f3862d8fabaa828d06c7e3c6967405cd56a1ae90f38633e2ee0e3ecfca3df399fe12f029e0860a1a30da010300d0c94f0bf56091d00011488c1429928b21c739ebf50ba8be91116315d3173f6d2c56735722478c4d74392ba84d1727036b3d64e8c2263b0f33cb8086be587ca6b3940259c06afa2683868856529303ae12e91d7ca874568be7f2bfaa0656dfab0ed31ed90eaea10fb7f3433ec59a334abe6211d547fa0c825ac45d3691e749d15432008de83e9f6d98f368359137ae803d9189b3386f800c7c0cf4b615d1983cf82d9981a8105b60a80fe66c9b0d439b5ba153dd19e9e7483a01cf3b02b4597540b38e658d4eb8455e030b2bf2690bdd78c23f16fe5")
@@ -29,7 +62,7 @@ func TestSniffQUICChromeNew(t *testing.T) {
 	require.NoError(t, err)
 	err = sniff.QUICClientHello(context.Background(), &metadata, pkt)
 	require.NoError(t, err)
-	require.Equal(t, "www.google.com", metadata.Domain)
+	require.Equal(t, "www.google.com", metadata.SniffHost)
 }
 
 func TestSniffQUICChromium(t *testing.T) {
@@ -45,7 +78,7 @@ func TestSniffQUICChromium(t *testing.T) {
 	require.NoError(t, err)
 	err = sniff.QUICClientHello(context.Background(), &metadata, pkt)
 	require.NoError(t, err)
-	require.Equal(t, metadata.Domain, "google.com")
+	require.Equal(t, metadata.SniffHost, "google.com")
 }
 
 func TestSniffUQUICChrome115(t *testing.T) {
@@ -57,7 +90,7 @@ func TestSniffUQUICChrome115(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, metadata.Protocol, C.ProtocolQUIC)
 	require.Equal(t, metadata.Client, C.ClientChromium)
-	require.Equal(t, metadata.Domain, "www.google.com")
+	require.Equal(t, metadata.SniffHost, "www.google.com")
 }
 
 func TestSniffQUICFirefox(t *testing.T) {
@@ -69,7 +102,7 @@ func TestSniffQUICFirefox(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, metadata.Protocol, C.ProtocolQUIC)
 	require.Equal(t, metadata.Client, C.ClientFirefox)
-	require.Equal(t, metadata.Domain, "www.google.com")
+	require.Equal(t, metadata.SniffHost, "www.google.com")
 }
 
 func TestSniffQUICSafari(t *testing.T) {
@@ -81,7 +114,7 @@ func TestSniffQUICSafari(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, metadata.Protocol, C.ProtocolQUIC)
 	require.Equal(t, metadata.Client, C.ClientSafari)
-	require.Equal(t, metadata.Domain, "www.google.com")
+	require.Equal(t, metadata.SniffHost, "www.google.com")
 }
 
 func FuzzSniffQUIC(f *testing.F) {

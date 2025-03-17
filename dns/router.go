@@ -1104,6 +1104,8 @@ func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsEx
 	r.logger.DebugContext(ctx, "exchange ", FormatQuestion(message.Question[0].String()))
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
+	metadata.SniffHost = ""
+	metadata.SniffHasECHExtension = false
 	metadata.QueryType = message.Question[0].Qtype
 	metadata.DNSResponse = nil
 	metadata.NamedDNSResponses = nil
@@ -1135,9 +1137,12 @@ func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, tra
 	}
 	question := message.Question[0]
 	domain := FqdnToDomain(question.Name)
-	if port, origin, found := strings.Cut(domain, "._https."); found && question.Qtype == mDNS.TypeHTTPS && strings.HasPrefix(port, "_") {
-		domain = origin
+	if question.Qtype == mDNS.TypeHTTPS {
+		if port, origin, found := cutHTTPSServiceDomain(domain); found && strings.HasPrefix(port, "_") {
+			domain = origin
+		}
 	}
+	echDomain := strings.ToLower(domain)
 	var (
 		addresses       []netip.Addr
 		foundPublicName bool
@@ -1149,9 +1154,9 @@ func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, tra
 			if publicName != "" {
 				foundPublicName = true
 				publicNameLifetime := max(lifetime, C.DefaultDNSTTL*time.Second)
-				mappedName, expireAt, loaded := r.dnsECHPublicNames.GetWithLifetime(domain)
+				mappedName, expireAt, loaded := r.dnsECHPublicNames.GetWithLifetime(echDomain)
 				if !loaded || mappedName != publicName || time.Until(expireAt) < publicNameLifetime {
-					r.dnsECHPublicNames.AddWithLifetime(domain, publicName, publicNameLifetime)
+					r.dnsECHPublicNames.AddWithLifetime(echDomain, publicName, publicNameLifetime)
 				}
 			}
 		}
@@ -1168,8 +1173,18 @@ func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, tra
 		}
 	}
 	if question.Qtype == mDNS.TypeHTTPS && !foundPublicName {
-		r.dnsECHPublicNames.Remove(domain)
+		r.dnsECHPublicNames.Remove(echDomain)
 	}
+}
+
+func cutHTTPSServiceDomain(domain string) (port string, origin string, found bool) {
+	const label = "._https."
+	for i := 0; i+len(label) <= len(domain); i++ {
+		if strings.EqualFold(domain[i:i+len(label)], label) {
+			return domain[:i], domain[i+len(label):], true
+		}
+	}
+	return "", "", false
 }
 
 func echPublicName(record *mDNS.HTTPS) string {
@@ -1366,6 +1381,8 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 	r.logger.DebugContext(ctx, "lookup domain ", domain)
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
+	metadata.SniffHost = ""
+	metadata.SniffHasECHExtension = false
 	metadata.Domain = FqdnToDomain(domain)
 	metadata.DNSResponse = nil
 	metadata.NamedDNSResponses = nil
@@ -1480,7 +1497,7 @@ func (r *Router) LookupECHPublicName(domain string) string {
 	if r.dnsECHPublicNames == nil {
 		return ""
 	}
-	publicName, _ := r.dnsECHPublicNames.Get(domain)
+	publicName, _ := r.dnsECHPublicNames.Get(strings.ToLower(FqdnToDomain(domain)))
 	return publicName
 }
 

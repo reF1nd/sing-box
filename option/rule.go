@@ -148,6 +148,7 @@ type RawDefaultRule struct {
 	DomainSuffix             badoption.Listable[string]                                                  `json:"domain_suffix,omitempty"`
 	DomainKeyword            badoption.Listable[string]                                                  `json:"domain_keyword,omitempty"`
 	DomainRegex              badoption.Listable[string]                                                  `json:"domain_regex,omitempty"`
+	DomainIsECH              bool                                                                        `json:"domain_is_ech,omitzero"`
 	Geosite                  badoption.Listable[string]                                                  `json:"geosite,omitempty" schema:"omit"`
 	SourceGeoIP              badoption.Listable[string]                                                  `json:"source_geoip,omitempty" schema:"omit"`
 	GeoIP                    badoption.Listable[string]                                                  `json:"geoip,omitempty" schema:"omit"`

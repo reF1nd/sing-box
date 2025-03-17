@@ -46,6 +46,7 @@ icon: material/new-box
       "domain_regex": [
         "^stun\\..+"
       ],
+      "domain_is_ech": true,
       "source_ip_cidr": [
         "10.0.0.0/24",
         "192.168.0.1"
@@ -164,6 +165,10 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 #### domain_regex
 
 匹配域名正则表达式。
+
+#### domain_is_ech
+
+在路由规则中匹配嗅探到的 [ECH 公开名称](../route/rule.zh.md#domain_is_ech)。仅支持源格式规则集。
 
 #### source_ip_cidr
 

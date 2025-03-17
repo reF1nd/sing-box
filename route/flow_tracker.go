@@ -6,12 +6,30 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
+	N "github.com/sagernet/sing/common/network"
 )
 
 var (
 	_ tun.FlowTracker = (*flowInterrupter)(nil)
+	_ tun.FlowTracker = (*flowCloseCallback)(nil)
 	_ tun.FlowTracker = (*multiFlowTracker)(nil)
 )
+
+type flowCloseCallback struct {
+	onClose N.CloseHandlerFunc
+}
+
+func (t *flowCloseCallback) AttachFlow(tun.FlowHandle) {}
+
+func (t *flowCloseCallback) CountForward(int) {}
+
+func (t *flowCloseCallback) CountReverse(int) {}
+
+func (t *flowCloseCallback) FlowEstablished() {}
+
+func (t *flowCloseCallback) CloseFlow(tun.FlowCloseReason) {
+	t.onClose(nil)
+}
 
 type multiFlowTracker struct {
 	access   sync.Mutex

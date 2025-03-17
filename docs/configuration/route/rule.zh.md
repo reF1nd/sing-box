@@ -87,6 +87,7 @@ icon: material/new-box
         "domain_regex": [
           "^stun\\..+"
         ],
+        "domain_is_ech": true,
         "geosite": [
           "cn"
         ],
@@ -280,6 +281,12 @@ icon: material/new-box
 #### domain_regex
 
 匹配域名正则表达式。
+
+#### domain_is_ech
+
+设为 true 时，在嗅探到 TLS 或 QUIC ClientHello 后匹配。ClientHello 必须带有 ECH 扩展，其外层 SNI 必须与通过 DNS 学到的原始目标 ECH 公开名称相同。
+
+将使用此条件的规则放在 sniff 动作之后。启用 DNS 反向映射或 FakeIP 时，公开名称从 DNS HTTPS 记录中学习。外层 SNI 继续作为嗅探域名使用。
 
 #### geosite
 
