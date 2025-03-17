@@ -306,7 +306,7 @@ find:
 		metadata.SniffContext = fragments
 		return E.Cause1(ErrNeedMoreData, err)
 	}
-	metadata.Domain = fingerprint.ServerName
+	metadata.SniffHost = fingerprint.ServerName
 	for metadata.Client == "" {
 		if len(frameTypeList) == 1 {
 			metadata.Client = C.ClientFirefox
@@ -370,4 +370,15 @@ type qCryptoFragment struct {
 	offset  uint64
 	length  uint64
 	payload []byte
+}
+
+func QUICShortHeader(_ context.Context, metadata *adapter.InboundContext, packet []byte) error {
+	if len(packet) == 0 {
+		return E.New("empty packet")
+	}
+	if packet[0]&0xc0 != 0x40 {
+		return E.New("not a QUIC short header packet")
+	}
+	metadata.Protocol = C.ProtocolQUIC
+	return nil
 }

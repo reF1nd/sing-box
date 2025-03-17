@@ -33,6 +33,15 @@ type Tracker interface {
 	Close() error
 }
 
+func (t TrackerMetadata) ConnectionDomain() string {
+	if t.Metadata.Destination.Fqdn != "" {
+		return t.Metadata.Destination.Fqdn
+	} else if t.Metadata.SniffHost != "" {
+		return t.Metadata.SniffHost
+	}
+	return t.Metadata.Domain
+}
+
 func (m *Manager) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) net.Conn {
 	upload := new(atomic.Int64)
 	download := new(atomic.Int64)
