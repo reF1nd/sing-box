@@ -17,6 +17,6 @@ func HTTPHost(_ context.Context, metadata *adapter.InboundContext, reader io.Rea
 		return err
 	}
 	metadata.Protocol = C.ProtocolHTTP
-	metadata.Domain = M.ParseSocksaddr(request.Host).AddrString()
+	metadata.SniffHost = M.ParseSocksaddr(request.Host).AddrString()
 	return nil
 }
