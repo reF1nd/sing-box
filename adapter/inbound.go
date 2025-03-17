@@ -53,13 +53,15 @@ type InboundContext struct {
 	// sniffer
 
 	Protocol     string
-	Domain       string
+	SniffHost    string
 	Client       string
 	SniffContext any
 	SnifferNames []string
 	SniffError   error
 
 	// cache
+
+	Domain string
 
 	// Deprecated: implement in rule action
 	InboundDetour            string
@@ -87,6 +89,7 @@ type InboundContext struct {
 	ProcessInfo          *ConnectionOwner
 	QueryType            uint16
 	FakeIP               bool
+	DestOverride         bool
 
 	// rule cache
 
