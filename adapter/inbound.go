@@ -63,13 +63,17 @@ type InboundContext struct {
 	// sniffer
 
 	Protocol     string
-	Domain       string
+	SniffHost    string
 	Client       string
 	SniffContext any
 	SnifferNames []string
 	SniffError   error
+	// Destination used for QUIC sniff caching, before routing overrides.
+	SniffDestination M.Socksaddr
 
 	// cache
+
+	Domain string
 
 	// Deprecated: implement in rule action
 	InboundDetour             string
@@ -104,6 +108,7 @@ type InboundContext struct {
 	QueryDNSSEC                         bool
 	FakeIP                              bool
 	PreMatch                            bool
+	DestOverride                        bool
 
 	// rule cache
 
