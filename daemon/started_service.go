@@ -972,7 +972,7 @@ func buildConnectionProto(metadata *trafficcontrol.TrackerMetadata) *Connection 
 		Network:       metadata.Metadata.Network,
 		Source:        metadata.Metadata.Source.String(),
 		Destination:   metadata.Metadata.Destination.String(),
-		Domain:        metadata.Metadata.Domain,
+		Domain:        metadata.ConnectionDomain(),
 		Protocol:      metadata.Metadata.Protocol,
 		User:          metadata.Metadata.User,
 		FromOutbound:  metadata.Metadata.Outbound,
