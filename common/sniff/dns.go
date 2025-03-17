@@ -49,8 +49,11 @@ func StreamDomainNameQuery(readCtx context.Context, metadata *adapter.InboundCon
 func DomainNameQuery(ctx context.Context, metadata *adapter.InboundContext, packet []byte) error {
 	var msg mDNS.Msg
 	err := msg.Unpack(packet)
-	if err != nil || msg.Response || len(msg.Question) == 0 || len(msg.Answer) > 0 || len(msg.Ns) > 0 {
+	if err != nil {
 		return err
+	}
+	if msg.Response || len(msg.Question) == 0 || len(msg.Answer) > 0 || len(msg.Ns) > 0 {
+		return os.ErrInvalid
 	}
 	metadata.Protocol = C.ProtocolDNS
 	return nil
