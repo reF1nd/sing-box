@@ -44,6 +44,8 @@ func (r RuleAction) MarshalJSON() ([]byte, error) {
 		v = nil
 	case C.RuleActionTypeSniff:
 		v = r.SniffOptions
+	case C.RuleActionTypeSniffOverrideDestination:
+		v = nil
 	case C.RuleActionTypeResolve:
 		v = r.ResolveOptions
 	default:
@@ -75,6 +77,8 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 		v = nil
 	case C.RuleActionTypeSniff:
 		v = &r.SniffOptions
+	case C.RuleActionTypeSniffOverrideDestination:
+		v = nil
 	case C.RuleActionTypeResolve:
 		v = &r.ResolveOptions
 	default:
