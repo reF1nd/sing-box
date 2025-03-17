@@ -2,6 +2,7 @@ package trafficontrol
 
 import (
 	"net"
+	"net/netip"
 	"sync/atomic"
 	"time"
 
@@ -36,10 +37,16 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 		inbound = t.Metadata.InboundType
 	}
 	var domain string
-	if t.Metadata.Domain != "" {
-		domain = t.Metadata.Domain
-	} else {
+	if t.Metadata.Destination.Fqdn != "" {
 		domain = t.Metadata.Destination.Fqdn
+	} else {
+		domain = t.Metadata.Domain
+	}
+	var destinationAddr netip.Addr
+	if len(t.Metadata.DestinationAddresses) > 0 {
+		destinationAddr = t.Metadata.DestinationAddresses[0]
+	} else {
+		destinationAddr = t.Metadata.Destination.Addr
 	}
 	var processPath string
 	if t.Metadata.ProcessInfo != nil {
@@ -70,10 +77,11 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 			"network":         t.Metadata.Network,
 			"type":            inbound,
 			"sourceIP":        t.Metadata.Source.Addr,
-			"destinationIP":   t.Metadata.Destination.Addr,
+			"destinationIP":   destinationAddr,
 			"sourcePort":      F.ToString(t.Metadata.Source.Port),
 			"destinationPort": F.ToString(t.Metadata.Destination.Port),
 			"host":            domain,
+			"sniffHost":       t.Metadata.SniffHost,
 			"dnsMode":         "normal",
 			"processPath":     processPath,
 		},
