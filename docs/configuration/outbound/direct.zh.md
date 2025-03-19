@@ -18,6 +18,7 @@ icon: material/alert-decagram
   
   "override_address": "1.0.0.1",
   "override_port": 53,
+  "proxy_protocol": 0,
 
   ... // 拨号字段
 }
@@ -40,6 +41,12 @@ icon: material/alert-decagram
     目标覆盖字段在 sing-box 1.11.0 中已废弃，并将在 sing-box 1.13.0 中被移除，参阅 [迁移指南](/migration/#migrate-destination-override-fields-to-route-options)。
 
 覆盖连接目标端口。
+
+#### proxy_protocol
+
+写出 [代理协议](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) 到连接头。
+
+可用协议版本值：`1` 或 `2`。
 
 ### 拨号字段
 
