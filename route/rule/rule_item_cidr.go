@@ -94,10 +94,17 @@ func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
 		return r.ipSet.Contains(metadata.Destination.Addr)
 	}
 	addresses := metadata.DestinationAddresses
-	if len(addresses) > 0 {
+	if len(addresses) > 0 || len(metadata.CacheIPs) > 0 {
 		for _, address := range addresses {
 			if r.ipSet.Contains(address) {
 				return true
+			}
+		}
+		if len(metadata.CacheIPs) > 0 {
+			for _, address := range metadata.CacheIPs {
+				if r.ipSet.Contains(address) {
+					return true
+				}
 			}
 		}
 		return false
