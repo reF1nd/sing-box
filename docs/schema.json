@@ -16467,6 +16467,9 @@
             },
             "client_subnet": {
               "$ref": "#/$defs/IPAddressOrPrefix"
+            },
+            "match_only": {
+              "type": "boolean"
             }
           },
           "required": [
