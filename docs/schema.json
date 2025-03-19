@@ -3733,6 +3733,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "system": {
               "type": "boolean"
             },
@@ -4615,6 +4621,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "system": {
               "type": "boolean"
@@ -6215,6 +6227,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "tls": {
               "$ref": "#/$defs/InboundTLSOptions"
             },
@@ -6376,6 +6394,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "network": {
               "anyOf": [
                 {
@@ -6474,6 +6498,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "users": {
               "type": "array",
@@ -6619,6 +6649,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "up": {
               "anyOf": [
@@ -6766,6 +6802,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "up_mbps": {
               "type": "integer"
@@ -7011,6 +7053,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "users": {
               "type": "array",
               "items": {
@@ -7095,6 +7143,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "users": {
               "type": "array",
@@ -7203,6 +7257,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -7273,6 +7333,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "network": {
               "anyOf": [
@@ -7400,6 +7466,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "version": {
               "type": "integer",
               "enum": [
@@ -7513,6 +7585,12 @@
                   "type": "string",
                   "x-tag-reference": "inbound"
                 },
+                "proxy_protocol": {
+                  "type": "boolean"
+                },
+                "proxy_protocol_accept_no_header": {
+                  "type": "boolean"
+                },
                 "psk": {
                   "type": "string"
                 },
@@ -7604,6 +7682,12 @@
                   "type": "string",
                   "x-tag-reference": "inbound"
                 },
+                "proxy_protocol": {
+                  "type": "boolean"
+                },
+                "proxy_protocol_accept_no_header": {
+                  "type": "boolean"
+                },
                 "psk": {
                   "type": "string"
                 },
@@ -7693,6 +7777,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "users": {
               "type": "array",
@@ -7946,6 +8036,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "network": {
               "anyOf": [
                 {
@@ -8060,6 +8156,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "users": {
               "type": "array",
               "items": {
@@ -8153,6 +8255,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "users": {
               "type": "array",
@@ -8678,6 +8786,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "users": {
               "type": "array",
               "items": {
@@ -8762,6 +8876,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "users": {
               "type": "array",
@@ -11724,6 +11844,16 @@
             },
             "fallback_delay": {
               "$ref": "#/$defs/Duration"
+            },
+            "proxy_protocol": {
+              "type": "integer",
+              "enum": [
+                0,
+                1,
+                2
+              ],
+              "minimum": 0,
+              "maximum": 255
             }
           },
           "required": [
@@ -16433,6 +16563,12 @@
               "type": "string",
               "x-tag-reference": "inbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "secret": {
               "type": "string"
             },
@@ -16564,6 +16700,12 @@
               "type": "string",
               "x-tag-reference": "outbound"
             },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
+            },
             "tls": {
               "$ref": "#/$defs/InboundTLSOptions"
             },
@@ -16651,6 +16793,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "tls": {
               "$ref": "#/$defs/InboundTLSOptions"
@@ -17153,6 +17301,12 @@
                     "detour": {
                       "type": "string",
                       "x-tag-reference": "inbound"
+                    },
+                    "proxy_protocol": {
+                      "type": "boolean"
+                    },
+                    "proxy_protocol_accept_no_header": {
+                      "type": "boolean"
                     }
                   },
                   "additionalProperties": false
@@ -17228,6 +17382,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "tls": {
               "$ref": "#/$defs/InboundTLSOptions"
@@ -17338,6 +17498,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "outbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "tls": {
               "$ref": "#/$defs/InboundTLSOptions"
@@ -17469,6 +17635,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -17539,6 +17711,12 @@
             "detour": {
               "type": "string",
               "x-tag-reference": "inbound"
+            },
+            "proxy_protocol": {
+              "type": "boolean"
+            },
+            "proxy_protocol_accept_no_header": {
+              "type": "boolean"
             },
             "servers": {
               "type": "object",
@@ -17759,6 +17937,12 @@
                   "type": "string",
                   "x-tag-reference": "inbound"
                 },
+                "proxy_protocol": {
+                  "type": "boolean"
+                },
+                "proxy_protocol_accept_no_header": {
+                  "type": "boolean"
+                },
                 "devices": {
                   "type": "array",
                   "items": {
@@ -17837,6 +18021,12 @@
                 "detour": {
                   "type": "string",
                   "x-tag-reference": "inbound"
+                },
+                "proxy_protocol": {
+                  "type": "boolean"
+                },
+                "proxy_protocol_accept_no_header": {
+                  "type": "boolean"
                 }
               },
               "required": [
