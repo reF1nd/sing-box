@@ -35,14 +35,15 @@ icon: material/new-box
 ```
 
 
-| 字段               | 可用上下文           |
-|------------------|-----------------|
-| `listen`         | 需要监听 TCP 或 UDP。 |
-| `listen_port`    | 需要监听 TCP 或 UDP。 |
-| `tcp_fast_open`  | 需要监听 TCP。       |
-| `tcp_multi_path` | 需要监听 TCP。       |
-| `udp_timeout`    | 需要组装 UDP 连接。    |
-| 
+| 字段                                | 可用上下文                               |
+|-----------------------------------|-------------------------------------|
+| `listen`                          | 需要监听 TCP 或 UDP。                     |
+| `listen_port`                     | 需要监听 TCP 或 UDP。                     |
+| `tcp_fast_open`                   | 需要监听 TCP。                           |
+| `tcp_multi_path`                  | 需要监听 TCP。                           |
+| `udp_timeout`                     | 需要组装 UDP 连接, 当前为 Tun 和 Shadowsocks。 |
+| `proxy_protocol`                  | 需要监听 TCP。                           |
+| `proxy_protocol_accept_no_header` | `proxy_protocol` 启用时                |
 
 ### 字段
 
@@ -145,3 +146,11 @@ UDP NAT 过期时间。
 如果启用，对于地址为域的 UDP 代理请求，将在响应中发送原始包地址而不是映射的域。
 
 此选项用于兼容不支持接收带有域地址的 UDP 包的客户端，如 Surge。
+
+#### proxy_protocol
+
+解析连接头中的 [代理协议](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt)。
+
+#### proxy_protocol_accept_no_header
+
+接受没有代理协议标头的连接。
