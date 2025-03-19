@@ -31,14 +31,16 @@ icon: material/delete-clock
 
 ### Fields
 
-| Field                          | Available Context                                       |
-|--------------------------------|---------------------------------------------------------|
-| `listen`                       | Needs to listen on TCP or UDP.                          |
-| `listen_port`                  | Needs to listen on TCP or UDP.                          |
-| `tcp_fast_open`                | Needs to listen on TCP.                                 |
-| `tcp_multi_path`               | Needs to listen on TCP.                                 |
-| `udp_timeout`                  | Needs to assemble UDP connections.                      |
-| `udp_disable_domain_unmapping` | Needs to listen on UDP and accept domain UDP addresses. |
+| Field                             | Available Context                                       |
+|-----------------------------------|---------------------------------------------------------|
+| `listen`                          | Needs to listen on TCP or UDP.                          |
+| `listen_port`                     | Needs to listen on TCP or UDP.                          |
+| `tcp_fast_open`                   | Needs to listen on TCP.                                 |
+| `tcp_multi_path`                  | Needs to listen on TCP.                                 |
+| `udp_timeout`                     | Needs to assemble UDP connections.                      |
+| `udp_disable_domain_unmapping`    | Needs to listen on UDP and accept domain UDP addresses. |
+| `proxy_protocol`	                | Needs to listen on TCP.                                 |
+| `proxy_protocol_accept_no_header` | When proxy_protocol enabled                             |
 
 #### listen
 
@@ -131,3 +133,11 @@ the original packet address will be sent in the response instead of the mapped d
 
 This option is used for compatibility with clients that 
 do not support receiving UDP packets with domain addresses, such as Surge.
+
+#### proxy_protocol
+
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.
+
+#### proxy_protocol_accept_no_header
+
+Accept connections without Proxy Protocol header.
