@@ -87,8 +87,9 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		return &RuleActionSniffOverrideDestination{}, nil
 	case C.RuleActionTypeResolve:
 		return &RuleActionResolve{
-			Strategy: dns.DomainStrategy(action.ResolveOptions.Strategy),
-			Server:   action.ResolveOptions.Server,
+			Strategy:  dns.DomainStrategy(action.ResolveOptions.Strategy),
+			Server:    action.ResolveOptions.Server,
+			MatchOnly: action.ResolveOptions.MatchOnly,
 		}, nil
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
@@ -374,8 +375,9 @@ func (r *RuleActionSniffOverrideDestination) String() string {
 }
 
 type RuleActionResolve struct {
-	Strategy dns.DomainStrategy
-	Server   string
+	Strategy  dns.DomainStrategy
+	Server    string
+	MatchOnly bool
 }
 
 func (r *RuleActionResolve) Type() string {
@@ -383,12 +385,18 @@ func (r *RuleActionResolve) Type() string {
 }
 
 func (r *RuleActionResolve) String() string {
-	if r.Strategy == dns.DomainStrategyAsIS && r.Server == "" {
-		return F.ToString("resolve")
-	} else if r.Strategy != dns.DomainStrategyAsIS && r.Server == "" {
-		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ")")
-	} else if r.Strategy == dns.DomainStrategyAsIS && r.Server != "" {
-		return F.ToString("resolve(", r.Server, ")")
+	var options []string
+	if r.Server != "" {
+		options = append(options, r.Server)
+	}
+	if r.Strategy != dns.DomainStrategyAsIS {
+		options = append(options, F.ToString(option.DomainStrategy(r.Strategy)))
+	}
+	if r.MatchOnly {
+		options = append(options, "match_only")
+	}
+	if len(options) == 0 {
+		return "resolve"
 	} else {
 		return F.ToString("resolve(", option.DomainStrategy(r.Strategy).String(), ",", r.Server, ")")
 	}

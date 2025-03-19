@@ -280,6 +280,7 @@ type RouteActionSniff struct {
 }
 
 type RouteActionResolve struct {
-	Strategy DomainStrategy `json:"strategy,omitempty"`
-	Server   string         `json:"server,omitempty"`
+	Strategy  DomainStrategy `json:"strategy,omitempty"`
+	Server    string         `json:"server,omitempty"`
+	MatchOnly bool           `json:"match_only,omitempty"`
 }
