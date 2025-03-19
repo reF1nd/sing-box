@@ -65,7 +65,8 @@ type InboundContext struct {
 
 	// cache
 
-	Domain string
+	CacheIPs []netip.Addr
+	Domain   string
 
 	// Deprecated: implement in rule action
 	InboundDetour             string
