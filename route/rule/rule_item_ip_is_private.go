@@ -35,6 +35,13 @@ func (r *IPIsPrivateItem) Match(metadata *adapter.InboundContext) bool {
 			return true
 		}
 	}
+	if len(metadata.CacheIPs) > 0 {
+		for _, destinationAddress := range metadata.CacheIPs {
+			if !N.IsPublicAddr(destinationAddress) {
+				return true
+			}
+		}
+	}
 	return false
 }
 
