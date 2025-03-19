@@ -19,6 +19,7 @@ require (
 	github.com/mholt/acmez/v3 v3.0.1
 	github.com/miekg/dns v1.1.63
 	github.com/oschwald/maxminddb-golang v1.13.1
+	github.com/pires/go-proxyproto v0.7.0
 	github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cors v1.2.1

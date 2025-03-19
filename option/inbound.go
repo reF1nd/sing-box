@@ -59,21 +59,18 @@ type InboundOptions struct {
 }
 
 type ListenOptions struct {
-	Listen               *badoption.Addr    `json:"listen,omitempty"`
-	ListenPort           uint16             `json:"listen_port,omitempty"`
-	TCPKeepAlive         badoption.Duration `json:"tcp_keep_alive,omitempty"`
-	TCPKeepAliveInterval badoption.Duration `json:"tcp_keep_alive_interval,omitempty"`
-	TCPFastOpen          bool               `json:"tcp_fast_open,omitempty"`
-	TCPMultiPath         bool               `json:"tcp_multi_path,omitempty"`
-	UDPFragment          *bool              `json:"udp_fragment,omitempty"`
-	UDPFragmentDefault   bool               `json:"-"`
-	UDPTimeout           UDPTimeoutCompat   `json:"udp_timeout,omitempty"`
-	NetNs                string             `json:"netns,omitempty"`
-
-	// Deprecated: removed
-	ProxyProtocol bool `json:"proxy_protocol,omitempty"`
-	// Deprecated: removed
-	ProxyProtocolAcceptNoHeader bool `json:"proxy_protocol_accept_no_header,omitempty"`
+	Listen                      *badoption.Addr    `json:"listen,omitempty"`
+	ListenPort                  uint16             `json:"listen_port,omitempty"`
+	TCPKeepAlive                badoption.Duration `json:"tcp_keep_alive,omitempty"`
+	TCPKeepAliveInterval        badoption.Duration `json:"tcp_keep_alive_interval,omitempty"`
+	TCPFastOpen                 bool               `json:"tcp_fast_open,omitempty"`
+	TCPMultiPath                bool               `json:"tcp_multi_path,omitempty"`
+	UDPFragment                 *bool              `json:"udp_fragment,omitempty"`
+	UDPFragmentDefault          bool               `json:"-"`
+	UDPTimeout                  UDPTimeoutCompat   `json:"udp_timeout,omitempty"`
+	NetNs                       string             `json:"netns,omitempty"`
+	ProxyProtocol               bool               `json:"proxy_protocol,omitempty"`
+	ProxyProtocolAcceptNoHeader bool               `json:"proxy_protocol_accept_no_header,omitempty"`
 	InboundOptions
 }
 
