@@ -721,13 +721,38 @@ func (r *Router) actionResolve(ctx context.Context, metadata *adapter.InboundCon
 		if err != nil {
 			return err
 		}
-		metadata.DestinationAddresses = addresses
-		r.logger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
-		if metadata.Destination.IsIPv4() {
-			metadata.IPVersion = 4
-		} else if metadata.Destination.IsIPv6() {
-			metadata.IPVersion = 6
+		if action.MatchOnly {
+			metadata.CacheIPs = addresses
+			r.logger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.CacheIPs), " "), "] for match only")
+		} else {
+			metadata.DestinationAddresses = addresses
+			r.logger.DebugContext(ctx, "resolved [", strings.Join(F.MapToString(metadata.DestinationAddresses), " "), "]")
+			if len(metadata.DestinationAddresses) > 0 {
+				if isAllIPv4(metadata.DestinationAddresses) {
+					metadata.IPVersion = 4
+				} else if isAllIPv6(metadata.DestinationAddresses) {
+					metadata.IPVersion = 6
+				}
+			}
 		}
 	}
 	return nil
+}
+
+func isAllIPv4(addresses []netip.Addr) bool {
+	for _, addr := range addresses {
+		if !addr.Is4() {
+			return false
+		}
+	}
+	return true
+}
+
+func isAllIPv6(addresses []netip.Addr) bool {
+	for _, addr := range addresses {
+		if !addr.Is6() {
+			return false
+		}
+	}
+	return true
 }
