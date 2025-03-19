@@ -92,6 +92,8 @@ func (r *IPCIDRItem) Match(metadata *adapter.InboundContext) bool {
 	}
 	if len(metadata.DestinationAddresses) > 0 {
 		return common.Any(metadata.DestinationAddresses, r.ipSet.Contains)
+	} else if len(metadata.CacheIPs) > 0 {
+		return common.Any(metadata.CacheIPs, r.ipSet.Contains)
 	}
 	return metadata.IPCIDRAcceptEmpty
 }
