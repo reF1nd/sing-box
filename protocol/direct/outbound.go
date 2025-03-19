@@ -14,7 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -24,6 +24,8 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
+
+	"github.com/pires/go-proxyproto"
 )
 
 func RegisterOutbound(registry *outbound.Registry) {
@@ -54,6 +56,7 @@ type Outbound struct {
 	isEmpty        bool
 	myAddresses    common.TypedValue[[]netip.Prefix]
 	icmpPort       *ping.Port
+	proxyProto     uint8
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DirectOutboundOptions) (adapter.Outbound, error) {
@@ -78,13 +81,13 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		//nolint:staticcheck
 		domainStrategy: C.DomainStrategy(options.DomainStrategy),
 		dialer:         outboundDialer.(parallelResolveDialer),
-		isEmpty: reflect.DeepEqual(options.DialerOptions, option.DialerOptions{
+		isEmpty: options.ProxyProtocol == 0 && reflect.DeepEqual(options.DialerOptions, option.DialerOptions{
 			AbstractDialerOptions: option.AbstractDialerOptions{UDPFragmentDefault: true},
 		}),
+		proxyProto: options.ProxyProtocol,
 	}
-	//nolint:staticcheck
-	if options.ProxyProtocol != 0 {
-		return nil, E.New("Proxy Protocol is deprecated and removed in sing-box 1.6.0")
+	if options.ProxyProtocol > 2 {
+		return nil, E.New("invalid proxy protocol option: ", options.ProxyProtocol)
 	}
 	if defaultDialer, isDefaultDialer := common.Cast[*dialer.DefaultDialer](outbound.dialer); isDefaultDialer {
 		icmpControl := defaultDialer.ICMPControl()
@@ -167,6 +170,7 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 		return nil, E.New("loopback connection to TUN range")
 	}
 	ctx, metadata := adapter.ExtendContext(ctx)
+	originDestination := metadata.Destination
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
 	network = N.NetworkName(network)
@@ -176,7 +180,17 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	return h.dialer.DialContext(ctx, network, destination)
+	conn, err := h.dialer.DialContext(ctx, network, destination)
+	if err != nil {
+		return nil, err
+	}
+	if h.proxyProto > 0 && network == N.NetworkTCP {
+		err = h.writeProxyProtocolHeader(conn, metadata.Source, originDestination)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return conn, nil
 }
 
 func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -249,6 +263,7 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 		return nil, E.New("loopback connection to TUN range")
 	}
 	ctx, metadata := adapter.ExtendContext(ctx)
+	originDestination := metadata.Destination
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
 	network = N.NetworkName(network)
@@ -258,7 +273,17 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	return h.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, nil, nil, nil, 0)
+	conn, err := h.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, nil, nil, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+	if h.proxyProto > 0 && network == N.NetworkTCP {
+		err = h.writeProxyProtocolHeader(conn, metadata.Source, originDestination)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return conn, nil
 }
 
 func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy *C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
@@ -266,6 +291,7 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 		return nil, E.New("loopback connection to TUN range")
 	}
 	ctx, metadata := adapter.ExtendContext(ctx)
+	originDestination := metadata.Destination
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
 	network = N.NetworkName(network)
@@ -275,7 +301,17 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	return h.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
+	conn, err := h.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
+	if err != nil {
+		return nil, err
+	}
+	if h.proxyProto > 0 && network == N.NetworkTCP {
+		err = h.writeProxyProtocolHeader(conn, metadata.Source, originDestination)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return conn, nil
 }
 
 func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy *C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
@@ -291,6 +327,32 @@ func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.
 		return nil, netip.Addr{}, err
 	}
 	return iponly.NewPacketConn(h.logger, conn), newDestination, nil
+}
+
+func (h *Outbound) writeProxyProtocolHeader(conn net.Conn, source M.Socksaddr, destination M.Socksaddr) error {
+	if !source.IsValid() {
+		source = M.SocksaddrFromNet(conn.LocalAddr())
+	}
+	source = source.Unwrap()
+	destination = destination.Unwrap()
+	if !source.Addr.IsValid() || !destination.Addr.IsValid() {
+		conn.Close()
+		return E.New("write proxy protocol header: invalid source or destination address")
+	}
+	if destination.Addr.Is6() {
+		source = M.SocksaddrFrom(netip.AddrFrom16(source.Addr.As16()), source.Port)
+	}
+	header := proxyproto.HeaderProxyFromAddrs(h.proxyProto, source.TCPAddr(), destination.TCPAddr())
+	if header.Command != proxyproto.PROXY || header.TransportProtocol == proxyproto.UNSPEC {
+		conn.Close()
+		return E.New("write proxy protocol header: unsupported address pair")
+	}
+	_, err := header.WriteTo(conn)
+	if err != nil {
+		conn.Close()
+		return E.Cause(err, "write proxy protocol header")
+	}
+	return nil
 }
 
 func (h *Outbound) IsEmpty() bool {
