@@ -170,3 +170,11 @@ the original packet address will be sent in the response instead of the mapped d
 
 This option is used for compatibility with clients that 
 do not support receiving UDP packets with domain addresses, such as Surge.
+
+#### proxy_protocol
+
+Parse [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) in the connection header.
+
+#### proxy_protocol_accept_no_header
+
+Accept connections without Proxy Protocol header.
