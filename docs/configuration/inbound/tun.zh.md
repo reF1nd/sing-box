@@ -4,6 +4,7 @@ icon: material/new-box
 
 !!! quote "sing-box 1.15.0 中的更改"
 
+    :material-plus: [auto_redirect_disable_mark_mode](#auto_redirect_disable_mark_mode)
     :material-plus: [auto_redirect_tproxy_mark](#auto_redirect_tproxy_mark)
 
 !!! quote "sing-box 1.14.0 中的更改"
@@ -92,6 +93,7 @@ icon: material/new-box
   "iproute2_table_index": 2022,
   "iproute2_rule_index": 9000,
   "auto_redirect": true,
+  "auto_redirect_disable_mark_mode": false,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
   "auto_redirect_reset_mark": "0x2025",
@@ -359,6 +361,18 @@ sing-box DNS 模块，等价于一条
 `auto_redirect` 还会自动将兼容性规则插入 OpenWrt 的 fw4 表中，即无需额外配置即可在路由器上工作。
 
 与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
+
+#### auto_redirect_disable_mark_mode
+
+!!! question "自 sing-box 1.15.0 起"
+
+!!! quote ""
+
+    仅支持 Linux，且需要启用 `auto_route` 和 `auto_redirect`。
+
+为 `auto_redirect` 禁用基于连接标记的路由。
+
+与 `route_address_set` 和 `route_exclude_address_set` 冲突。
 
 #### auto_redirect_input_mark
 

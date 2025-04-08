@@ -4,6 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.15.0"
 
+    :material-plus: [auto_redirect_disable_mark_mode](#auto_redirect_disable_mark_mode)
     :material-plus: [auto_redirect_tproxy_mark](#auto_redirect_tproxy_mark)
 
 !!! quote "Changes in sing-box 1.14.0"
@@ -92,6 +93,7 @@ icon: material/new-box
   "iproute2_table_index": 2022,
   "iproute2_rule_index": 9000,
   "auto_redirect": true,
+  "auto_redirect_disable_mark_mode": false,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
   "auto_redirect_reset_mark": "0x2025",
@@ -366,6 +368,18 @@ into the OpenWrt fw4 table, i.e.
 it will work on routers without any extra configuration.
 
 Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
+
+#### auto_redirect_disable_mark_mode
+
+!!! question "Since sing-box 1.15.0"
+
+!!! quote ""
+
+    Only supported on Linux with `auto_route` and `auto_redirect` enabled.
+
+Disable connection mark based routing for `auto_redirect`.
+
+Conflict with `route_address_set` and `route_exclude_address_set`.
 
 #### auto_redirect_input_mark
 
