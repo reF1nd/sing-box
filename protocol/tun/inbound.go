@@ -19,7 +19,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -259,7 +259,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if err != nil {
 			return nil, E.Cause(err, "initialize auto-redirect")
 		}
-		if !C.IsAndroid {
+		if !C.IsAndroid && (len(inbound.routeRuleSet) > 0 || len(inbound.routeExcludeRuleSet) > 0 || options.AutoRedirectMarkMode) {
 			inbound.tunOptions.AutoRedirectMarkMode = true
 			err = networkManager.RegisterAutoRedirectOutputMark(inbound.tunOptions.AutoRedirectOutputMark)
 			if err != nil {
