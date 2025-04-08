@@ -88,6 +88,7 @@ icon: material/new-box
   "iproute2_table_index": 2022,
   "iproute2_rule_index": 9000,
   "auto_redirect": true,
+  "auto_redirect_disable_mark_mode": false,
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
   "auto_redirect_reset_mark": "0x2025",
@@ -349,6 +350,16 @@ TUN 接口上 DNS 的处理方式。
 `auto_redirect` 还会自动将兼容性规则插入 OpenWrt 的 fw4 表中，即无需额外配置即可在路由器上工作。
 
 与 `route.default_mark` 和 `[dialOptions].routing_mark` 冲突。
+
+#### auto_redirect_disable_mark_mode
+
+!!! quote ""
+
+    仅支持 Linux，且需要启用 `auto_route` 和 `auto_redirect`。
+
+为 `auto_redirect` 禁用基于连接标记的路由。
+
+与 `route_address_set` 和 `route_exclude_address_set` 冲突。
 
 #### auto_redirect_input_mark
 
