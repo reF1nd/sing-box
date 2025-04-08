@@ -114,6 +114,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if options.NetNs != "" && !C.IsLinux {
 		return nil, E.New("`netns` is only supported on Linux")
 	}
+	if C.IsAndroid && options.AutoRedirectDisableMarkMode {
+		return nil, E.New("`auto_redirect_disable_mark_mode` is not supported on Android")
+	}
 	tunMTU := options.MTU
 	if tunMTU == 0 {
 		if platformInterface != nil && platformInterface.UnderNetworkExtension() {
@@ -277,9 +280,13 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		inbound.enableAutoRedirect = true
 		inbound.usePlatformAutoRedirect = platformInterface != nil && platformInterface.UsePlatformAutoRedirect()
 		inbound.disableNFTables = parseErr == nil && disableNFTables
-		inbound.tunOptions.AutoRedirectMarkMode = true
+		disableMarkMode := C.IsLinux && !C.IsAndroid && options.AutoRedirectDisableMarkMode
+		if disableMarkMode && (len(inbound.routeRuleSet) > 0 || len(inbound.routeExcludeRuleSet) > 0) {
+			return nil, E.New("`auto_redirect` mark mode cannot be disabled with `route_address_set` or `route_exclude_address_set`")
+		}
+		inbound.tunOptions.AutoRedirectMarkMode = !disableMarkMode
 		inbound.dnsHijackByPort = inbound.tunOptions.DNSModeOrDefault() == tun.DNSModeHijack
-		if !inbound.usePlatformAutoRedirect && options.NetNs == "" {
+		if !inbound.usePlatformAutoRedirect && !disableMarkMode && options.NetNs == "" {
 			err = networkManager.RegisterAutoRedirectOutputMark(inbound.tunOptions.AutoRedirectOutputMarkOrDefault())
 			if err != nil {
 				return nil, err
