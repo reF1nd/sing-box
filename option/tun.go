@@ -18,6 +18,7 @@ type TunInboundOptions struct {
 	IPRoute2TableIndex                    int                              `json:"iproute2_table_index,omitempty"`
 	IPRoute2RuleIndex                     int                              `json:"iproute2_rule_index,omitempty"`
 	AutoRedirect                          bool                             `json:"auto_redirect,omitempty"`
+	AutoRedirectDisableMarkMode           bool                             `json:"auto_redirect_disable_mark_mode,omitempty"`
 	AutoRedirectInputMark                 FwMark                           `json:"auto_redirect_input_mark,omitempty"`
 	AutoRedirectOutputMark                FwMark                           `json:"auto_redirect_output_mark,omitempty"`
 	AutoRedirectIPRoute2FallbackRuleIndex int                              `json:"auto_redirect_iproute2_fallback_rule_index,omitempty"`
