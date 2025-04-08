@@ -7796,6 +7796,9 @@
             "auto_redirect": {
               "type": "boolean"
             },
+            "auto_redirect_disable_mark_mode": {
+              "type": "boolean"
+            },
             "auto_redirect_input_mark": {
               "anyOf": [
                 {
