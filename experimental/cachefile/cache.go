@@ -316,3 +316,36 @@ func (c *CacheFile) SaveRuleSet(tag string, set *adapter.SavedBinary) error {
 		return bucket.Put([]byte(tag), setBinary)
 	})
 }
+
+func (c *CacheFile) LoadExternalUI(tag string) *adapter.SavedBinary {
+	var savedSet adapter.SavedBinary
+	err := c.DB.View(func(t *bbolt.Tx) error {
+		bucket := c.bucket(t, bucketRuleSet)
+		if bucket == nil {
+			return os.ErrNotExist
+		}
+		setBinary := bucket.Get([]byte(tag))
+		if len(setBinary) == 0 {
+			return os.ErrInvalid
+		}
+		return savedSet.UnmarshalBinary(setBinary)
+	})
+	if err != nil {
+		return nil
+	}
+	return &savedSet
+}
+
+func (c *CacheFile) SaveExternalUI(tag string, info *adapter.SavedBinary) error {
+	return c.DB.Batch(func(t *bbolt.Tx) error {
+		bucket, err := c.createBucket(t, bucketRuleSet)
+		if err != nil {
+			return err
+		}
+		setBinary, err := info.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(tag), setBinary)
+	})
+}

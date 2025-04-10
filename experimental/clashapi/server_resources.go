@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -17,23 +18,39 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/ntp"
+	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
 )
 
-func (s *Server) checkAndDownloadExternalUI() {
+func (s *Server) checkAndDownloadExternalUI(forceUpdate bool) error {
 	if s.externalUI == "" {
-		return
+		return nil
 	}
 	entries, err := os.ReadDir(s.externalUI)
 	if err != nil {
 		os.MkdirAll(s.externalUI, 0o755)
 	}
-	if len(entries) == 0 {
+	if len(entries) == 0 || forceUpdate {
+		if len(entries) != 0 {
+			removeAllInDirectory(s.externalUI)
+		}
 		err = s.downloadExternalUI()
 		if err != nil {
 			s.logger.Error("download external ui error: ", err)
+			return err
+		}
+		s.lastUpdated = time.Now()
+		cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
+		if cacheFile != nil {
+			err = cacheFile.SaveExternalUI("ExternalUI", &adapter.SavedBinary{
+				LastUpdated: s.lastUpdated,
+			})
+			if err != nil {
+				s.logger.Error("save external ui cache file: ", err)
+			}
 		}
 	}
+	return nil
 }
 
 func (s *Server) downloadExternalUI() error {
