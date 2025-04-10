@@ -1,3 +1,7 @@
+!!! quote "sing-box 1.15.0 中的更改"
+
+    :material-plus: [external_ui_update_interval](#external_ui_update_interval)
+
 !!! quote "sing-box 1.10.0 中的更改"
 
     :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
@@ -21,6 +25,7 @@
       "external_ui": "",
       "external_ui_download_url": "",
       "external_ui_download_detour": "",
+      "external_ui_update_interval": "",
       "secret": "",
       "default_mode": "",
       "access_control_allow_origin": [],
@@ -88,6 +93,16 @@ RESTful web API 监听地址。如果为空，则禁用 Clash API。
 用于下载静态网页资源的出站的标签。
 
 如果为空，将使用默认出站。
+
+#### external_ui_update_interval
+
+!!! question "自 sing-box 1.15.0 起"
+
+外部用户界面的更新间隔。留空时禁用自动更新。
+
+最小间隔为一小时。
+
+启用 `cache_file.enabled` 时，更改 `external_ui_download_url` 会使外部用户界面重新下载。
 
 #### secret
 

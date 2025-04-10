@@ -699,6 +699,9 @@
           "type": "string",
           "x-tag-reference": "outbound"
         },
+        "external_ui_update_interval": {
+          "$ref": "#/$defs/Duration"
+        },
         "secret": {
           "type": "string"
         },
