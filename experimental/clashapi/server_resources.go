@@ -20,9 +20,9 @@ import (
 	"github.com/sagernet/sing/service/filemanager"
 )
 
-func (s *Server) checkAndDownloadExternalUI() {
+func (s *Server) checkAndDownloadExternalUI(update bool) error {
 	if s.externalUI == "" {
-		return
+		return nil
 	}
 	entries, err := os.ReadDir(s.externalUI)
 	if err != nil {
@@ -32,8 +32,17 @@ func (s *Server) checkAndDownloadExternalUI() {
 		err = s.downloadExternalUI()
 		if err != nil {
 			s.logger.Error("download external ui error: ", err)
+			return err
+		}
+	} else if len(entries) != 0 && update {
+		removeAllInDirectory(s.externalUI)
+		err = s.downloadExternalUI()
+		if err != nil {
+			s.logger.Error("download external ui error: ", err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (s *Server) downloadExternalUI() error {

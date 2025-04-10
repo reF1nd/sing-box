@@ -155,7 +155,7 @@ func (s *Server) Start(stage adapter.StartStage) error {
 		}
 	case adapter.StartStateStarted:
 		if s.externalController {
-			s.checkAndDownloadExternalUI()
+			s.checkAndDownloadExternalUI(false)
 			var (
 				listener net.Listener
 				err      error

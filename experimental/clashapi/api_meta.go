@@ -20,6 +20,7 @@ import (
 func (s *Server) setupMetaAPI(r chi.Router) {
 	r.Get("/memory", memory(s.trafficManager))
 	r.Mount("/group", groupRouter(s))
+	r.Mount("/upgrade", upgradeRouter(s))
 }
 
 type Memory struct {
