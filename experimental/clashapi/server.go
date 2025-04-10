@@ -57,11 +57,23 @@ type Server struct {
 	externalUI               string
 	externalUIDownloadURL    string
 	externalUIDownloadDetour string
+	externalUIUpdateInterval time.Duration
+	cacheFile                adapter.CacheFile
+	lastEtag                 string
+	lastUpdated              time.Time
+	ticker                   *time.Ticker
 }
 
 func NewServer(ctx context.Context, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.ClashServer, error) {
 	trafficManager := trafficontrol.NewManager()
 	chiRouter := chi.NewRouter()
+	updateInterval := time.Duration(options.ExternalUIUpdateInterval)
+	if updateInterval <= 0 {
+		updateInterval = 0
+	}
+	if updateInterval > 0 && updateInterval < time.Hour {
+		updateInterval = time.Hour
+	}
 	s := &Server{
 		ctx:       ctx,
 		router:    service.FromContext[adapter.Router](ctx),
@@ -78,6 +90,8 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		externalController:       options.ExternalController != "",
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
+		externalUIUpdateInterval: updateInterval,
+		cacheFile:                service.FromContext[adapter.CacheFile](ctx),
 	}
 	s.urlTestHistory = service.FromContext[adapter.URLTestHistoryStorage](ctx)
 	if s.urlTestHistory == nil {
@@ -155,7 +169,18 @@ func (s *Server) Start(stage adapter.StartStage) error {
 		}
 	case adapter.StartStateStarted:
 		if s.externalController {
-			s.checkAndDownloadExternalUI()
+			if s.externalUI != "" && s.externalUIUpdateInterval != 0 {
+				if s.cacheFile != nil {
+					if SaveExternalUI := s.cacheFile.LoadExternalUI("ExternalUI"); SaveExternalUI != nil {
+						s.lastUpdated = SaveExternalUI.LastUpdated
+						s.lastEtag = SaveExternalUI.LastEtag
+					}
+				}
+			}
+			s.checkAndDownloadExternalUI(false)
+			if s.externalUIUpdateInterval != 0 && !s.lastUpdated.IsZero() {
+				go s.loopUpdate()
+			}
 			var (
 				listener net.Listener
 				err      error
@@ -184,7 +209,26 @@ func (s *Server) Start(stage adapter.StartStage) error {
 	return nil
 }
 
+func (s *Server) loopUpdate() {
+	s.ticker = time.NewTicker(s.externalUIUpdateInterval)
+	if time.Since(s.lastUpdated) > s.externalUIUpdateInterval {
+		s.checkAndDownloadExternalUI(true)
+	}
+	for {
+		runtime.GC()
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.ticker.C:
+			s.checkAndDownloadExternalUI(true)
+		}
+	}
+}
+
 func (s *Server) Close() error {
+	if s.ticker != nil {
+		s.ticker.Stop()
+	}
 	return common.Close(
 		common.PtrOrNil(s.httpServer),
 		s.trafficManager,
