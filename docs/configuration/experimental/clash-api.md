@@ -1,3 +1,7 @@
+!!! quote "Changes in sing-box 1.15.0"
+
+    :material-plus: [external_ui_update_interval](#external_ui_update_interval)
+
 !!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
@@ -21,6 +25,7 @@
       "external_ui": "",
       "external_ui_download_url": "",
       "external_ui_download_detour": "",
+      "external_ui_update_interval": "",
       "secret": "",
       "default_mode": "",
       "access_control_allow_origin": [],
@@ -90,6 +95,16 @@ ZIP download URL for the external UI, will be used if the specified `external_ui
 The tag of the outbound to download the external UI.
 
 Default outbound will be used if empty.
+
+#### external_ui_update_interval
+
+!!! question "Since sing-box 1.15.0"
+
+Update interval for the external UI. Automatic updates are disabled if empty.
+
+The minimum interval is one hour.
+
+When `cache_file.enabled` is enabled, changing `external_ui_download_url` causes the external UI to be downloaded again.
 
 #### secret
 
