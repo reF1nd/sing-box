@@ -3,12 +3,14 @@ package clashapi
 import (
 	"archive/zip"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -19,29 +21,42 @@ import (
 	"github.com/sagernet/sing/service/filemanager"
 )
 
-func (s *Server) checkAndDownloadExternalUI() {
+const defaultExternalUIDownloadURL = "https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip"
+
+func (s *Server) checkAndDownloadExternalUI(update bool) error {
+	s.updateAccess.Lock()
+	defer s.updateAccess.Unlock()
+	if err := s.ctx.Err(); err != nil {
+		return err
+	}
 	if s.externalUI == "" {
-		return
+		return nil
 	}
 	entries, err := filemanager.ReadDir(s.ctx, s.externalUI)
 	if err != nil {
 		filemanager.MkdirAll(s.ctx, s.externalUI, 0o755)
 	}
-	if len(entries) == 0 {
+	if len(entries) != 0 && s.lastUpdated.IsZero() {
+		info, err := filemanager.Stat(s.ctx, s.externalUI)
+		if err != nil {
+			return E.Cause(err, "read external UI directory metadata")
+		}
+		s.lastUpdated = info.ModTime()
+	}
+	if len(entries) == 0 || update {
+		if len(entries) == 0 && s.lastEtag != "" {
+			s.lastEtag = ""
+		}
 		err = s.downloadExternalUI()
 		if err != nil {
-			s.logger.Error("download external ui error: ", err)
+			s.logger.Error("download external UI error: ", err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (s *Server) downloadExternalUI() error {
-	var downloadURL string
-	if s.externalUIDownloadURL != "" {
-		downloadURL = s.externalUIDownloadURL
-	} else {
-		downloadURL = "https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip"
-	}
 	var detour adapter.Outbound
 	if s.externalUIDownloadDetour != "" {
 		outbound, loaded := s.outbound.Outbound(s.externalUIDownloadDetour)
@@ -53,7 +68,7 @@ func (s *Server) downloadExternalUI() error {
 		outbound := s.outbound.Default()
 		detour = outbound
 	}
-	s.logger.Info("downloading external ui using outbound/", detour.Type(), "[", detour.Tag(), "]")
+	s.logger.Info("downloading external UI using outbound/", detour.Type(), "[", detour.Tag(), "]")
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
@@ -68,19 +83,80 @@ func (s *Server) downloadExternalUI() error {
 		},
 	}
 	defer httpClient.CloseIdleConnections()
-	response, err := httpClient.Get(downloadURL)
+	request, err := http.NewRequest("GET", s.externalUIDownloadURL, nil)
+	if err != nil {
+		return err
+	}
+	if s.lastEtag != "" {
+		request.Header.Set("If-None-Match", s.lastEtag)
+	}
+	response, err := httpClient.Do(request.WithContext(s.ctx))
 	if err != nil {
 		return err
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return E.New("download external ui failed: ", response.Status)
+	switch response.StatusCode {
+	case http.StatusOK:
+	case http.StatusNotModified:
+		s.lastUpdated = time.Now()
+		if s.cacheFile != nil {
+			if savedExternalUI := s.cacheFile.LoadExternalUI("ExternalUI"); savedExternalUI != nil {
+				savedExternalUI.LastUpdated = s.lastUpdated
+				savedExternalUI.URLHash = s.externalUIDownloadURLHash[:]
+				err = s.cacheFile.SaveExternalUI("ExternalUI", savedExternalUI)
+				if err != nil {
+					s.logger.Error("save external UI updated time: ", err)
+					return nil
+				}
+			}
+		}
+		s.logger.Info("update external UI: not modified")
+		return nil
+	default:
+		return E.New("download external UI failed: ", response.Status)
 	}
-	err = s.downloadZIP(response.Body, s.externalUI)
+	err = s.installExternalUI(response.Body)
 	if err != nil {
-		removeAllInDirectory(s.ctx, s.externalUI)
+		return err
 	}
-	return err
+	s.lastEtag = response.Header.Get("Etag")
+	s.lastUpdated = time.Now()
+	if s.cacheFile != nil {
+		err = s.cacheFile.SaveExternalUI("ExternalUI", &adapter.SavedBinary{
+			LastEtag:    s.lastEtag,
+			LastUpdated: s.lastUpdated,
+			URLHash:     s.externalUIDownloadURLHash[:],
+		})
+		if err != nil {
+			s.logger.Error("save external UI cache file: ", err)
+		}
+	}
+	s.logger.Info("updated external UI")
+	return nil
+}
+
+func (s *Server) installExternalUI(body io.Reader) error {
+	output := filepath.Clean(s.externalUI)
+	suffix := rand.Text()
+	staging := output + ".update-" + suffix
+	backup := output + ".backup-" + suffix
+	if err := filemanager.MkdirAll(s.ctx, staging, 0o755); err != nil {
+		return err
+	}
+	defer filemanager.RemoveAll(s.ctx, staging)
+	if err := s.downloadZIP(body, staging); err != nil {
+		return err
+	}
+	if err := filemanager.Rename(s.ctx, output, backup); err != nil {
+		return err
+	}
+	if err := filemanager.Rename(s.ctx, staging, output); err != nil {
+		if restoreErr := filemanager.Rename(s.ctx, backup, output); restoreErr != nil {
+			return E.Errors(err, E.Cause(restoreErr, "restore external UI from ", backup))
+		}
+		return err
+	}
+	return filemanager.RemoveAll(s.ctx, backup)
 }
 
 func (s *Server) downloadZIP(body io.Reader, output string) error {
@@ -107,6 +183,9 @@ func (s *Server) downloadZIP(body io.Reader, output string) error {
 		pathElements := strings.Split(file.Name, "/")
 		if trimDir {
 			pathElements = pathElements[1:]
+		}
+		if !filepath.IsLocal(filepath.Join(pathElements...)) {
+			return E.New("invalid external UI archive path: ", file.Name)
 		}
 		saveDirectory := output
 		if len(pathElements) > 1 {
@@ -139,16 +218,6 @@ func downloadZIPEntry(ctx context.Context, zipFile *zip.File, savePath string) e
 	return common.Error(io.Copy(saveFile, reader))
 }
 
-func removeAllInDirectory(ctx context.Context, directory string) {
-	dirEntries, err := filemanager.ReadDir(ctx, directory)
-	if err != nil {
-		return
-	}
-	for _, dirEntry := range dirEntries {
-		filemanager.RemoveAll(ctx, filepath.Join(directory, dirEntry.Name()))
-	}
-}
-
 func zipIsInSingleDirectory(files []*zip.File) bool {
 	var singleDirectory string
 	for _, file := range files {
@@ -156,7 +225,7 @@ func zipIsInSingleDirectory(files []*zip.File) bool {
 			continue
 		}
 		pathElements := strings.Split(file.Name, "/")
-		if len(pathElements) == 0 {
+		if len(pathElements) < 2 {
 			return false
 		}
 		if singleDirectory == "" {
