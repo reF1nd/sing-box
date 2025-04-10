@@ -3,6 +3,7 @@ package clashapi
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"net"
 	"net/http"
@@ -53,10 +54,16 @@ type Server struct {
 	clashMode      *clashmode.Manager
 	logDebug       bool
 
-	externalController       bool
-	externalUI               string
-	externalUIDownloadURL    string
-	externalUIDownloadDetour string
+	externalController        bool
+	externalUI                string
+	externalUIDownloadURL     string
+	externalUIDownloadURLHash [32]byte
+	externalUIDownloadDetour  string
+	externalUIUpdateInterval  time.Duration
+	cacheFile                 adapter.CacheFile
+	lastEtag                  string
+	lastUpdated               time.Time
+	ticker                    *time.Ticker
 }
 
 func NewServer(ctx context.Context, logFactory log.ObservableFactory, options option.ClashAPIOptions) (adapter.LifecycleService, error) {
@@ -73,6 +80,14 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		return nil, E.New("missing clash mode manager")
 	}
 	chiRouter := chi.NewRouter()
+	updateInterval := max(time.Duration(options.ExternalUIUpdateInterval), 0)
+	if updateInterval > 0 && updateInterval < time.Hour {
+		updateInterval = time.Hour
+	}
+	downloadURL := options.ExternalUIDownloadURL
+	if downloadURL == "" {
+		downloadURL = defaultExternalUIDownloadURL
+	}
 	s := &Server{
 		ctx:       ctx,
 		network:   service.FromContext[adapter.NetworkManager](ctx),
@@ -85,13 +100,16 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 			Addr:    options.ExternalController,
 			Handler: chiRouter,
 		},
-		trafficManager:           trafficManager,
-		urlTestHistory:           urlTestHistory,
-		clashMode:                clashMode,
-		logDebug:                 logFactory.Level() >= log.LevelDebug,
-		externalController:       options.ExternalController != "",
-		externalUIDownloadURL:    options.ExternalUIDownloadURL,
-		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
+		trafficManager:            trafficManager,
+		urlTestHistory:            urlTestHistory,
+		clashMode:                 clashMode,
+		logDebug:                  logFactory.Level() >= log.LevelDebug,
+		externalController:        options.ExternalController != "",
+		externalUIDownloadURL:     downloadURL,
+		externalUIDownloadURLHash: sha256.Sum256([]byte(downloadURL)),
+		externalUIDownloadDetour:  options.ExternalUIDownloadDetour,
+		externalUIUpdateInterval:  updateInterval,
+		cacheFile:                 service.FromContext[adapter.CacheFile](ctx),
 	}
 	//goland:noinspection GoDeprecation
 	//nolint:staticcheck
@@ -152,7 +170,22 @@ func (s *Server) Start(stage adapter.StartStage) error {
 		return nil
 	}
 	if s.externalController {
-		s.checkAndDownloadExternalUI()
+		var forceUpdate bool
+		if s.externalUI != "" && s.cacheFile != nil {
+			if savedExternalUI := s.cacheFile.LoadExternalUI("ExternalUI"); savedExternalUI != nil {
+				if !externalUICacheMatchesURL(savedExternalUI, s.externalUIDownloadURLHash) {
+					s.logger.Info("cached external UI was downloaded from another URL, will refetch")
+					forceUpdate = true
+				} else {
+					s.lastUpdated = savedExternalUI.LastUpdated
+					s.lastEtag = savedExternalUI.LastEtag
+				}
+			}
+		}
+		s.checkAndDownloadExternalUI(forceUpdate)
+		if s.externalUIUpdateInterval != 0 && !s.lastUpdated.IsZero() {
+			go s.loopUpdate()
+		}
 		var (
 			listener net.Listener
 			err      error
@@ -179,7 +212,30 @@ func (s *Server) Start(stage adapter.StartStage) error {
 	return nil
 }
 
+func externalUICacheMatchesURL(savedExternalUI *adapter.SavedBinary, downloadURLHash [32]byte) bool {
+	return len(savedExternalUI.URLHash) == 0 || bytes.Equal(savedExternalUI.URLHash, downloadURLHash[:])
+}
+
+func (s *Server) loopUpdate() {
+	s.ticker = time.NewTicker(s.externalUIUpdateInterval)
+	if time.Since(s.lastUpdated) > s.externalUIUpdateInterval {
+		s.checkAndDownloadExternalUI(true)
+	}
+	for {
+		runtime.GC()
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.ticker.C:
+			s.checkAndDownloadExternalUI(true)
+		}
+	}
+}
+
 func (s *Server) Close() error {
+	if s.ticker != nil {
+		s.ticker.Stop()
+	}
 	return common.Close(
 		common.PtrOrNil(s.httpServer),
 	)
