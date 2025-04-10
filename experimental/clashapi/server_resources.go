@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -20,20 +21,29 @@ import (
 	"github.com/sagernet/sing/service/filemanager"
 )
 
-func (s *Server) checkAndDownloadExternalUI() {
+func (s *Server) checkAndDownloadExternalUI(update bool) error {
 	if s.externalUI == "" {
-		return
+		return nil
 	}
 	entries, err := os.ReadDir(s.externalUI)
 	if err != nil {
-		os.MkdirAll(s.externalUI, 0o755)
+		filemanager.MkdirAll(s.ctx, s.externalUI, 0o755)
 	}
-	if len(entries) == 0 {
+	if len(entries) != 0 && s.lastUpdated.IsZero() {
+		info, _ := os.Stat(s.externalUI)
+		s.lastUpdated = info.ModTime()
+	}
+	if len(entries) == 0 || update {
+		if len(entries) == 0 && s.lastEtag != "" {
+			s.lastEtag = ""
+		}
 		err = s.downloadExternalUI()
 		if err != nil {
-			s.logger.Error("download external ui error: ", err)
+			s.logger.Error("download external UI error: ", err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (s *Server) downloadExternalUI() error {
@@ -54,7 +64,7 @@ func (s *Server) downloadExternalUI() error {
 		outbound := s.outbound.Default()
 		detour = outbound
 	}
-	s.logger.Info("downloading external ui using outbound/", detour.Type(), "[", detour.Tag(), "]")
+	s.logger.Info("downloading external UI using outbound/", detour.Type(), "[", detour.Tag(), "]")
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:   true,
@@ -68,20 +78,60 @@ func (s *Server) downloadExternalUI() error {
 			},
 		},
 	}
-	defer httpClient.CloseIdleConnections()
-	response, err := httpClient.Get(downloadURL)
+	request, err := http.NewRequest("GET", downloadURL, nil)
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return E.New("download external ui failed: ", response.Status)
+	if s.lastEtag != "" {
+		request.Header.Set("If-None-Match", s.lastEtag)
 	}
+	response, err := httpClient.Do(request.WithContext(s.ctx))
+	if err != nil {
+		return err
+	}
+	switch response.StatusCode {
+	case http.StatusOK:
+	case http.StatusNotModified:
+		s.lastUpdated = time.Now()
+		os.Chtimes(s.externalUI, s.lastUpdated, s.lastUpdated)
+		if s.cacheFile != nil {
+			if savedExternalUI := s.cacheFile.LoadExternalUI("ExternalUI"); savedExternalUI != nil {
+				savedExternalUI.LastUpdated = s.lastUpdated
+				err = s.cacheFile.SaveExternalUI("ExternalUI", savedExternalUI)
+				if err != nil {
+					s.logger.Error("save external UI updated time: ", err)
+					return nil
+				}
+			}
+		}
+		s.logger.Info("update external UI: not modified")
+		return nil
+	default:
+		return E.New("download external UI failed: ", response.Status)
+	}
+	defer response.Body.Close()
+	removeAllInDirectory(s.ctx, s.externalUI)
 	err = s.downloadZIP(response.Body, s.externalUI)
 	if err != nil {
-		removeAllInDirectory(s.externalUI)
+		removeAllInDirectory(s.ctx, s.externalUI)
+		return err
 	}
-	return err
+	eTagHeader := response.Header.Get("Etag")
+	if eTagHeader != "" {
+		s.lastEtag = eTagHeader
+	}
+	s.lastUpdated = time.Now()
+	if s.cacheFile != nil {
+		err = s.cacheFile.SaveExternalUI("ExternalUI", &adapter.SavedBinary{
+			LastEtag:    s.lastEtag,
+			LastUpdated: s.lastUpdated,
+		})
+		if err != nil {
+			s.logger.Error("save external UI cache file: ", err)
+		}
+	}
+	s.logger.Info("updated external UI")
+	return nil
 }
 
 func (s *Server) downloadZIP(body io.Reader, output string) error {
@@ -89,7 +139,7 @@ func (s *Server) downloadZIP(body io.Reader, output string) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tempFile.Name())
+	defer filemanager.Remove(s.ctx, tempFile.Name())
 	_, err = io.Copy(tempFile, body)
 	tempFile.Close()
 	if err != nil {
@@ -113,7 +163,7 @@ func (s *Server) downloadZIP(body io.Reader, output string) error {
 		if len(pathElements) > 1 {
 			saveDirectory = filepath.Join(saveDirectory, filepath.Join(pathElements[:len(pathElements)-1]...))
 		}
-		err = os.MkdirAll(saveDirectory, 0o755)
+		err = filemanager.MkdirAll(s.ctx, saveDirectory, 0o755)
 		if err != nil {
 			return err
 		}
@@ -140,13 +190,13 @@ func downloadZIPEntry(ctx context.Context, zipFile *zip.File, savePath string) e
 	return common.Error(io.Copy(saveFile, reader))
 }
 
-func removeAllInDirectory(directory string) {
+func removeAllInDirectory(ctx context.Context, directory string) {
 	dirEntries, err := os.ReadDir(directory)
 	if err != nil {
 		return
 	}
 	for _, dirEntry := range dirEntries {
-		os.RemoveAll(filepath.Join(directory, dirEntry.Name()))
+		filemanager.RemoveAll(ctx, filepath.Join(directory, dirEntry.Name()))
 	}
 }
 
