@@ -13,6 +13,11 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
+// BoxCloser closes the complete instance, including all scoped components.
+type BoxCloser interface {
+	Close() error
+}
+
 type SimpleLifecycle interface {
 	Start() error
 	Close() error
