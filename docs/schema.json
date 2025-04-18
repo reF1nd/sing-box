@@ -15265,44 +15265,136 @@
           "additionalProperties": false
         },
         {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "remote"
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "remote"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "user_agent": {
+                  "type": "string"
+                },
+                "download_detour": {
+                  "type": "string",
+                  "x-tag-reference": "outbound"
+                },
+                "update_interval": {
+                  "$ref": "#/$defs/Duration"
+                },
+                "exclude": {
+                  "type": "string"
+                },
+                "include": {
+                  "type": "string"
+                },
+                "health_check": {
+                  "$ref": "#/$defs/ProviderHealthCheckOptions"
+                },
+                "override_dialer": {
+                  "$ref": "#/$defs/OverrideDialerOptions"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
             },
-            "tag": {
-              "type": "string"
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "remote"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "user_agent": {
+                  "type": "string"
+                },
+                "download_detour": {
+                  "type": "string",
+                  "x-tag-reference": "outbound"
+                },
+                "update_interval": {
+                  "$ref": "#/$defs/Duration"
+                },
+                "exclude": {
+                  "type": "string"
+                },
+                "include": {
+                  "type": "string"
+                },
+                "health_check": {
+                  "$ref": "#/$defs/ProviderHealthCheckOptions"
+                },
+                "override_dialer": {
+                  "$ref": "#/$defs/OverrideDialerOptions"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "additionalProperties": false
             },
-            "url": {
-              "type": "string"
-            },
-            "user_agent": {
-              "type": "string"
-            },
-            "download_detour": {
-              "type": "string",
-              "x-tag-reference": "outbound"
-            },
-            "update_interval": {
-              "$ref": "#/$defs/Duration"
-            },
-            "exclude": {
-              "type": "string"
-            },
-            "include": {
-              "type": "string"
-            },
-            "health_check": {
-              "$ref": "#/$defs/ProviderHealthCheckOptions"
-            },
-            "override_dialer": {
-              "$ref": "#/$defs/OverrideDialerOptions"
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "remote"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "initial_path": {
+                  "type": "string"
+                },
+                "user_agent": {
+                  "type": "string"
+                },
+                "download_detour": {
+                  "type": "string",
+                  "x-tag-reference": "outbound"
+                },
+                "update_interval": {
+                  "$ref": "#/$defs/Duration"
+                },
+                "exclude": {
+                  "type": "string"
+                },
+                "include": {
+                  "type": "string"
+                },
+                "health_check": {
+                  "$ref": "#/$defs/ProviderHealthCheckOptions"
+                },
+                "override_dialer": {
+                  "$ref": "#/$defs/OverrideDialerOptions"
+                }
+              },
+              "required": [
+                "type",
+                "initial_path"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
+          ]
         }
       ]
     },
