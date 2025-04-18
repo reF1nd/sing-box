@@ -3,7 +3,6 @@ package rule
 import (
 	"bytes"
 	"context"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,9 +17,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/logger"
-	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/common/x/list"
-	"github.com/sagernet/sing/service/filemanager"
 	"go4.org/netipx"
 )
 
@@ -44,24 +41,6 @@ func (s *abstractRuleSet) Name() string {
 
 func (s *abstractRuleSet) String() string {
 	return strings.Join(F.MapToString(s.rules), " ")
-}
-
-func (s *abstractRuleSet) getPath(ctx context.Context, path string) (string, error) {
-	if path == "" {
-		path = s.tag
-		switch s.format {
-		case C.RuleSetFormatSource, "":
-			path += ".json"
-		case C.RuleSetFormatBinary:
-			path += ".srs"
-		}
-	}
-	path = filemanager.BasePath(ctx, path)
-	path, _ = filepath.Abs(path)
-	if rw.IsDir(path) {
-		return "", E.New("rule_set path is a directory: ", path)
-	}
-	return path, nil
 }
 
 func (s *abstractRuleSet) Metadata() adapter.RuleSetMetadata {
