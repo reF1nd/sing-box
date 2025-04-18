@@ -55,6 +55,7 @@ type ProviderLocalOptions struct {
 
 type ProviderRemoteOptions struct {
 	URL            string             `json:"url"`
+	Path           string             `json:"path,omitempty"`
 	UserAgent      string             `json:"user_agent,omitempty"`
 	DownloadDetour string             `json:"download_detour,omitempty"`
 	UpdateInterval badoption.Duration `json:"update_interval,omitempty"`
