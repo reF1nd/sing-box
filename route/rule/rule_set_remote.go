@@ -2,13 +2,16 @@ package rule
 
 import (
 	"context"
+	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/hash"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
@@ -31,6 +34,7 @@ type RemoteRuleSet struct {
 	options        option.RemoteRuleSet
 	updateInterval time.Duration
 	httpClient     *http.Client
+	hash           hash.HashType
 	lastEtag       string
 	cacheFile      adapter.CacheFile
 	pauseManager   pause.Manager
@@ -38,6 +42,11 @@ type RemoteRuleSet struct {
 
 func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag string, options option.RuleSet) (*RemoteRuleSet, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	var path string
+	if options.Path != "" {
+		path = filemanager.BasePath(ctx, strings.ReplaceAll(options.Path, C.RuleSetTagPlaceholder, tag))
+		path, _ = filepath.Abs(path)
+	}
 	var updateInterval time.Duration
 	if options.RemoteOptions.UpdateInterval > 0 {
 		updateInterval = time.Duration(options.RemoteOptions.UpdateInterval)
@@ -49,7 +58,7 @@ func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag stri
 			ctx:    ctx,
 			logger: logger,
 			tag:    tag,
-			path:   strings.ReplaceAll(options.Path, C.RuleSetTagPlaceholder, tag),
+			path:   path,
 			format: options.Format,
 		},
 		outbound:       service.FromContext[adapter.OutboundManager](ctx),
@@ -73,12 +82,7 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 	}
 	startContext.Register(transport)
 	s.httpClient = &http.Client{Transport: transport}
-	path, err := s.getPath(ctx, s.path)
-	if err != nil {
-		return err
-	}
-	s.path = path
-	if err = s.loadFromFile(path); err != nil {
+	if err = s.loadCacheFile(); err != nil {
 		s.logger.Warn(E.Cause(err, "restore cached rule-set, will refetch"))
 	}
 	if s.lastUpdated.IsZero() {
@@ -87,28 +91,6 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 			return E.Cause(err, "initial rule-set: ", s.tag)
 		}
 	}
-	return nil
-}
-
-func (s *RemoteRuleSet) loadFromFile(path string) error {
-	file, err := filemanager.Open(s.ctx, path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return err
-	}
-	err = s.loadBytes(content, s)
-	if err != nil {
-		return err
-	}
-	info, err := file.Stat()
-	if err != nil {
-		return err
-	}
-	s.lastUpdated = info.ModTime()
 	return nil
 }
 
@@ -143,6 +125,14 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
 	case http.StatusOK:
 	case http.StatusNotModified:
 		s.lastUpdated = time.Now()
+		if s.cacheFile != nil {
+			if savedRuleSet := s.cacheFile.LoadRuleSet(s.tag); savedRuleSet != nil {
+				savedRuleSet.LastUpdated = s.lastUpdated
+				if err = s.cacheFile.SaveRuleSet(s.tag, savedRuleSet); err != nil {
+					s.logger.Error("save rule-set updated time: ", err)
+				}
+			}
+		}
 		s.logger.InfoContext(ctx, "update rule-set ", s.tag, ": not modified")
 		return nil
 	default:
@@ -161,14 +151,24 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
 		s.lastEtag = eTagHeader
 	}
 	s.lastUpdated = time.Now()
-	dir := filepath.Dir(s.path)
-	err = filemanager.MkdirAll(ctx, dir, 0o755)
-	if err != nil {
-		return err
+	if s.path != "" {
+		if err = s.saveCacheFile(content); err != nil {
+			return E.Cause(err, "save rule-set cache file")
+		}
 	}
-	err = filemanager.WriteFile(ctx, s.path, content, 0o666)
-	if err != nil {
-		return err
+	if s.cacheFile != nil {
+		savedRuleSet := &adapter.SavedBinary{
+			LastUpdated: s.lastUpdated,
+			LastEtag:    s.lastEtag,
+		}
+		if s.path != "" {
+			savedRuleSet.Hash = s.hash
+		} else {
+			savedRuleSet.Content = content
+		}
+		if err = s.cacheFile.SaveRuleSet(s.tag, savedRuleSet); err != nil {
+			s.logger.Error("save rule-set cache: ", err)
+		}
 	}
 	s.logger.InfoContext(ctx, "updated rule-set ", s.tag)
 	return nil
@@ -196,6 +196,92 @@ func (s *RemoteRuleSet) resolveTransport() (adapter.HTTPTransport, error) {
 		return nil, E.New("default http client transport is not initialized")
 	}
 	return defaultTransport, nil
+}
+
+func (s *RemoteRuleSet) loadCacheFile() error {
+	var content []byte
+	var lastUpdated time.Time
+	var lastEtag string
+	var savedSet *adapter.SavedBinary
+	if s.cacheFile != nil {
+		if savedSet = s.cacheFile.LoadRuleSet(s.tag); savedSet != nil {
+			s.hash = savedSet.Hash
+		}
+	}
+	if s.path != "" {
+		exists, err := pathExists(s.ctx, s.path)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return nil
+		}
+		file, err := filemanager.Open(s.ctx, s.path)
+		if err != nil {
+			return err
+		}
+		content, err = io.ReadAll(file)
+		if err != nil {
+			file.Close()
+			return err
+		}
+		info, err := file.Stat()
+		closeErr := file.Close()
+		if err != nil {
+			return err
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if savedSet != nil {
+			if !s.hash.Equal(hash.MakeHash(content)) {
+				return E.New("load rule-set cache file failed: validation failed")
+			}
+			lastUpdated = savedSet.LastUpdated
+			lastEtag = savedSet.LastEtag
+		} else {
+			lastUpdated = info.ModTime()
+		}
+	} else if savedSet != nil && len(savedSet.Content) > 0 {
+		content = savedSet.Content
+		lastUpdated = savedSet.LastUpdated
+		lastEtag = savedSet.LastEtag
+	} else {
+		return nil
+	}
+	if err := s.loadBytes(content, s); err != nil {
+		return err
+	}
+	s.lastUpdated, s.lastEtag = lastUpdated, lastEtag
+	return nil
+}
+
+func pathExists(ctx context.Context, path string) (bool, error) {
+	info, err := filemanager.Stat(ctx, path)
+	if err == nil {
+		if info.IsDir() {
+			return false, E.New("rule_set path is a directory: ", path)
+		}
+		return true, nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+}
+
+func (s *RemoteRuleSet) saveCacheFile(content []byte) error {
+	dir := filepath.Dir(s.path)
+	err := filemanager.MkdirAll(s.ctx, dir, 0o755)
+	if err != nil {
+		return err
+	}
+	err = filemanager.WriteFile(s.ctx, s.path, content, 0o666)
+	if err != nil {
+		return err
+	}
+	s.hash = hash.MakeHash(content)
+	return nil
 }
 
 func (s *RemoteRuleSet) Close() error {
