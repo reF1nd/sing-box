@@ -2,7 +2,10 @@ package rule
 
 import (
 	"context"
+	"errors"
 	"io"
+	"io/fs"
+	"path/filepath"
 	"strings"
 
 	"github.com/sagernet/fswatch"
@@ -97,6 +100,28 @@ func (s *LocalRuleSet) reloadFile(path string) error {
 	}
 	s.lastUpdated = info.ModTime()
 	return nil
+}
+
+func (s *LocalRuleSet) getPath(ctx context.Context, path string) (string, error) {
+	if path == "" {
+		path = s.tag
+		switch s.format {
+		case C.RuleSetFormatSource, "":
+			path += ".json"
+		case C.RuleSetFormatBinary:
+			path += ".srs"
+		}
+	}
+	path = filemanager.BasePath(ctx, path)
+	path, _ = filepath.Abs(path)
+	info, err := filemanager.Stat(ctx, path)
+	if err == nil && info.IsDir() {
+		return "", E.New("rule_set path is a directory: ", path)
+	}
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return "", E.Cause(err, "check rule-set path")
+	}
+	return path, nil
 }
 
 func (s *LocalRuleSet) Close() error {
