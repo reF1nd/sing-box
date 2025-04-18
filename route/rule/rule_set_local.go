@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/sagernet/fswatch"
 	"github.com/sagernet/sing-box/adapter"
@@ -16,7 +17,9 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/common/x/list"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 var _ adapter.RuleSet = (*LocalRuleSet)(nil)
@@ -136,6 +139,24 @@ func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 		callback(s)
 	}
 	return nil
+}
+
+func (s *LocalRuleSet) getPath(ctx context.Context, path string) (string, error) {
+	if path == "" {
+		path = s.tag
+		switch s.format {
+		case C.RuleSetFormatSource, "":
+			path += ".json"
+		case C.RuleSetFormatBinary:
+			path += ".srs"
+		}
+	}
+	path = filemanager.BasePath(ctx, path)
+	path, _ = filepath.Abs(path)
+	if rw.IsDir(path) {
+		return "", E.New("rule_set path is a directory: ", path)
+	}
+	return path, nil
 }
 
 func (s *LocalRuleSet) PostStart() error {
