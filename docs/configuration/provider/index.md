@@ -40,6 +40,7 @@ List of subscription providers.
             "timeout": "",
           },
           "url": "",
+          "path": "",
           "exclude": "",
           "include": "",
           "user_agent": "",
@@ -113,6 +114,22 @@ Local file path.
 
 URL to the provider.
 
+#### path
+
+Path used to store the downloaded provider.
+
+The cache metadata is stored in `cache.db`.
+
+Conflicts with `initial_path`.
+
+#### initial_path
+
+Path to the initial provider content.
+
+It is loaded only when provider caching in `cache.db` is enabled and no cached provider is available. It is not used as the persistent cache path.
+
+Conflicts with `path`.
+
 #### exclude
 
 Exclude regular expression to filter nodes.
@@ -133,4 +150,4 @@ Default outbound will be used if empty.
 
 #### update_interval
 
-Update interval. The minimum value is `1m`, the default value is `24h`.
+Update interval. The minimum value is `1h`, the default value is `24h`.
