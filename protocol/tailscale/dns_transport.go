@@ -194,12 +194,12 @@ func (t *DNSTransport) createResolver(directDialer func() N.Dialer, resolver *dn
 				Enabled: true,
 				ALPN:    []string{http2.NextProtoTLS, "http/1.1"},
 			}))
-			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, tlsConfig), nil
+			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.MethodPost, http.Header{}, serverAddr, tlsConfig), nil
 		case "http":
 			if serverAddr.Port == 0 {
 				serverAddr.Port = 80
 			}
-			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, nil), nil
+			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.MethodPost, http.Header{}, serverAddr, nil), nil
 		}
 	}
 	serverAddr := M.ParseSocksaddr(resolver.Addr)
