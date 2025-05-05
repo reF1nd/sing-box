@@ -56,3 +56,22 @@ func TestDNSServerOptionsRejectsLegacyFormats(t *testing.T) {
 		require.EqualError(t, err, legacyDNSServerRemovedMessage)
 	}
 }
+
+func TestHTTPSMethodSerialization(t *testing.T) {
+	ctx := context.Background()
+	for _, method := range []string{"", "POST", "GET"} {
+		options := RemoteHTTPSDNSServerOptions{Method: method}
+		content, err := json.MarshalContext(ctx, &options)
+		require.NoError(t, err)
+		require.Equal(t, method, options.Method, "serialization must not change runtime configuration")
+		var decoded RemoteHTTPSDNSServerOptions
+		require.NoError(t, json.UnmarshalContext(ctx, content, &decoded))
+		expected := method
+		if expected == "" {
+			expected = "POST"
+		}
+		require.Equal(t, expected, decoded.Method)
+	}
+	var invalid RemoteHTTPSDNSServerOptions
+	require.Error(t, json.UnmarshalContext(ctx, []byte(`{"method":"PUT"}`), &invalid))
+}
