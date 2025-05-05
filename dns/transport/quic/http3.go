@@ -3,9 +3,11 @@ package quic
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/sagernet/quic-go"
@@ -41,6 +43,7 @@ type HTTP3Transport struct {
 	logger          logger.ContextLogger
 	dialer          N.Dialer
 	destination     *url.URL
+	method          string
 	headers         http.Header
 	serverAddr      M.Socksaddr
 	tlsConfig       tls.Config
@@ -95,9 +98,20 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	if path == "" {
 		path = "/dns-query"
 	}
-	err = sHTTP.URLSetPath(&destinationURL, path)
+	pathPart, rawQuery, hasQuery := strings.Cut(path, "?")
+	err = sHTTP.URLSetPath(&destinationURL, pathPart)
 	if err != nil {
 		return nil, err
+	}
+	if hasQuery {
+		if strings.EqualFold(options.Method, http.MethodGet) {
+			if _, err = url.ParseQuery(rawQuery); err != nil {
+				return nil, E.Cause(err, "parse path query")
+			}
+		} else if _, err = url.QueryUnescape(rawQuery); err != nil {
+			return nil, E.Cause(err, "parse path query")
+		}
+		destinationURL.RawQuery = rawQuery
 	}
 	serverAddr := options.DNSServerAddressOptions.Build()
 	if serverAddr.Port == 0 {
@@ -106,11 +120,15 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	if !serverAddr.IsValid() {
 		return nil, E.New("invalid server address: ", serverAddr)
 	}
+	if options.Method == "" {
+		options.Method = http.MethodPost
+	}
 	t := &HTTP3Transport{
 		TransportAdapter: dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeHTTP3, tag, options.RemoteDNSServerOptions),
 		logger:           logger,
 		dialer:           transportDialer,
 		destination:      &destinationURL,
+		method:           options.Method,
 		headers:          headers,
 		serverAddr:       serverAddr,
 		tlsConfig:        tlsConfig,
@@ -174,13 +192,26 @@ func (t *HTTP3Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 		requestBuffer.Release()
 		return nil, err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, t.destination.String(), bytes.NewReader(rawMessage))
+	destination := *t.destination
+	var request *http.Request
+	var body io.Reader
+	switch t.method {
+	case http.MethodGet:
+		query := destination.Query()
+		query.Set("dns", base64.RawURLEncoding.EncodeToString(rawMessage))
+		destination.RawQuery = query.Encode()
+	case http.MethodPost:
+		body = bytes.NewReader(rawMessage)
+	}
+	request, err = http.NewRequestWithContext(ctx, t.method, destination.String(), body)
 	if err != nil {
 		requestBuffer.Release()
 		return nil, err
 	}
 	request.Header = t.headers.Clone()
-	request.Header.Set("Content-Type", transport.MimeType)
+	if t.method == http.MethodPost {
+		request.Header.Set("Content-Type", transport.MimeType)
+	}
 	request.Header.Set("Accept", transport.MimeType)
 	t.transportAccess.Lock()
 	currentTransport := t.transport
