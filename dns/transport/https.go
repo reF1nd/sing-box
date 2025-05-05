@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"net"
@@ -45,6 +46,7 @@ type HTTPSTransport struct {
 	logger           logger.ContextLogger
 	dialer           N.Dialer
 	destination      *url.URL
+	method           string
 	headers          http.Header
 	serverAddr       M.Socksaddr
 	fallback         *atomic.Bool
@@ -108,6 +110,7 @@ func NewHTTPS(ctx context.Context, logger log.ContextLogger, tag string, options
 		logger,
 		transportDialer,
 		&destinationURL,
+		options.Method,
 		headers,
 		serverAddr,
 		tlsConfig,
@@ -119,10 +122,14 @@ func NewHTTPSRaw(
 	logger log.ContextLogger,
 	dialer N.Dialer,
 	destination *url.URL,
+	method string,
 	headers http.Header,
 	serverAddr M.Socksaddr,
 	tlsConfig tls.Config,
 ) *HTTPSTransport {
+	if method == "" {
+		method = http.MethodPost
+	}
 	if tlsConfig != nil {
 		dialer = tls.NewDialer(dialer, tlsConfig)
 	}
@@ -135,6 +142,7 @@ func NewHTTPSRaw(
 		TransportAdapter: adapter,
 		logger:           logger,
 		dialer:           dialer,
+		method:           method,
 		destination:      destination,
 		headers:          headers,
 		serverAddr:       serverAddr,
@@ -201,13 +209,26 @@ func (t *HTTPSTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 		requestBuffer.Release()
 		return nil, err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, t.destination.String(), bytes.NewReader(rawMessage))
+	destination := *t.destination
+	var request *http.Request
+	var body io.Reader
+	switch t.method {
+	case http.MethodGet:
+		query := destination.Query()
+		query.Set("dns", base64.RawURLEncoding.EncodeToString(rawMessage))
+		destination.RawQuery = query.Encode()
+	case http.MethodPost:
+		body = bytes.NewReader(rawMessage)
+	}
+	request, err = http.NewRequestWithContext(ctx, t.method, destination.String(), body)
 	if err != nil {
 		requestBuffer.Release()
 		return nil, err
 	}
 	request.Header = t.headers.Clone()
-	request.Header.Set("Content-Type", MimeType)
+	if t.method == http.MethodPost {
+		request.Header.Set("Content-Type", MimeType)
+	}
 	request.Header.Set("Accept", MimeType)
 	t.transportAccess.Lock()
 	currentTransport := t.transport
