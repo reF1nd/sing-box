@@ -224,7 +224,7 @@ func (t *DNSTransport) createResolver(resolverScope *adapter.Scope, directDialer
 			if err != nil {
 				return nil, E.Cause(err, "create TLS config for resolver ", resolver.Addr)
 			}
-			httpsTransport := transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, tlsConfig)
+			httpsTransport := transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.MethodPost, http.Header{}, serverAddr, tlsConfig)
 			err = httpsTransport.Start(adapter.StartStateStart, resolverScope)
 			if err != nil {
 				return nil, err
@@ -234,7 +234,7 @@ func (t *DNSTransport) createResolver(resolverScope *adapter.Scope, directDialer
 			if serverAddr.Port == 0 {
 				serverAddr.Port = 80
 			}
-			httpTransport := transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, nil)
+			httpTransport := transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.MethodPost, http.Header{}, serverAddr, nil)
 			err := httpTransport.Start(adapter.StartStateStart, resolverScope)
 			if err != nil {
 				return nil, err
