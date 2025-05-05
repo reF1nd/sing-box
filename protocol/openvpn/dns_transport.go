@@ -243,7 +243,7 @@ func (t *DNSTransport) createResolver(server ovpntransport.DNSServer, address ne
 		host = "[" + host + "]"
 	}
 	destination := &url.URL{Scheme: "https", Host: host, Path: "/dns-query"}
-	return dnsTransport.NewHTTPSRaw(t.TransportAdapter, t.logger, t.dialer, destination, http.Header{}, M.SocksaddrFrom(address.Addr(), port), tlsConfig), nil
+	return dnsTransport.NewHTTPSRaw(t.TransportAdapter, t.logger, t.dialer, destination, http.MethodPost, http.Header{}, M.SocksaddrFrom(address.Addr(), port), tlsConfig), nil
 }
 
 func (t *DNSTransport) Reset() {
