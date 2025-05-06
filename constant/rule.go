@@ -46,3 +46,13 @@ const (
 	RuleActionRejectMethodDrop    = "drop"
 	RuleActionRejectMethodReply   = "reply"
 )
+
+type DomainMatchStrategy = uint8
+
+const (
+	DomainMatchStrategyAsIS DomainMatchStrategy = iota
+	DomainMatchStrategyPreferFQDN
+	DomainMatchStrategyPreferSniffHost
+	DomainMatchStrategyFQDNOnly
+	DomainMatchStrategySniffHostOnly
+)
