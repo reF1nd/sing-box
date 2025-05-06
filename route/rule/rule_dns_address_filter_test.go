@@ -26,6 +26,10 @@ func (r *addressFilterRouter) RuleSet(tag string) (adapter.RuleSet, bool) {
 	return ruleSet, loaded
 }
 
+func (*addressFilterRouter) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
+	return C.DomainMatchStrategyAsIS
+}
+
 func addressFilterContext(t *testing.T, ruleSetConfigs map[string]string) context.Context {
 	t.Helper()
 	router := &addressFilterRouter{ruleSets: make(map[string]adapter.RuleSet)}
