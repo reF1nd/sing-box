@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-tun"
+	C "github.com/sagernet/sing-box/constant"
+	tun "github.com/sagernet/sing-tun"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
 
@@ -50,6 +51,9 @@ func (r *ruleSetItemTestRouter) NeedFindNeighbor() bool                     { re
 func (r *ruleSetItemTestRouter) NeighborResolver() adapter.NeighborResolver { return nil }
 func (r *ruleSetItemTestRouter) AppendTracker(adapter.ConnectionTracker)    {}
 func (r *ruleSetItemTestRouter) ResetNetwork()                              {}
+func (r *ruleSetItemTestRouter) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
+	return 0
+}
 
 type countingRuleSet struct {
 	name string
