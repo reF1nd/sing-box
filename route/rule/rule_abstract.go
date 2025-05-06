@@ -19,6 +19,7 @@ type abstractDefaultRule struct {
 	destinationPortItems    []RuleItem
 	allItems                []RuleItem
 	ruleSetItem             RuleItem
+	domainMatchStrategy     C.DomainMatchStrategy
 	invert                  bool
 	action                  adapter.RuleAction
 }
@@ -151,10 +152,11 @@ func (r *abstractDefaultRule) String() string {
 }
 
 type abstractLogicalRule struct {
-	rules  []adapter.HeadlessRule
-	mode   string
-	invert bool
-	action adapter.RuleAction
+	rules               []adapter.HeadlessRule
+	mode                string
+	domainMatchStrategy C.DomainMatchStrategy
+	invert              bool
+	action              adapter.RuleAction
 }
 
 func (r *abstractLogicalRule) Type() string {

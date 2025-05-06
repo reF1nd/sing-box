@@ -28,6 +28,7 @@ type Router interface {
 	Rules() []Rule
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
+	DefaultDomainMatchStrategy() C.DomainMatchStrategy
 }
 
 type ConnectionTracker interface {

@@ -18,6 +18,7 @@ type RouteOptions struct {
 	DefaultNetworkType         badoption.Listable[InterfaceType] `json:"default_network_type,omitempty"`
 	DefaultFallbackNetworkType badoption.Listable[InterfaceType] `json:"default_fallback_network_type,omitempty"`
 	DefaultFallbackDelay       badoption.Duration                `json:"default_fallback_delay,omitempty"`
+	DefaultDomainMatchStrategy DomainMatchStrategy               `json:"default_domain_match_strategy,omitempty"`
 }
 
 type GeoIPOptions struct {
