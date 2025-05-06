@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/service"
@@ -13,15 +14,17 @@ import (
 var _ RuleItem = (*PreferredByItem)(nil)
 
 type PreferredByItem struct {
-	ctx          context.Context
-	outboundTags []string
-	outbounds    []adapter.OutboundWithPreferredRoutes
+	ctx                 context.Context
+	outboundTags        []string
+	outbounds           []adapter.OutboundWithPreferredRoutes
+	domainMatchStrategy C.DomainMatchStrategy
 }
 
-func NewPreferredByItem(ctx context.Context, outboundTags []string) *PreferredByItem {
+func NewPreferredByItem(ctx context.Context, outboundTags []string, domainMatchStrategy C.DomainMatchStrategy) *PreferredByItem {
 	return &PreferredByItem{
-		ctx:          ctx,
-		outboundTags: outboundTags,
+		ctx:                 ctx,
+		outboundTags:        outboundTags,
+		domainMatchStrategy: domainMatchStrategy,
 	}
 }
 
@@ -43,12 +46,31 @@ func (r *PreferredByItem) Start() error {
 
 func (r *PreferredByItem) Match(metadata *adapter.InboundContext) bool {
 	var domainHost string
-	if metadata.SniffHost != "" {
-		domainHost = metadata.SniffHost
-	} else if metadata.Destination.IsFqdn() {
-		domainHost = metadata.Destination.Fqdn
-	} else {
-		domainHost = metadata.Domain
+	switch r.domainMatchStrategy {
+	case C.DomainMatchStrategyPreferFQDN:
+		if metadata.Destination.IsFqdn() {
+			domainHost = metadata.Destination.Fqdn
+		} else if metadata.SniffHost != "" {
+			domainHost = metadata.SniffHost
+		} else {
+			domainHost = metadata.Domain
+		}
+	case C.DomainMatchStrategyFQDNOnly:
+		if metadata.Destination.IsFqdn() {
+			domainHost = metadata.Destination.Fqdn
+		}
+	case C.DomainMatchStrategySniffHostOnly:
+		if metadata.SniffHost != "" {
+			domainHost = metadata.SniffHost
+		}
+	default:
+		if metadata.SniffHost != "" {
+			domainHost = metadata.SniffHost
+		} else if metadata.Destination.IsFqdn() {
+			domainHost = metadata.Destination.Fqdn
+		} else {
+			domainHost = metadata.Domain
+		}
 	}
 	if domainHost != "" {
 		for _, outbound := range r.outbounds {
