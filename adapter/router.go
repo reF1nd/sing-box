@@ -5,7 +5,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/sagernet/sing-tun"
+	C "github.com/sagernet/sing-box/constant"
+	tun "github.com/sagernet/sing-tun"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
 
@@ -24,6 +25,7 @@ type Router interface {
 	NeighborResolver() NeighborResolver
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
+	DefaultDomainMatchStrategy() C.DomainMatchStrategy
 }
 
 type ConnectionTracker interface {
