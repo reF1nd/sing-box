@@ -14,7 +14,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	rulepkg "github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
 	N "github.com/sagernet/sing/common/network"
@@ -118,6 +118,9 @@ func (r *fakeRouter) NeedFindNeighbor() bool                     { return false 
 func (r *fakeRouter) NeighborResolver() adapter.NeighborResolver { return nil }
 func (r *fakeRouter) AppendTracker(adapter.ConnectionTracker)    {}
 func (r *fakeRouter) ResetNetwork()                              {}
+func (r *fakeRouter) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
+	return 0
+}
 
 type fakeRuleSet struct {
 	access                   sync.Mutex

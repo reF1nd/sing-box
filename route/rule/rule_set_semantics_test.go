@@ -1186,21 +1186,21 @@ func addSourceAddressItem(t *testing.T, rule *abstractDefaultRule, cidrs []strin
 
 func addDestinationAddressItem(t *testing.T, rule *abstractDefaultRule, domains []string, suffixes []string) {
 	t.Helper()
-	item, err := NewDomainItem(domains, suffixes)
+	item, err := NewDomainItem(domains, suffixes, C.DomainMatchStrategyAsIS)
 	require.NoError(t, err)
 	rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 	rule.allItems = append(rule.allItems, item)
 }
 
 func addDestinationKeywordItem(rule *abstractDefaultRule, keywords []string) {
-	item := NewDomainKeywordItem(keywords)
+	item := NewDomainKeywordItem(keywords, C.DomainMatchStrategyAsIS)
 	rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 	rule.allItems = append(rule.allItems, item)
 }
 
 func addDestinationRegexItem(t *testing.T, rule *abstractDefaultRule, regexes []string) {
 	t.Helper()
-	item, err := NewDomainRegexItem(regexes)
+	item, err := NewDomainRegexItem(regexes, C.DomainMatchStrategyAsIS)
 	require.NoError(t, err)
 	rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 	rule.allItems = append(rule.allItems, item)
