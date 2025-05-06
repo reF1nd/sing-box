@@ -102,6 +102,7 @@ type RawDefaultRule struct {
 	WIFIBSSID                badoption.Listable[string]        `json:"wifi_bssid,omitempty"`
 	RuleSet                  badoption.Listable[string]        `json:"rule_set,omitempty"`
 	RuleSetIPCIDRMatchSource bool                              `json:"rule_set_ip_cidr_match_source,omitempty"`
+	DomainMatchStrategy      DomainMatchStrategy               `json:"domain_match_strategy,omitempty"`
 	Invert                   bool                              `json:"invert,omitempty"`
 
 	// Deprecated: renamed to rule_set_ip_cidr_match_source
@@ -132,9 +133,10 @@ func (r DefaultRule) IsValid() bool {
 }
 
 type RawLogicalRule struct {
-	Mode   string `json:"mode"`
-	Rules  []Rule `json:"rules,omitempty"`
-	Invert bool   `json:"invert,omitempty"`
+	Mode                string              `json:"mode"`
+	Rules               []Rule              `json:"rules,omitempty"`
+	DomainMatchStrategy DomainMatchStrategy `json:"domain_match_strategy,omitempty"`
+	Invert              bool                `json:"invert,omitempty"`
 }
 
 type LogicalRule struct {
