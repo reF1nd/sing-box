@@ -60,12 +60,16 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 	}
 	rule := &DefaultRule{
 		abstractDefaultRule{
-			invert: options.Invert,
-			action: action,
+			domainMatchStrategy: C.DomainMatchStrategy(options.DomainMatchStrategy),
+			invert:              options.Invert,
+			action:              action,
 		},
 	}
 	router := service.FromContext[adapter.Router](ctx)
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
+	if rule.domainMatchStrategy == C.DomainMatchStrategyAsIS {
+		rule.domainMatchStrategy = router.DefaultDomainMatchStrategy()
+	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
 		rule.items = append(rule.items, item)
@@ -102,7 +106,7 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.Domain) > 0 || len(options.DomainSuffix) > 0 {
-		item, err := NewDomainItem(options.Domain, options.DomainSuffix)
+		item, err := NewDomainItem(options.Domain, options.DomainSuffix, rule.domainMatchStrategy)
 		if err != nil {
 			return nil, err
 		}
@@ -110,12 +114,12 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.DomainKeyword) > 0 {
-		item := NewDomainKeywordItem(options.DomainKeyword)
+		item := NewDomainKeywordItem(options.DomainKeyword, rule.domainMatchStrategy)
 		rule.destinationAddressItems = append(rule.destinationAddressItems, item)
 		rule.allItems = append(rule.allItems, item)
 	}
 	if len(options.DomainRegex) > 0 {
-		item, err := NewDomainRegexItem(options.DomainRegex)
+		item, err := NewDomainRegexItem(options.DomainRegex, rule.domainMatchStrategy)
 		if err != nil {
 			return nil, E.Cause(err, "domain_regex")
 		}
@@ -276,10 +280,15 @@ func NewLogicalRule(ctx context.Context, logger log.ContextLogger, options optio
 	}
 	rule := &LogicalRule{
 		abstractLogicalRule{
-			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
-			invert: options.Invert,
-			action: action,
+			rules:               make([]adapter.HeadlessRule, len(options.Rules)),
+			domainMatchStrategy: C.DomainMatchStrategy(options.DomainMatchStrategy),
+			invert:              options.Invert,
+			action:              action,
 		},
+	}
+	router := service.FromContext[adapter.Router](ctx)
+	if rule.domainMatchStrategy == C.DomainMatchStrategyAsIS {
+		rule.domainMatchStrategy = router.DefaultDomainMatchStrategy()
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
