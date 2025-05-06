@@ -203,6 +203,7 @@ type DefaultHeadlessRule struct {
 	NetworkIsConstrained bool                              `json:"network_is_constrained,omitempty"`
 	WIFISSID             badoption.Listable[string]        `json:"wifi_ssid,omitempty"`
 	WIFIBSSID            badoption.Listable[string]        `json:"wifi_bssid,omitempty"`
+	DomainMatchStrategy  DomainMatchStrategy               `json:"domain_match_strategy,omitempty"`
 	Invert               bool                              `json:"invert,omitempty"`
 
 	DomainMatcher *domain.Matcher `json:"-"`
@@ -220,9 +221,10 @@ func (r DefaultHeadlessRule) IsValid() bool {
 }
 
 type LogicalHeadlessRule struct {
-	Mode   string         `json:"mode"`
-	Rules  []HeadlessRule `json:"rules,omitempty"`
-	Invert bool           `json:"invert,omitempty"`
+	Mode                string              `json:"mode"`
+	Rules               []HeadlessRule      `json:"rules,omitempty"`
+	DomainMatchStrategy DomainMatchStrategy `json:"domain_match_strategy,omitempty"`
+	Invert              bool                `json:"invert,omitempty"`
 }
 
 func (r LogicalHeadlessRule) IsValid() bool {
