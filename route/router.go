@@ -22,46 +22,51 @@ import (
 var _ adapter.Router = (*Router)(nil)
 
 type Router struct {
-	ctx               context.Context
-	logger            log.ContextLogger
-	inbound           adapter.InboundManager
-	outbound          adapter.OutboundManager
-	dns               adapter.DNSRouter
-	dnsTransport      adapter.DNSTransportManager
-	connection        adapter.ConnectionManager
-	network           adapter.NetworkManager
-	rules             []adapter.Rule
-	needFindProcess   bool
-	ruleSets          []adapter.RuleSet
-	ruleSetMap        map[string]adapter.RuleSet
-	processSearcher   process.Searcher
-	pauseManager      pause.Manager
-	trackers          []adapter.ConnectionTracker
-	platformInterface platform.Interface
-	needWIFIState     bool
-	started           bool
+	ctx                        context.Context
+	logger                     log.ContextLogger
+	inbound                    adapter.InboundManager
+	outbound                   adapter.OutboundManager
+	dns                        adapter.DNSRouter
+	dnsTransport               adapter.DNSTransportManager
+	connection                 adapter.ConnectionManager
+	network                    adapter.NetworkManager
+	rules                      []adapter.Rule
+	needFindProcess            bool
+	ruleSets                   []adapter.RuleSet
+	ruleSetMap                 map[string]adapter.RuleSet
+	processSearcher            process.Searcher
+	pauseManager               pause.Manager
+	trackers                   []adapter.ConnectionTracker
+	platformInterface          platform.Interface
+	needWIFIState              bool
+	started                    bool
+	defaultDomainMatchStrategy C.DomainMatchStrategy
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions) *Router {
 	return &Router{
-		ctx:               ctx,
-		logger:            logFactory.NewLogger("router"),
-		inbound:           service.FromContext[adapter.InboundManager](ctx),
-		outbound:          service.FromContext[adapter.OutboundManager](ctx),
-		dns:               service.FromContext[adapter.DNSRouter](ctx),
-		dnsTransport:      service.FromContext[adapter.DNSTransportManager](ctx),
-		connection:        service.FromContext[adapter.ConnectionManager](ctx),
-		network:           service.FromContext[adapter.NetworkManager](ctx),
-		rules:             make([]adapter.Rule, 0, len(options.Rules)),
-		ruleSetMap:        make(map[string]adapter.RuleSet),
-		needFindProcess:   hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
-		pauseManager:      service.FromContext[pause.Manager](ctx),
-		platformInterface: service.FromContext[platform.Interface](ctx),
-		needWIFIState:     hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
+		ctx:                        ctx,
+		logger:                     logFactory.NewLogger("router"),
+		inbound:                    service.FromContext[adapter.InboundManager](ctx),
+		outbound:                   service.FromContext[adapter.OutboundManager](ctx),
+		dns:                        service.FromContext[adapter.DNSRouter](ctx),
+		dnsTransport:               service.FromContext[adapter.DNSTransportManager](ctx),
+		connection:                 service.FromContext[adapter.ConnectionManager](ctx),
+		network:                    service.FromContext[adapter.NetworkManager](ctx),
+		rules:                      make([]adapter.Rule, 0, len(options.Rules)),
+		ruleSetMap:                 make(map[string]adapter.RuleSet),
+		needFindProcess:            hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
+		pauseManager:               service.FromContext[pause.Manager](ctx),
+		platformInterface:          service.FromContext[platform.Interface](ctx),
+		needWIFIState:              hasRule(options.Rules, isWIFIRule) || hasDNSRule(dnsOptions.Rules, isWIFIDNSRule),
+		defaultDomainMatchStrategy: C.DomainMatchStrategy(options.DefaultDomainMatchStrategy),
 	}
 }
 
 func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) error {
+	if r.defaultDomainMatchStrategy == C.DomainMatchStrategyFQDNOnly || r.defaultDomainMatchStrategy == C.DomainMatchStrategySniffHostOnly {
+		return E.New("default_domain_match_strategy cannot be fqdn_only or sniffhost_only")
+	}
 	for i, options := range rules {
 		rule, err := R.NewRule(r.ctx, r.logger, options, false)
 		if err != nil {
@@ -210,4 +215,8 @@ func (r *Router) AppendTracker(tracker adapter.ConnectionTracker) {
 func (r *Router) ResetNetwork() {
 	r.network.ResetNetwork()
 	r.dns.ResetNetwork()
+}
+
+func (r *Router) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
+	return r.defaultDomainMatchStrategy
 }
