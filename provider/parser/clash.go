@@ -201,6 +201,29 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 			}
 			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
 			outbound.Options = options
+		case "anytls":
+			anytlsOption := &AnyTLSOption{}
+			err = decoder.Decode(proxyMapping, anytlsOption)
+			if err != nil {
+				return nil, E.Cause(err, "decode anytls option", i)
+			}
+			outbound.Type = C.TypeAnyTLS
+			options := &option.AnyTLSOutboundOptions{
+				Password:                 anytlsOption.Password,
+				IdleSessionCheckInterval: badoption.Duration(anytlsOption.IdleSessionCheckInterval),
+				IdleSessionTimeout:       badoption.Duration(anytlsOption.IdleSessionTimeout),
+				MinIdleSession:           anytlsOption.MinIdleSession,
+			}
+			options.TLS = &option.OutboundTLSOptions{
+				Enabled:    true,
+				ServerName: anytlsOption.SNI,
+				Insecure:   anytlsOption.SkipCertVerify,
+				ALPN:       anytlsOption.ALPN,
+				UTLS:       clashClientFingerprint(anytlsOption.ClientFingerprint),
+				ECH:        clashECHOptions(anytlsOption.ECHOpts),
+			}
+			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
+			outbound.Options = options
 		case "hysteria":
 			hysteriaOption := &HysteriaOption{}
 			err = decoder.Decode(proxyMapping, hysteriaOption)
@@ -476,6 +499,21 @@ type TrojanOption struct {
 	GrpcOpts          GrpcOptions     `proxy:"grpc-opts,omitempty"`
 	WSOpts            WSOptions       `proxy:"ws-opts,omitempty"`
 	ClientFingerprint string          `proxy:"client-fingerprint,omitempty"`
+}
+
+type AnyTLSOption struct {
+	Name                     string     `proxy:"name"`
+	Server                   string     `proxy:"server"`
+	Port                     int        `proxy:"port"`
+	Password                 string     `proxy:"password"`
+	ALPN                     []string   `proxy:"alpn,omitempty"`
+	SNI                      string     `proxy:"sni,omitempty"`
+	ECHOpts                  ECHOptions `proxy:"ech-opts,omitempty"`
+	ClientFingerprint        string     `proxy:"client-fingerprint,omitempty"`
+	SkipCertVerify           bool       `proxy:"skip-cert-verify,omitempty"`
+	IdleSessionCheckInterval int        `proxy:"idle-session-check-interval,omitempty"`
+	IdleSessionTimeout       int        `proxy:"idle-session-timeout,omitempty"`
+	MinIdleSession           int        `proxy:"min-idle-session,omitempty"`
 }
 
 type Socks5Option struct {
