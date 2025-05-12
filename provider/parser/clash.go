@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"runtime"
 	"strings"
+	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -78,6 +79,8 @@ func ParseClashSubscription(_ context.Context, content string) ([]option.Outboun
 			outbound, err = parseHysteriaClash(proxy)
 		case "hysteria2":
 			outbound, err = parseHysteria2Clash(proxy)
+		case "anytls":
+			outbound, err = parseAnyTLSClash(proxy)
 		default:
 			continue
 		}
@@ -914,6 +917,39 @@ func parseHysteria2Clash(proxy map[string]any) (option.Outbound, error) {
 		}
 		options.TLS.Certificate = caStrArr
 	}
+	options.DialerOptions = convertDialerOption(proxy)
+	outbound.Options = &options
+	return outbound, nil
+}
+
+func parseAnyTLSClash(proxy map[string]any) (option.Outbound, error) {
+	outbound := option.Outbound{
+		Type: C.TypeAnyTLS,
+	}
+	options := option.AnyTLSOutboundOptions{}
+	if name, exists := proxy["name"].(string); exists {
+		outbound.Tag = name
+	}
+	if server, exists := proxy["server"].(string); exists {
+		options.Server = server
+	}
+	if port, exists := proxy["port"]; exists {
+		options.ServerPort = StringToType[uint16](F.ToString(port))
+	}
+	if password, exists := proxy["password"].(string); exists {
+		options.Password = password
+	}
+	if idleSessionCheckInterval, exists := proxy["idle-session-check-interval"].(int); exists {
+		options.IdleSessionCheckInterval = badoption.Duration(time.Duration(idleSessionCheckInterval) * time.Second)
+	}
+	if idleSessionTimeout, exists := proxy["idle-session-timeout"].(int); exists {
+		options.IdleSessionTimeout = badoption.Duration(time.Duration(idleSessionTimeout) * time.Second)
+	}
+	if minIdleSession, exists := proxy["min-idle-session"].(int); exists {
+		options.MinIdleSession = minIdleSession
+	}
+	options.TLS = convertTLSOptions(proxy)
+	options.TLS.Enabled = true
 	options.DialerOptions = convertDialerOption(proxy)
 	outbound.Options = &options
 	return outbound, nil
