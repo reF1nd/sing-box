@@ -70,7 +70,7 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 }
 
 func validateDNSRuleAction(action option.DNSRuleAction) error {
-	if action.Action == C.RuleActionTypeReject && action.RejectOptions.Method == C.RuleActionRejectMethodReply {
+	if action.Action == C.RuleActionTypeReject && action.DNSRejectOptions.Method == C.RuleActionRejectMethodReply {
 		return E.New("reject method `reply` is not supported for DNS rules")
 	}
 	var routeOptions option.AbstractDNSRouteActionOptions
