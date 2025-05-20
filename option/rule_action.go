@@ -104,7 +104,7 @@ type _DNSRuleAction struct {
 	RouteOptions        DNSRouteActionOptions        `json:"-"`
 	EvaluateOptions     DNSEvaluateActionOptions     `json:"-"`
 	RouteOptionsOptions DNSRouteOptionsActionOptions `json:"-"`
-	RejectOptions       RejectActionOptions          `json:"-"`
+	DNSRejectOptions    DNSRejectActionOptions       `json:"-"`
 	PredefinedOptions   DNSRouteActionPredefined     `json:"-"`
 }
 
@@ -126,7 +126,7 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 	case C.RuleActionTypeRouteOptions:
 		v = r.RouteOptionsOptions
 	case C.RuleActionTypeReject:
-		v = r.RejectOptions
+		v = r.DNSRejectOptions
 	case C.RuleActionTypePredefined:
 		v = r.PredefinedOptions
 	default:
@@ -155,7 +155,7 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 	case C.RuleActionTypeRouteOptions:
 		v = &r.RouteOptionsOptions
 	case C.RuleActionTypeReject:
-		v = &r.RejectOptions
+		v = &r.DNSRejectOptions
 	case C.RuleActionTypePredefined:
 		v = &r.PredefinedOptions
 	default:
@@ -344,6 +344,40 @@ type DNSRouteActionPredefined struct {
 	Extra  badoption.Listable[DNSRecordOptions] `json:"extra,omitempty"`
 }
 
+type _DNSRejectActionOptions struct {
+	Rcode  *DNSRejectRCode `json:"rcode,omitempty"`
+	Method string          `json:"method,omitempty"`
+	NoDrop bool            `json:"no_drop,omitempty"`
+}
+
+type DNSRejectActionOptions _DNSRejectActionOptions
+
+func (r DNSRejectActionOptions) MarshalJSON() ([]byte, error) {
+	switch r.Method {
+	case C.RuleActionRejectMethodDefault:
+		r.Method = ""
+	}
+	return json.Marshal(_DNSRejectActionOptions(r))
+}
+
+func (r *DNSRejectActionOptions) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_DNSRejectActionOptions)(r))
+	if err != nil {
+		return err
+	}
+	switch r.Method {
+	case "", C.RuleActionRejectMethodDefault:
+		r.Method = C.RuleActionRejectMethodDefault
+	case C.RuleActionRejectMethodDrop:
+	default:
+		return E.New("unknown reject method: " + r.Method)
+	}
+	if r.Method == C.RuleActionRejectMethodDrop && r.NoDrop {
+		return E.New("no_drop is not available in current context")
+	}
+	return nil
+}
+
 type actionVariant struct {
 	action         string
 	actionOptional bool
@@ -410,7 +444,18 @@ func dnsActionUnion(builder schema.Builder) (*schema.Node, error) {
 		if err != nil {
 			return err
 		}
-		return rejectProperties(variant)
+		rcodeNode, err := builder.Describe(reflect.TypeFor[DNSRejectRCode]())
+		if err != nil {
+			return err
+		}
+		variant.Properties.Put("rcode", rcodeNode)
+		variant.Properties.Put("method", schema.StringEnum(
+			"",
+			C.RuleActionRejectMethodDefault,
+			C.RuleActionRejectMethodDrop,
+		))
+		variant.Properties.Put("no_drop", schema.BooleanNode())
+		return nil
 	}
 	return actionUnion(builder, []actionVariant{
 		{action: C.RuleActionTypeRoute, actionOptional: true, structType: reflect.TypeFor[DNSRouteActionOptions](), build: raceProperty},
