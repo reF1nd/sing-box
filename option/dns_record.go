@@ -54,39 +54,98 @@ func (r *DNSRCode) Build() int {
 	return int(*r)
 }
 
+func dnsRCodeNames() []string {
+	type rCodeName struct {
+		name      string
+		value     int
+		canonical bool
+	}
+	rCodeNames := make([]rCodeName, 0, len(dns.StringToRcode))
+	for name, value := range dns.StringToRcode {
+		canonicalName, canonical := dns.RcodeToString[value]
+		rCodeNames = append(rCodeNames, rCodeName{
+			name:      name,
+			value:     value,
+			canonical: canonical && canonicalName == name,
+		})
+	}
+	slices.SortFunc(rCodeNames, func(left rCodeName, right rCodeName) int {
+		comparison := cmp.Compare(left.value, right.value)
+		if comparison != 0 {
+			return comparison
+		}
+		if left.canonical != right.canonical {
+			if left.canonical {
+				return -1
+			}
+			return 1
+		}
+		return cmp.Compare(left.name, right.name)
+	})
+	values := make([]string, 0, len(rCodeNames))
+	for _, entry := range rCodeNames {
+		values = append(values, entry.name)
+	}
+	return values
+}
+
 func (r DNSRCode) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
 	return builder.Define("DNSRCode", func() (*schema.Node, error) {
-		type rCodeName struct {
-			name      string
-			value     int
-			canonical bool
+		return schema.AnyOf(schema.IntegerNode(), schema.StringEnum(dnsRCodeNames()...)), nil
+	})
+}
+
+type DNSRejectRCode int
+
+func (r DNSRejectRCode) MarshalJSON() ([]byte, error) {
+	if int(r) == -1 {
+		return json.Marshal(string(""))
+	}
+	rCodeValue, loaded := dns.RcodeToString[int(r)]
+	if loaded {
+		return json.Marshal(rCodeValue)
+	}
+	return json.Marshal(int(r))
+}
+
+func (r *DNSRejectRCode) UnmarshalJSON(bytes []byte) error {
+	var intValue int
+	err := json.Unmarshal(bytes, &intValue)
+	if err == nil {
+		if intValue == -1 {
+			*r = -1
+			return nil
 		}
-		rCodeNames := make([]rCodeName, 0, len(dns.StringToRcode))
-		for name, value := range dns.StringToRcode {
-			canonicalName, canonical := dns.RcodeToString[value]
-			rCodeNames = append(rCodeNames, rCodeName{
-				name:      name,
-				value:     value,
-				canonical: canonical && canonicalName == name,
-			})
-		}
-		slices.SortFunc(rCodeNames, func(left rCodeName, right rCodeName) int {
-			comparison := cmp.Compare(left.value, right.value)
-			if comparison != 0 {
-				return comparison
-			}
-			if left.canonical != right.canonical {
-				if left.canonical {
-					return -1
-				}
-				return 1
-			}
-			return cmp.Compare(left.name, right.name)
-		})
-		values := make([]string, 0, len(rCodeNames))
-		for _, entry := range rCodeNames {
-			values = append(values, entry.name)
-		}
+		*r = DNSRejectRCode(intValue)
+		return nil
+	}
+	var stringValue string
+	err = json.Unmarshal(bytes, &stringValue)
+	if err != nil {
+		return err
+	}
+	if stringValue == "" {
+		*r = -1
+		return nil
+	}
+	rCodeValue, loaded := dns.StringToRcode[stringValue]
+	if !loaded {
+		return E.New("unknown rcode: " + stringValue)
+	}
+	*r = DNSRejectRCode(rCodeValue)
+	return nil
+}
+
+func (r *DNSRejectRCode) Build() int {
+	if r == nil {
+		return -1
+	}
+	return int(*r)
+}
+
+func (r DNSRejectRCode) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("DNSRejectRCode", func() (*schema.Node, error) {
+		values := append([]string{""}, dnsRCodeNames()...)
 		return schema.AnyOf(schema.IntegerNode(), schema.StringEnum(values...)), nil
 	})
 }

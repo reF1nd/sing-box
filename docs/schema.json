@@ -854,6 +854,9 @@
         "reverse_mapping": {
           "type": "boolean"
         },
+        "default_reject_rcode": {
+          "$ref": "#/$defs/DNSRejectRCode"
+        },
         "strategy": {
           "$ref": "#/$defs/DomainStrategy"
         },
@@ -1006,6 +1009,40 @@
         {
           "type": "string",
           "enum": [
+            "NOERROR",
+            "FORMERR",
+            "SERVFAIL",
+            "NXDOMAIN",
+            "NOTIMP",
+            "NOTIMPL",
+            "REFUSED",
+            "YXDOMAIN",
+            "YXRRSET",
+            "NXRRSET",
+            "NOTAUTH",
+            "NOTZONE",
+            "DSOTYPENI",
+            "BADSIG",
+            "BADKEY",
+            "BADTIME",
+            "BADMODE",
+            "BADNAME",
+            "BADALG",
+            "BADTRUNC",
+            "BADCOOKIE"
+          ]
+        }
+      ]
+    },
+    "DNSRejectRCode": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "",
             "NOERROR",
             "FORMERR",
             "SERVFAIL",
@@ -1803,13 +1840,15 @@
             "race": {
               "type": "boolean"
             },
+            "rcode": {
+              "$ref": "#/$defs/DNSRejectRCode"
+            },
             "method": {
               "type": "string",
               "enum": [
                 "",
                 "default",
-                "drop",
-                "reply"
+                "drop"
               ]
             },
             "no_drop": {
