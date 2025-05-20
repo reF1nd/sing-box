@@ -13,7 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -38,6 +38,7 @@ type Router struct {
 	defaultDomainStrategy C.DomainStrategy
 	dnsReverseMapping     freelru.Cache[netip.Addr, string]
 	platformInterface     adapter.PlatformInterface
+	defaultRejectRcode    int
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) *Router {
@@ -48,6 +49,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		outbound:              service.FromContext[adapter.OutboundManager](ctx),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
+		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
 	}
 	router.client = NewClient(ClientOptions{
 		DisableCache:     options.DNSClientOptions.DisableCache,
@@ -257,10 +259,20 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 				case *R.RuleActionReject:
 					switch action.Method {
 					case C.RuleActionRejectMethodDefault:
+						var rcode int
+						if action.Rcode == -1 {
+							if r.defaultRejectRcode == -1 {
+								rcode = mDNS.RcodeRefused
+							} else {
+								rcode = r.defaultRejectRcode
+							}
+						} else {
+							rcode = action.Rcode
+						}
 						return &mDNS.Msg{
 							MsgHdr: mDNS.MsgHdr{
 								Id:       message.Id,
-								Rcode:    mDNS.RcodeRefused,
+								Rcode:    rcode,
 								Response: true,
 							},
 							Question: []mDNS.Question{message.Question[0]},
