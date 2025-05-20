@@ -54,6 +54,7 @@ type Router struct {
 	rulesAccess           sync.RWMutex
 	started               bool
 	closing               bool
+	defaultRejectRcode    int
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) (*Router, error) {
@@ -66,6 +67,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		rawRules:              make([]option.DNSRule, 0, len(options.Rules)),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
+		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
 	}
 	if options.DNSClientOptions.IndependentCache {
 		deprecated.Report(ctx, deprecated.OptionIndependentDNSCache)
@@ -562,15 +564,34 @@ func cancelDNSFutures(state *dnsRuleWalkState) {
 	}
 }
 
-func dnsRefusedResponse(message *mDNS.Msg) *mDNS.Msg {
-	return &mDNS.Msg{
+func resolveRejectRcode(actionRcode int, defaultRcode int) int {
+	if actionRcode != -1 {
+		return actionRcode
+	}
+	if defaultRcode != -1 {
+		return defaultRcode
+	}
+	return mDNS.RcodeRefused
+}
+
+func dnsRejectResponse(message *mDNS.Msg, actionRcode int, defaultRcode int) *mDNS.Msg {
+	rcode := resolveRejectRcode(actionRcode, defaultRcode)
+	requestEDNS := message.IsEdns0()
+	if requestEDNS == nil && rcode > 0xF {
+		rcode = mDNS.RcodeRefused
+	}
+	response := &mDNS.Msg{
 		MsgHdr: mDNS.MsgHdr{
 			Id:       message.Id,
-			Rcode:    mDNS.RcodeRefused,
+			Rcode:    rcode,
 			Response: true,
 		},
 		Question: []mDNS.Question{message.Question[0]},
 	}
+	if requestEDNS != nil {
+		response.SetEdns0(1232, requestEDNS.Do())
+	}
+	return response
 }
 
 func (r *Router) finalizeExchangeOptions(options adapter.DNSQueryOptions) adapter.DNSQueryOptions {
@@ -746,7 +767,7 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 			switch action.Method {
 			case C.RuleActionRejectMethodDefault:
 				return exchangeWithRulesResult{
-					response:     dnsRefusedResponse(message),
+					response:     dnsRejectResponse(message, action.Rcode, r.defaultRejectRcode),
 					rejectAction: action,
 				}, nil
 			case C.RuleActionRejectMethodDrop:
@@ -884,7 +905,7 @@ func (r *Router) sweepArmedDNSRules(ctx context.Context, message *mDNS.Msg, stat
 			switch action.Method {
 			case C.RuleActionRejectMethodDefault:
 				return exchangeWithRulesResult{
-					response:     dnsRefusedResponse(message),
+					response:     dnsRejectResponse(message, action.Rcode, r.defaultRejectRcode),
 					rejectAction: action,
 				}, nil, true
 			case C.RuleActionRejectMethodDrop:
@@ -1243,14 +1264,7 @@ func (r *Router) exchangeLegacy(ctx context.Context, exchangeCtx *dnsExchangeCon
 			case *R.RuleActionReject:
 				switch action.Method {
 				case C.RuleActionRejectMethodDefault:
-					return &mDNS.Msg{
-						MsgHdr: mDNS.MsgHdr{
-							Id:       message.Id,
-							Rcode:    mDNS.RcodeRefused,
-							Response: true,
-						},
-						Question: []mDNS.Question{message.Question[0]},
-					}, nil, nil
+					return dnsRejectResponse(message, action.Rcode, r.defaultRejectRcode), nil, nil
 				case C.RuleActionRejectMethodDrop:
 					return nil, nil, R.ErrDrop
 				}
