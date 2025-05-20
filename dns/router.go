@@ -48,6 +48,7 @@ type Router struct {
 	rulesAccess           sync.RWMutex
 	started               bool
 	closing               bool
+	defaultRejectRcode    int
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) (*Router, error) {
@@ -59,6 +60,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		rawRules:              make([]option.DNSRule, 0, len(options.Rules)),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
+		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
 	}
 	if options.DNSClientOptions.IndependentCache {
 		deprecated.Report(ctx, deprecated.OptionIndependentDNSCache)
@@ -430,6 +432,16 @@ func (r *Router) finalizeExchangeOptions(options adapter.DNSQueryOptions) adapte
 	return options
 }
 
+func resolveRejectRcode(actionRcode int, defaultRcode int) int {
+	if actionRcode != -1 {
+		return actionRcode
+	}
+	if defaultRcode != -1 {
+		return defaultRcode
+	}
+	return mDNS.RcodeRefused
+}
+
 func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, state *dnsRuleWalkState, allowFakeIP bool) (exchangeWithRulesResult, *dnsPendingExchange) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
@@ -486,7 +498,7 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 					response: &mDNS.Msg{
 						MsgHdr: mDNS.MsgHdr{
 							Id:       message.Id,
-							Rcode:    mDNS.RcodeRefused,
+							Rcode:    resolveRejectRcode(action.Rcode, r.defaultRejectRcode),
 							Response: true,
 						},
 						Question: []mDNS.Question{message.Question[0]},
@@ -744,7 +756,7 @@ func (r *Router) exchangeLegacy(ctx context.Context, exchangeCtx *dnsExchangeCon
 					return &mDNS.Msg{
 						MsgHdr: mDNS.MsgHdr{
 							Id:       message.Id,
-							Rcode:    mDNS.RcodeRefused,
+							Rcode:    resolveRejectRcode(action.Rcode, r.defaultRejectRcode),
 							Response: true,
 						},
 						Question: []mDNS.Question{message.Question[0]},
