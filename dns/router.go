@@ -48,6 +48,7 @@ type Router struct {
 	rulesAccess           sync.RWMutex
 	started               bool
 	closing               bool
+	defaultRejectRcode    int
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) (*Router, error) {
@@ -59,6 +60,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		rawRules:              make([]option.DNSRule, 0, len(options.Rules)),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
+		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
 	}
 	if options.DNSClientOptions.IndependentCache {
 		deprecated.Report(ctx, deprecated.OptionIndependentDNSCache)
@@ -681,10 +683,20 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 				case *R.RuleActionReject:
 					switch action.Method {
 					case C.RuleActionRejectMethodDefault:
+						var rcode int
+						if action.Rcode == -1 {
+							if r.defaultRejectRcode == -1 {
+								rcode = mDNS.RcodeRefused
+							} else {
+								rcode = r.defaultRejectRcode
+							}
+						} else {
+							rcode = action.Rcode
+						}
 						return &mDNS.Msg{
 							MsgHdr: mDNS.MsgHdr{
 								Id:       message.Id,
-								Rcode:    mDNS.RcodeRefused,
+								Rcode:    rcode,
 								Response: true,
 							},
 							Question: []mDNS.Question{message.Question[0]},
