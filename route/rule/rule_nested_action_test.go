@@ -78,7 +78,7 @@ func TestNewDNSRuleRejectsReplyRejectMethod(t *testing.T) {
 			},
 			DNSRuleAction: option.DNSRuleAction{
 				Action: C.RuleActionTypeReject,
-				RejectOptions: option.RejectActionOptions{
+				DNSRejectOptions: option.DNSRejectActionOptions{
 					Method: C.RuleActionRejectMethodReply,
 				},
 			},
