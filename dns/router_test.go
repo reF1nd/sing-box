@@ -2288,7 +2288,7 @@ func TestLookupLegacyDNSModeDisabledReturnsRejectedErrorForRejectAction(t *testi
 				},
 				DNSRuleAction: option.DNSRuleAction{
 					Action: C.RuleActionTypeReject,
-					RejectOptions: option.RejectActionOptions{
+					DNSRejectOptions: option.DNSRejectActionOptions{
 						Method: C.RuleActionRejectMethodDefault,
 					},
 				},
@@ -2321,7 +2321,7 @@ func TestExchangeLegacyDNSModeDisabledReturnsRefusedResponseForRejectAction(t *t
 				},
 				DNSRuleAction: option.DNSRuleAction{
 					Action: C.RuleActionTypeReject,
-					RejectOptions: option.RejectActionOptions{
+					DNSRejectOptions: option.DNSRejectActionOptions{
 						Method: C.RuleActionRejectMethodDefault,
 					},
 				},
@@ -2356,7 +2356,7 @@ func TestExchangeLegacyDNSModeDisabledReturnsDropErrorForRejectDropAction(t *tes
 				},
 				DNSRuleAction: option.DNSRuleAction{
 					Action: C.RuleActionTypeReject,
-					RejectOptions: option.RejectActionOptions{
+					DNSRejectOptions: option.DNSRejectActionOptions{
 						Method: C.RuleActionRejectMethodDrop,
 					},
 				},
