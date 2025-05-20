@@ -48,6 +48,54 @@ func (r *DNSRCode) Build() int {
 	return int(*r)
 }
 
+type DNSRejectRCode int
+
+func (r DNSRejectRCode) MarshalJSON() ([]byte, error) {
+	if int(r) == -1 {
+		return json.Marshal(string(""))
+	}
+	rCodeValue, loaded := dns.RcodeToString[int(r)]
+	if loaded {
+		return json.Marshal(rCodeValue)
+	}
+	return json.Marshal(int(r))
+}
+
+func (r *DNSRejectRCode) UnmarshalJSON(bytes []byte) error {
+	var intValue int
+	err := json.Unmarshal(bytes, &intValue)
+	if err == nil {
+		if intValue == -1 {
+			*r = -1
+			return nil
+		}
+		*r = DNSRejectRCode(intValue)
+		return nil
+	}
+	var stringValue string
+	err = json.Unmarshal(bytes, &stringValue)
+	if err != nil {
+		return err
+	}
+	if stringValue == "" {
+		*r = -1
+		return nil
+	}
+	rCodeValue, loaded := dns.StringToRcode[stringValue]
+	if !loaded {
+		return E.New("unknown rcode: " + stringValue)
+	}
+	*r = DNSRejectRCode(rCodeValue)
+	return nil
+}
+
+func (r *DNSRejectRCode) Build() int {
+	if r == nil {
+		return -1
+	}
+	return int(*r)
+}
+
 type DNSRecordOptions struct {
 	dns.RR
 	fromBase64 bool

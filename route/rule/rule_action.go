@@ -141,8 +141,9 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		}
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
-			Method: action.RejectOptions.Method,
-			NoDrop: action.RejectOptions.NoDrop,
+			Rcode:  action.DNSRejectOptions.Rcode.Build(),
+			Method: action.DNSRejectOptions.Method,
+			NoDrop: action.DNSRejectOptions.NoDrop,
 			logger: logger,
 		}
 	case C.RuleActionTypePredefined:
@@ -353,6 +354,7 @@ func IsBypassed(err error) bool {
 }
 
 type RuleActionReject struct {
+	Rcode       int
 	Method      string
 	NoDrop      bool
 	logger      logger.ContextLogger
