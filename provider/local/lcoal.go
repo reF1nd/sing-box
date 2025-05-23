@@ -40,6 +40,8 @@ type ProviderLocal struct {
 	lastEPOpts  []option.Endpoint
 	lastUpdated time.Time
 	watcher     *fswatch.Watcher
+
+	overrideDialer *option.OverrideDialerOptions
 }
 
 func NewProviderInline(ctx context.Context, router adapter.Router, logFactory log.Factory, tag string, options option.ProviderInlineOptions) (adapter.Provider, error) {
@@ -74,6 +76,8 @@ func NewProviderLocal(ctx context.Context, router adapter.Router, logFactory log
 		ctx:      ctx,
 		logger:   logger,
 		provider: service.FromContext[adapter.ProviderManager](ctx),
+
+		overrideDialer: options.OverrideDialer,
 	}
 	filePath := filemanager.BasePath(ctx, options.Path)
 	provider.path, _ = filepath.Abs(filePath)
@@ -121,7 +125,7 @@ func (s *ProviderLocal) reloadFile(path string) error {
 	if err != nil {
 		return err
 	}
-	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, string(content))
+	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, string(content), s.overrideDialer)
 	if err != nil {
 		return err
 	}
