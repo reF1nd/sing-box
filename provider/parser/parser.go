@@ -127,6 +127,12 @@ func overrideDialerOption(options option.DialerOptions, overrideDialerOptions *o
 	if overrideDialerOptions.TCPMultiPath != nil {
 		options.TCPMultiPath = *overrideDialerOptions.TCPMultiPath
 	}
+	if overrideDialerOptions.TCPKeepAlive != nil {
+		options.TCPKeepAlive = *overrideDialerOptions.TCPKeepAlive
+	}
+	if overrideDialerOptions.TCPKeepAliveInterval != nil {
+		options.TCPKeepAliveInterval = *overrideDialerOptions.TCPKeepAliveInterval
+	}
 	if overrideDialerOptions.UDPFragment != nil {
 		options.UDPFragment = overrideDialerOptions.UDPFragment
 	}
@@ -144,6 +150,12 @@ func overrideDialerOption(options option.DialerOptions, overrideDialerOptions *o
 	}
 	if overrideDialerOptions.FallbackDelay != nil {
 		options.FallbackDelay = *overrideDialerOptions.FallbackDelay
+	}
+	if overrideDialerOptions.TCPKeepAliveCount != nil {
+		options.TCPKeepAliveCount = *overrideDialerOptions.TCPKeepAliveCount
+	}
+	if overrideDialerOptions.DisableTCPKeepAlive != nil {
+		options.DisableTCPKeepAlive = *overrideDialerOptions.DisableTCPKeepAlive
 	}
 	if overrideDialerOptions.DomainStrategy != nil {
 		options.DomainStrategy = *overrideDialerOptions.DomainStrategy
