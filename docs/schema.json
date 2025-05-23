@@ -15113,6 +15113,95 @@
       },
       "additionalProperties": false
     },
+    "OverrideDialerOptions": {
+      "type": "object",
+      "properties": {
+        "detour": {
+          "type": "string",
+          "x-tag-reference": "outbound"
+        },
+        "bind_interface": {
+          "type": "string"
+        },
+        "inet4_bind_address": {
+          "type": "string"
+        },
+        "inet6_bind_address": {
+          "type": "string"
+        },
+        "protect_path": {
+          "type": "string"
+        },
+        "routing_mark": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "reuse_addr": {
+          "type": "boolean"
+        },
+        "connect_timeout": {
+          "$ref": "#/$defs/Duration"
+        },
+        "tcp_fast_open": {
+          "type": "boolean"
+        },
+        "tcp_multi_path": {
+          "type": "boolean"
+        },
+        "udp_fragment": {
+          "type": "boolean"
+        },
+        "domain_resolver": {
+          "$ref": "#/$defs/DomainResolver"
+        },
+        "network_strategy": {
+          "type": "string",
+          "enum": [
+            "default",
+            "fallback",
+            "hybrid"
+          ]
+        },
+        "network_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InterfaceType"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/InterfaceType"
+              }
+            }
+          ]
+        },
+        "fallback_network_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InterfaceType"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/InterfaceType"
+              }
+            }
+          ]
+        },
+        "fallback_delay": {
+          "$ref": "#/$defs/Duration"
+        }
+      },
+      "additionalProperties": false
+    },
     "Provider": {
       "oneOf": [
         {
@@ -15159,6 +15248,9 @@
             },
             "health_check": {
               "$ref": "#/$defs/ProviderHealthCheckOptions"
+            },
+            "override_dialer": {
+              "$ref": "#/$defs/OverrideDialerOptions"
             }
           },
           "required": [
@@ -15196,6 +15288,9 @@
             },
             "health_check": {
               "$ref": "#/$defs/ProviderHealthCheckOptions"
+            },
+            "override_dialer": {
+              "$ref": "#/$defs/OverrideDialerOptions"
             }
           },
           "required": [
