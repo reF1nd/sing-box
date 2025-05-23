@@ -18,7 +18,8 @@ List of subscription providers.
             "url": "",
             "interval": "",
             "timeout": "",
-          }
+          },
+          "override_dialer": {}
         }
       ]
     }
@@ -43,7 +44,8 @@ List of subscription providers.
           "include": "",
           "user_agent": "",
           "download_detour": "",
-          "update_interval": ""
+          "update_interval": "",
+          "override_dialer": {}
         }
       ]
     }
@@ -86,6 +88,10 @@ Health check interval. The minimum value is `1m`, the default value is `10m`.
 ##### health_check.timeout
 
 Health check timeout. the default value is `3s`.
+
+##### override_dialer
+
+Override dialer fields of outbounds in provider, see [Dialer Fields Override](/configuration/provider/override_dialer/) for details.
 
 ### Local Fields
 
