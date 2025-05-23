@@ -32,13 +32,14 @@ var _ adapter.Provider = (*ProviderLocal)(nil)
 
 type ProviderLocal struct {
 	provider.Adapter
-	ctx         context.Context
-	logger      log.ContextLogger
-	provider    adapter.ProviderManager
-	path        string
-	lastOutOpts []option.Outbound
-	lastUpdated time.Time
-	watcher     *fswatch.Watcher
+	ctx            context.Context
+	logger         log.ContextLogger
+	provider       adapter.ProviderManager
+	path           string
+	lastOutOpts    []option.Outbound
+	lastUpdated    time.Time
+	watcher        *fswatch.Watcher
+	overrideDialer *option.OverrideDialerOptions
 }
 
 func NewProviderInline(ctx context.Context, router adapter.Router, logFactory log.Factory, tag string, options option.ProviderInlineOptions) (adapter.Provider, error) {
@@ -64,10 +65,11 @@ func NewProviderLocal(ctx context.Context, router adapter.Router, logFactory log
 		logger   = logFactory.NewLogger(F.ToString("provider/local", "[", tag, "]"))
 	)
 	provider := &ProviderLocal{
-		Adapter:  provider.NewAdapter(ctx, router, outbound, logFactory, logger, tag, C.ProviderTypeLocal, options.HealthCheck),
-		ctx:      ctx,
-		logger:   logger,
-		provider: service.FromContext[adapter.ProviderManager](ctx),
+		Adapter:        provider.NewAdapter(ctx, router, outbound, logFactory, logger, tag, C.ProviderTypeLocal, options.HealthCheck),
+		ctx:            ctx,
+		logger:         logger,
+		provider:       service.FromContext[adapter.ProviderManager](ctx),
+		overrideDialer: options.OverrideDialer,
 	}
 	filePath := filemanager.BasePath(ctx, options.Path)
 	provider.path, _ = filepath.Abs(filePath)
@@ -120,7 +122,7 @@ func (s *ProviderLocal) reloadFile(path string) error {
 	if err != nil {
 		return err
 	}
-	outboundOpts, err := parser.ParseSubscription(s.ctx, string(content))
+	outboundOpts, err := parser.ParseSubscription(s.ctx, string(content), s.overrideDialer)
 	if err != nil {
 		return err
 	}
