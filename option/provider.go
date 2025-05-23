@@ -78,17 +78,19 @@ type ProviderHealthCheckOptions struct {
 }
 
 type OverrideDialerOptions struct {
-	Detour           *string             `json:"detour,omitempty"`
-	BindInterface    *string             `json:"bind_interface,omitempty"`
-	Inet4BindAddress *badoption.Addr     `json:"inet4_bind_address,omitempty"`
-	Inet6BindAddress *badoption.Addr     `json:"inet6_bind_address,omitempty"`
-	ProtectPath      *string             `json:"protect_path,omitempty"`
-	RoutingMark      *FwMark             `json:"routing_mark,omitempty"`
-	ReuseAddr        *bool               `json:"reuse_addr,omitempty"`
-	ConnectTimeout   *badoption.Duration `json:"connect_timeout,omitempty"`
-	TCPFastOpen      *bool               `json:"tcp_fast_open,omitempty"`
-	TCPMultiPath     *bool               `json:"tcp_multi_path,omitempty"`
-	UDPFragment      *bool               `json:"udp_fragment,omitempty"`
-	DomainStrategy   *DomainStrategy     `json:"domain_strategy,omitempty"`
-	FallbackDelay    *badoption.Duration `json:"fallback_delay,omitempty"`
+	Detour               *string             `json:"detour,omitempty"`
+	BindInterface        *string             `json:"bind_interface,omitempty"`
+	Inet4BindAddress     *badoption.Addr     `json:"inet4_bind_address,omitempty"`
+	Inet6BindAddress     *badoption.Addr     `json:"inet6_bind_address,omitempty"`
+	ProtectPath          *string             `json:"protect_path,omitempty"`
+	RoutingMark          *FwMark             `json:"routing_mark,omitempty"`
+	ReuseAddr            *bool               `json:"reuse_addr,omitempty"`
+	ConnectTimeout       *badoption.Duration `json:"connect_timeout,omitempty"`
+	TCPFastOpen          *bool               `json:"tcp_fast_open,omitempty"`
+	TCPMultiPath         *bool               `json:"tcp_multi_path,omitempty"`
+	UDPFragment          *bool               `json:"udp_fragment,omitempty"`
+	DomainStrategy       *DomainStrategy     `json:"domain_strategy,omitempty"`
+	FallbackDelay        *badoption.Duration `json:"fallback_delay,omitempty"`
+	TCPKeepAliveInterval *badoption.Duration `json:"tcp_keep_alive_interval,omitempty"`
+	TCPKeepAliveIdle     *badoption.Duration `json:"tcp_keep_alive_idle,omitempty"`
 }
