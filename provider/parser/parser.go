@@ -145,6 +145,12 @@ func overrideDialerOption(options option.DialerOptions, overrideDialerOptions *o
 	if overrideDialerOptions.FallbackDelay != nil {
 		options.FallbackDelay = *overrideDialerOptions.FallbackDelay
 	}
+	if overrideDialerOptions.TCPKeepAliveInterval != nil {
+		options.TCPKeepAliveInterval = *overrideDialerOptions.TCPKeepAliveInterval
+	}
+	if overrideDialerOptions.TCPKeepAliveIdle != nil {
+		options.TCPKeepAliveIdle = *overrideDialerOptions.TCPKeepAliveIdle
+	}
 	if overrideDialerOptions.DomainStrategy != nil {
 		options.DomainStrategy = *overrideDialerOptions.DomainStrategy
 	}
