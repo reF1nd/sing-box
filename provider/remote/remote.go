@@ -58,6 +58,7 @@ type ProviderRemote struct {
 	updateInterval time.Duration
 	exclude        *regexp.Regexp
 	include        *regexp.Regexp
+	overrideDialer *option.OverrideDialerOptions
 }
 
 func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory log.Factory, tag string, options option.ProviderRemoteOptions) (adapter.Provider, error) {
@@ -97,6 +98,7 @@ func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory lo
 		updateInterval: updateInterval,
 		exclude:        (*regexp.Regexp)(options.Exclude),
 		include:        (*regexp.Regexp)(options.Include),
+		overrideDialer: options.OverrideDialer,
 	}, nil
 }
 
@@ -304,7 +306,7 @@ func (s *ProviderRemote) loopUpdate() {
 }
 
 func (s *ProviderRemote) updateProviderFromContent(content string) error {
-	outboundOpts, err := parser.ParseSubscription(s.ctx, content)
+	outboundOpts, err := parser.ParseSubscription(s.ctx, content, s.overrideDialer)
 	if err != nil {
 		return err
 	}
