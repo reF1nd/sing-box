@@ -15375,6 +15375,12 @@
         "tcp_multi_path": {
           "type": "boolean"
         },
+        "tcp_keep_alive": {
+          "$ref": "#/$defs/Duration"
+        },
+        "tcp_keep_alive_interval": {
+          "$ref": "#/$defs/Duration"
+        },
         "udp_fragment": {
           "type": "boolean"
         },
@@ -15417,6 +15423,12 @@
         },
         "fallback_delay": {
           "$ref": "#/$defs/Duration"
+        },
+        "tcp_keep_alive_count": {
+          "type": "integer"
+        },
+        "disable_tcp_keep_alive": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
