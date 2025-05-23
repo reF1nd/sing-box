@@ -17,6 +17,10 @@
   "network_type": [],
   "fallback_network_type": [],
   "fallback_delay": "300ms",
+  "tcp_keep_alive": "5m",
+  "tcp_keep_alive_interval": "75s",
+  "tcp_keep_alive_count": 0,
+  "disable_tcp_keep_alive": false,
 
   // Deprecated
 
@@ -26,4 +30,4 @@
 
 ### Fields
 
-`detour` `bind_interface` `inet4_bind_address` `inet6_bind_address` `routing_mark` `reuse_addr` `connect_timeout` `tcp_fast_open` `tcp_multi_path` `udp_fragment` `domain_resolver` `network_strategy` `network_type` `fallback_network_type` `fallback_delay` `domain_strategy` see [Dial Fields](/configuration/shared/dial).
+`detour` `bind_interface` `inet4_bind_address` `inet6_bind_address` `routing_mark` `reuse_addr` `connect_timeout` `tcp_fast_open` `tcp_multi_path` `udp_fragment` `domain_resolver` `network_strategy` `network_type` `fallback_network_type` `fallback_delay` `tcp_keep_alive` `tcp_keep_alive_interval` `tcp_keep_alive_count` `disable_tcp_keep_alive` `domain_strategy` see [Dial Fields](/configuration/shared/dial).
