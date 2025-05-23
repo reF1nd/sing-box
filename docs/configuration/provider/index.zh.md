@@ -18,7 +18,8 @@
             "url": "",
             "interval": "",
             "timeout": "",
-          }
+          },
+          "override_dialer": {}
         }
       ]
     }
@@ -43,7 +44,8 @@
           "include": "",
           "user_agent": "",
           "download_detour": "",
-          "update_interval": ""
+          "update_interval": "",
+          "override_dialer": {}
         }
       ]
     }
@@ -86,6 +88,10 @@
 ##### health_check.timeout
 
 健康检查的超时时间。默认为 `3s`。
+
+##### override_dialer
+
+覆写订阅内容的拨号字段, 参阅 [拨号字段覆写](/zh/configuration/provider/override_dialer/)。
 
 ### 本地字段
 
