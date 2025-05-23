@@ -174,6 +174,7 @@ nav:
           - URLTest: configuration/outbound/urltest.md
       - Provider:
           - configuration/provider/index.md
+          - Dialer Fields Override: configuration/provider/override_dialer.md
       - Service:
           - configuration/service/index.md
           - DERP: configuration/service/derp.md
@@ -277,6 +278,7 @@ plugins:
             Inbound: 入站
             Outbound: 出站
             Provider: 提供者
+            Dialer Fields Override: 拨号字段覆写
 
             Manual: 手册
       reconfigure_material: true
