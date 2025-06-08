@@ -103,6 +103,32 @@ type InboundContext struct {
 	DestinationPortMatch         bool
 	DidMatch                     bool
 	IgnoreDestinationIPCIDRMatch bool
+
+	// extended metadata
+	Extended *InboundContextExtended
+}
+
+type InboundContextExtended struct {
+	RealOutboundChain []string
+}
+
+func (c *InboundContext) InitExtended() {
+	if c.Extended == nil {
+		c.Extended = new(InboundContextExtended)
+	}
+}
+
+func (c *InboundContext) AppendRealOutbound(tag string) {
+	if c.Extended != nil {
+		c.Extended.RealOutboundChain = append(c.Extended.RealOutboundChain, tag)
+	}
+}
+
+func (c *InboundContext) GetRealOutboundChain() []string {
+	if c.Extended != nil {
+		return c.Extended.RealOutboundChain
+	}
+	return nil
 }
 
 func (c *InboundContext) ResetRuleCache() {
@@ -122,6 +148,7 @@ func (c *InboundContext) ResetRuleMatchCache() {
 type inboundContextKey struct{}
 
 func WithContext(ctx context.Context, inboundContext *InboundContext) context.Context {
+	inboundContext.InitExtended()
 	return context.WithValue(ctx, (*inboundContextKey)(nil), inboundContext)
 }
 
