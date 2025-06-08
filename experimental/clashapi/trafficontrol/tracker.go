@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	F "github.com/sagernet/sing/common/format"
@@ -17,16 +18,17 @@ import (
 )
 
 type TrackerMetadata struct {
-	ID           uuid.UUID
-	Metadata     adapter.InboundContext
-	CreatedAt    time.Time
-	ClosedAt     time.Time
-	Upload       *atomic.Int64
-	Download     *atomic.Int64
-	Chain        []string
-	Rule         adapter.Rule
-	Outbound     string
-	OutboundType string
+	ID              uuid.UUID
+	Metadata        adapter.InboundContext
+	CreatedAt       time.Time
+	ClosedAt        time.Time
+	Upload          *atomic.Int64
+	Download        *atomic.Int64
+	Chain           []string
+	Rule            adapter.Rule
+	Outbound        string
+	OutboundType    string
+	outboundManager adapter.OutboundManager
 }
 
 func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
@@ -71,6 +73,34 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 	} else {
 		rule = "final"
 	}
+	chains := t.Chain
+	if t.OutboundType == C.TypeLoadBalance {
+		realOutboundChain := t.Metadata.GetRealOutboundChain()
+		if len(realOutboundChain) > 0 && t.outboundManager != nil {
+			var subChain []string
+			for _, realOutbound := range realOutboundChain {
+				next := realOutbound
+				for {
+					detour, loaded := t.outboundManager.Outbound(next)
+					if !loaded {
+						break
+					}
+					subChain = append(subChain, next)
+					group, isGroup := detour.(adapter.OutboundGroup)
+					if !isGroup {
+						break
+					}
+					next = group.Now()
+					if next == "" {
+						break
+					}
+				}
+			}
+			chains = make([]string, len(subChain)+len(t.Chain))
+			copy(chains, common.Reverse(subChain))
+			copy(chains[len(subChain):], t.Chain)
+		}
+	}
 	return json.Marshal(map[string]any{
 		"id": t.ID,
 		"metadata": map[string]any{
@@ -88,7 +118,7 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 		"upload":      t.Upload.Load(),
 		"download":    t.Download.Load(),
 		"start":       t.CreatedAt,
-		"chains":      t.Chain,
+		"chains":      chains,
 		"rule":        rule,
 		"rulePayload": "",
 	})
@@ -164,15 +194,16 @@ func NewTCPTracker(conn net.Conn, manager *Manager, metadata adapter.InboundCont
 			manager.PushDownloaded(n)
 		}}),
 		metadata: TrackerMetadata{
-			ID:           id,
-			Metadata:     metadata,
-			CreatedAt:    time.Now(),
-			Upload:       upload,
-			Download:     download,
-			Chain:        common.Reverse(chain),
-			Rule:         matchRule,
-			Outbound:     outbound,
-			OutboundType: outboundType,
+			ID:              id,
+			Metadata:        metadata,
+			CreatedAt:       time.Now(),
+			Upload:          upload,
+			Download:        download,
+			Chain:           common.Reverse(chain),
+			Rule:            matchRule,
+			Outbound:        outbound,
+			OutboundType:    outboundType,
+			outboundManager: outboundManager,
 		},
 		manager: manager,
 	}
@@ -245,15 +276,16 @@ func NewUDPTracker(conn N.PacketConn, manager *Manager, metadata adapter.Inbound
 			manager.PushDownloaded(n)
 		}}),
 		metadata: TrackerMetadata{
-			ID:           id,
-			Metadata:     metadata,
-			CreatedAt:    time.Now(),
-			Upload:       upload,
-			Download:     download,
-			Chain:        common.Reverse(chain),
-			Rule:         matchRule,
-			Outbound:     outbound,
-			OutboundType: outboundType,
+			ID:              id,
+			Metadata:        metadata,
+			CreatedAt:       time.Now(),
+			Upload:          upload,
+			Download:        download,
+			Chain:           common.Reverse(chain),
+			Rule:            matchRule,
+			Outbound:        outbound,
+			OutboundType:    outboundType,
+			outboundManager: outboundManager,
 		},
 		manager: manager,
 	}
