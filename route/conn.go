@@ -14,7 +14,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
-	"github.com/sagernet/sing-box/common/tlsfragment"
+	tf "github.com/sagernet/sing-box/common/tlsfragment"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -76,6 +76,9 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		var dialerString string
 		if outbound, isOutbound := this.(adapter.Outbound); isOutbound {
 			dialerString = " using outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
+			if outbound.Type() == C.TypeLoadBalance {
+				dialerString += "[" + strings.Join(metadata.GetRealOutboundChain(), " -> ") + "]"
+			}
 		}
 		err = E.Cause(err, "open connection to ", remoteString, dialerString)
 		N.CloseOnHandshakeFailure(conn, onClose, err)
@@ -141,6 +144,9 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 			var dialerString string
 			if outbound, isOutbound := this.(adapter.Outbound); isOutbound {
 				dialerString = " using outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
+				if outbound.Type() == C.TypeLoadBalance {
+					dialerString += "[" + strings.Join(metadata.GetRealOutboundChain(), " -> ") + "]"
+				}
 			}
 			err = E.Cause(err, "open packet connection to ", remoteString, dialerString)
 			N.CloseOnHandshakeFailure(conn, onClose, err)
@@ -164,6 +170,9 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 			var dialerString string
 			if outbound, isOutbound := this.(adapter.Outbound); isOutbound {
 				dialerString = " using outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
+				if outbound.Type() == C.TypeLoadBalance {
+					dialerString += "[" + strings.Join(metadata.GetRealOutboundChain(), " -> ") + "]"
+				}
 			}
 			err = E.Cause(err, "listen packet connection using ", dialerString)
 			N.CloseOnHandshakeFailure(conn, onClose, err)
