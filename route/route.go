@@ -149,7 +149,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if selectedRule == nil {
 		selectedOutbound = r.outbound.Default()
 	}
-	chain, err := resolveOutbound(selectedOutbound, N.NetworkTCP)
+	chain, err := resolveOutbound(selectedOutbound, N.NetworkTCP, &metadata)
 	if err != nil {
 		buf.ReleaseMulti(buffers)
 		return err
@@ -176,14 +176,20 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	return nil
 }
 
-func resolveOutbound(outbound adapter.Outbound, network string) ([]adapter.Outbound, error) {
+func resolveOutbound(outbound adapter.Outbound, network string, metadata *adapter.InboundContext) ([]adapter.Outbound, error) {
 	chain := []adapter.Outbound{outbound}
 	for {
 		group, isGroup := outbound.(adapter.OutboundGroup)
 		if !isGroup {
 			break
 		}
-		outbound = group.Selected(network)
+		if connectionGroup, ok := group.(adapter.ConnectionOutboundGroup); ok {
+			selectionMetadata := *metadata
+			selectionMetadata.Network = network
+			outbound = connectionGroup.SelectConnection(&selectionMetadata)
+		} else {
+			outbound = group.Selected(network)
+		}
 		if outbound == nil {
 			return nil, E.New(strings.ToUpper(network), " is not supported by outbound: ", group.Tag())
 		}
@@ -314,7 +320,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if selectedRule == nil || selectReturn {
 		selectedOutbound = r.outbound.Default()
 	}
-	chain, err := resolveOutbound(selectedOutbound, N.NetworkUDP)
+	chain, err := resolveOutbound(selectedOutbound, N.NetworkUDP, &metadata)
 	if err != nil {
 		N.ReleaseMultiPacketBuffer(packetBuffers)
 		return err
