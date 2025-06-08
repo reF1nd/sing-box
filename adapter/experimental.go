@@ -169,6 +169,11 @@ type URLTestGroup interface {
 	URLTest(ctx context.Context) (map[string]uint16, error)
 }
 
+type LoadBalanceGroup interface {
+	OutboundGroup
+	URLTest(ctx context.Context) (map[string]uint16, error)
+}
+
 func OutboundTag(detour Outbound) string {
 	if group, isGroup := detour.(OutboundGroup); isGroup {
 		return group.Now()
