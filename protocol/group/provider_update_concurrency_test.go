@@ -75,6 +75,21 @@ func TestProviderGroupConcurrentUpdates(t *testing.T) {
 		require.Equal(t, expectedTags, urlTest.All())
 	})
 
+	t.Run("LoadBalance", func(t *testing.T) {
+		group := new(LoadBalanceGroup)
+		group.storeOutbounds([]adapter.Outbound{firstOutbound, secondOutbound})
+		loadBalance := &LoadBalance{
+			outbound:       outboundManager,
+			group:          group,
+			providers:      providers,
+			providerTags:   providerTags,
+			outboundsCache: make(map[string][]adapter.Outbound),
+		}
+		runConcurrentProviderUpdates(t, loadBalance.onProviderUpdated, func() {
+			_ = loadBalance.All()
+		})
+		require.Equal(t, expectedTags, loadBalance.All())
+	})
 }
 
 func TestURLTestProviderUpdateReplacesSelectedOutboundInstance(t *testing.T) {
