@@ -54,6 +54,8 @@ func (a *Adapter) UpdateNodes(outOpts []option.Outbound, epOpts []option.Endpoin
 		switch opts := node.options.(type) {
 		case *option.SelectorOutboundOptions:
 			dependencies = append(dependencies, opts.Outbounds...)
+		case *option.LoadBalanceOutboundOptions:
+			dependencies = append(dependencies, opts.Outbounds...)
 		case *option.URLTestOutboundOptions:
 			dependencies = append(dependencies, opts.Outbounds...)
 		}
