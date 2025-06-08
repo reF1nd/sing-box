@@ -164,6 +164,18 @@ type OutboundGroup interface {
 	AttachConnection(closer io.Closer) (detach func())
 }
 
+// ConnectionOutboundGroup selects a member for a particular connection rather
+// than exposing a single globally selected member.
+type ConnectionOutboundGroup interface {
+	OutboundGroup
+	SelectConnection(metadata *InboundContext) Outbound
+}
+
+// ConnectionFailureListener is notified when dialing a resolved outbound chain fails.
+type ConnectionFailureListener interface {
+	OnConnectionFailure(ctx context.Context)
+}
+
 type PreMatchOutboundGroup interface {
 	OutboundGroup
 	// selectOutbound resolves nested groups and returns nil when the selected outbound is not eligible for pre-match.
@@ -176,4 +188,9 @@ type URLTestGroup interface {
 	OutboundGroup
 	URLTest(ctx context.Context) (map[string]uint16, error)
 	PerformUpdateCheck()
+}
+
+type LoadBalanceGroup interface {
+	ConnectionOutboundGroup
+	URLTest(ctx context.Context) (map[string]uint16, error)
 }

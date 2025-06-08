@@ -31,23 +31,29 @@ import (
 )
 
 func TestInlineProviderInitialMembers(t *testing.T) {
-	ctx := include.Context(context.Background())
-	options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(`{
- "log":{"disabled":true},
- "outbounds":[{"type":"selector","tag":"select","providers":["p"]}],
- "providers":[{"type":"inline","tag":"p","outbounds":[{"type":"socks","tag":"node","server":"127.0.0.1","server_port":9}]}]
- }`))
-	require.NoError(t, err)
-	instance, err := box.New(box.Options{Context: ctx, Options: options})
-	require.NoError(t, err)
-	defer instance.Close()
-	require.NoError(t, instance.Start())
-	manager := service.FromContext[adapter.OutboundManager](ctx)
-	selected, found := manager.Outbound("select")
-	require.True(t, found)
-	require.Equal(t, []string{"p/node"}, selected.(adapter.OutboundGroup).All())
-	require.Equal(t, "p/node", selected.(adapter.OutboundGroup).Selected("tcp").Tag())
-	require.NoError(t, instance.Close())
+	for _, groupType := range []string{"selector", "urltest", "loadbalance"} {
+		t.Run(groupType, func(t *testing.T) {
+			ctx := include.Context(context.Background())
+			options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(fmt.Sprintf(`{
+    "log":{"disabled":true},
+    "outbounds":[{"type":%q,"tag":"select","providers":["p"]}],
+    "providers":[{"type":"inline","tag":"p","outbounds":[{"type":"socks","tag":"node","server":"127.0.0.1","server_port":9}]}]
+   }`, groupType)))
+			require.NoError(t, err)
+			instance, err := box.New(box.Options{Context: ctx, Options: options})
+			require.NoError(t, err)
+			defer instance.Close()
+			require.NoError(t, instance.Start())
+			manager := service.FromContext[adapter.OutboundManager](ctx)
+			selected, found := manager.Outbound("select")
+			require.True(t, found)
+			require.Equal(t, []string{"p/node"}, selected.(adapter.OutboundGroup).All())
+			if groupType == "selector" {
+				require.Equal(t, "p/node", selected.(adapter.OutboundGroup).Selected("tcp").Tag())
+			}
+			require.NoError(t, instance.Close())
+		})
+	}
 }
 
 func TestSelectorDefaultFromProviderColdStart(t *testing.T) {
@@ -208,7 +214,7 @@ func TestLocalProviderUpdatesWithoutReplacingBoxComponents(t *testing.T) {
 }
 
 func TestGroupProviderFirstDownload(t *testing.T) {
-	for _, groupType := range []string{"selector", "urltest"} {
+	for _, groupType := range []string{"selector", "urltest", "loadbalance"} {
 		for _, memberType := range []string{"block", "direct"} {
 			t.Run(groupType+"/"+memberType, func(t *testing.T) {
 				var subscriptionRequests atomic.Int32
@@ -257,7 +263,7 @@ func TestGroupProviderFirstDownload(t *testing.T) {
 }
 
 func TestGroupProviderMembersAfterPreStart(t *testing.T) {
-	for _, groupType := range []string{"selector", "urltest"} {
+	for _, groupType := range []string{"selector", "urltest", "loadbalance"} {
 		for _, testCase := range []struct {
 			name        string
 			extraFields string
@@ -385,7 +391,7 @@ func (o *recordDialTestOutbound) ListenPacket(ctx context.Context, destination M
 }
 
 func TestGroupProviderMemberStartupOrder(t *testing.T) {
-	for _, groupType := range []string{"selector", "urltest"} {
+	for _, groupType := range []string{"selector", "urltest", "loadbalance"} {
 		for _, binding := range []struct {
 			name   string
 			fields string
@@ -455,7 +461,7 @@ func TestGroupProviderMemberStartupOrder(t *testing.T) {
 }
 
 func TestGroupProviderSelfMember(t *testing.T) {
-	for _, groupType := range []string{"selector", "urltest"} {
+	for _, groupType := range []string{"selector", "urltest", "loadbalance"} {
 		t.Run(groupType, func(t *testing.T) {
 			ctx := include.Context(t.Context())
 			// Put the self-binding group before the normal node so including itself
