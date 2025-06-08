@@ -209,7 +209,9 @@ func (s *Selector) NewDirectRouteConnection(metadata adapter.InboundContext, rou
 
 func RealTag(detour adapter.Outbound) string {
 	if group, isGroup := detour.(adapter.OutboundGroup); isGroup {
-		return group.Now()
+		if now := group.Now(); now != "" {
+			return now
+		}
 	}
 	return detour.Tag()
 }
