@@ -221,6 +221,9 @@ func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 
 func RealTag(detour adapter.Outbound, network string) string {
 	for {
+		if _, isLoadBalance := detour.(adapter.LoadBalanceGroup); isLoadBalance {
+			return detour.Tag()
+		}
 		group, isGroup := detour.(adapter.OutboundGroup)
 		if !isGroup {
 			return detour.Tag()
