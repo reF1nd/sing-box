@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/common/tlsspoof"
@@ -121,6 +122,37 @@ type InboundContext struct {
 	DestinationPortMatch         bool
 	DeferredIPCIDRMatchGroups    uint8
 	IgnoreDestinationIPCIDRMatch bool
+
+	// extended metadata
+	Extended *InboundContextExtended
+}
+
+type InboundContextExtended struct {
+	access            sync.Mutex
+	RealOutboundChain []string
+}
+
+func (c *InboundContext) InitExtended() {
+	if c.Extended == nil {
+		c.Extended = new(InboundContextExtended)
+	}
+}
+
+func (c *InboundContext) AppendRealOutbound(tag string) {
+	if c.Extended != nil {
+		c.Extended.access.Lock()
+		c.Extended.RealOutboundChain = append(c.Extended.RealOutboundChain, tag)
+		c.Extended.access.Unlock()
+	}
+}
+
+func (c *InboundContext) GetRealOutboundChain() []string {
+	if c.Extended != nil {
+		c.Extended.access.Lock()
+		defer c.Extended.access.Unlock()
+		return append([]string(nil), c.Extended.RealOutboundChain...)
+	}
+	return nil
 }
 
 func (c *InboundContext) ResetRuleCache() {
@@ -196,6 +228,7 @@ func DNSTransportTagFromContext(ctx context.Context) (string, bool) {
 }
 
 func WithContext(ctx context.Context, inboundContext *InboundContext) context.Context {
+	inboundContext.InitExtended()
 	return context.WithValue(ctx, (*inboundContextKey)(nil), inboundContext)
 }
 
