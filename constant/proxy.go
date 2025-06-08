@@ -37,8 +37,9 @@ const (
 )
 
 const (
-	TypeSelector = "selector"
-	TypeURLTest  = "urltest"
+	TypeSelector    = "selector"
+	TypeURLTest     = "urltest"
+	TypeLoadBalance = "loadbalance"
 )
 
 func ProxyDisplayName(proxyType string) string {
@@ -97,6 +98,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "Selector"
 	case TypeURLTest:
 		return "URLTest"
+	case TypeLoadBalance:
+		return "LoadBalance"
 	default:
 		return "Unknown"
 	}
