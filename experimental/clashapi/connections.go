@@ -89,6 +89,7 @@ func (c connectionObject) MarshalJSON() ([]byte, error) {
 	} else {
 		rule = "final"
 	}
+	chains := trafficcontrol.TrackerMetadata(c).Chains()
 	return json.Marshal(map[string]any{
 		"id": c.ID,
 		"metadata": map[string]any{
@@ -106,7 +107,7 @@ func (c connectionObject) MarshalJSON() ([]byte, error) {
 		"upload":      c.Upload.Load(),
 		"download":    c.Download.Load(),
 		"start":       c.CreatedAt,
-		"chains":      c.Chain,
+		"chains":      chains,
 		"rule":        rule,
 		"rulePayload": "",
 	})
