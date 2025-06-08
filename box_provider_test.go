@@ -19,23 +19,29 @@ import (
 )
 
 func TestInlineProviderInitialMembers(t *testing.T) {
-	ctx := include.Context(context.Background())
-	options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(`{
- "log":{"disabled":true},
- "outbounds":[{"type":"selector","tag":"select","providers":["p"]}],
- "providers":[{"type":"inline","tag":"p","outbounds":[{"type":"socks","tag":"node","server":"127.0.0.1","server_port":9}]}]
- }`))
-	require.NoError(t, err)
-	instance, err := box.New(box.Options{Context: ctx, Options: options})
-	require.NoError(t, err)
-	defer instance.Close()
-	require.NoError(t, instance.Start())
-	manager := service.FromContext[adapter.OutboundManager](ctx)
-	selected, found := manager.Outbound("select")
-	require.True(t, found)
-	require.Equal(t, []string{"p/node"}, selected.(adapter.OutboundGroup).All())
-	require.Equal(t, "p/node", selected.(adapter.OutboundGroup).Now())
-	require.NoError(t, instance.Close())
+	for _, groupType := range []string{"selector", "urltest", "loadbalance"} {
+		t.Run(groupType, func(t *testing.T) {
+			ctx := include.Context(context.Background())
+			options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(fmt.Sprintf(`{
+    "log":{"disabled":true},
+    "outbounds":[{"type":%q,"tag":"select","providers":["p"]}],
+    "providers":[{"type":"inline","tag":"p","outbounds":[{"type":"socks","tag":"node","server":"127.0.0.1","server_port":9}]}]
+   }`, groupType)))
+			require.NoError(t, err)
+			instance, err := box.New(box.Options{Context: ctx, Options: options})
+			require.NoError(t, err)
+			defer instance.Close()
+			require.NoError(t, instance.Start())
+			manager := service.FromContext[adapter.OutboundManager](ctx)
+			selected, found := manager.Outbound("select")
+			require.True(t, found)
+			require.Equal(t, []string{"p/node"}, selected.(adapter.OutboundGroup).All())
+			if groupType == "selector" {
+				require.Equal(t, "p/node", selected.(adapter.OutboundGroup).Now())
+			}
+			require.NoError(t, instance.Close())
+		})
+	}
 }
 
 func TestLocalProviderUpdatesWithoutReplacingBoxComponents(t *testing.T) {
