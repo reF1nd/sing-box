@@ -238,7 +238,11 @@ func RealTag(outboundManager adapter.OutboundManager, detour adapter.Outbound) s
 		if !isGroup {
 			return tag
 		}
-		tag = group.Now()
+		now := group.Now()
+		if now == "" {
+			return tag
+		}
+		tag = now
 		var loaded bool
 		detour, loaded = outboundManager.Outbound(tag)
 		if !loaded {
