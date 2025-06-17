@@ -570,6 +570,7 @@ type TLSOptions struct {
 	TLS               bool            `yaml:"tls,omitempty"`
 	SNI               string          `yaml:"sni,omitempty"`
 	SkipCertVerify    bool            `yaml:"skip-cert-verify,omitempty"`
+	Fingerprint       string          `yaml:"fingerprint,omitempty"`
 	ALPN              []string        `yaml:"alpn,omitempty"`
 	ClientFingerprint string          `yaml:"client-fingerprint,omitempty"`
 	CustomCA          string          `yaml:"ca,omitempty"`
@@ -587,17 +588,18 @@ func (t *TLSOptions) Build() *option.OutboundTLSOptions {
 		return nil
 	}
 	options := &option.OutboundTLSOptions{
-		Enabled:         t.TLS,
-		ServerName:      t.SNI,
-		Insecure:        t.SkipCertVerify,
-		ALPN:            t.ALPN,
-		UTLS:            clashClientFingerprint(t.ClientFingerprint),
-		Certificate:     trimStringArray(strings.Split(t.CustomCAString, "\n")),
-		CertificatePath: t.CustomCA,
-		ECH:             t.ECHOpts.Build(),
-		Reality:         t.RealityOpts.Build(),
-		KernelTx:        t.KernelTx,
-		KernelRx:        t.KernelRx,
+		Enabled:              t.TLS,
+		ServerName:           t.SNI,
+		Insecure:             t.SkipCertVerify,
+		CertificatePinSHA256: t.Fingerprint,
+		ALPN:                 t.ALPN,
+		UTLS:                 clashClientFingerprint(t.ClientFingerprint),
+		Certificate:          trimStringArray(strings.Split(t.CustomCAString, "\n")),
+		CertificatePath:      t.CustomCA,
+		ECH:                  t.ECHOpts.Build(),
+		Reality:              t.RealityOpts.Build(),
+		KernelTx:             t.KernelTx,
+		KernelRx:             t.KernelRx,
 	}
 	if strings.HasPrefix(t.Certificate, "-----BEGIN ") {
 		options.ClientCertificate = trimStringArray(strings.Split(t.Certificate, "\n"))
