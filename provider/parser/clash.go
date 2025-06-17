@@ -215,6 +215,7 @@ type TLSOption struct {
 	SNI               string          `yaml:"sni,omitempty"`
 	ServerName        string          `yaml:"server-name,omitempty"`
 	SkipCertVerify    bool            `yaml:"skip-cert-verify,omitempty"`
+	Fingerprint       string          `yaml:"fingerprint,omitempty"`
 	ALPN              []string        `yaml:"alpn,omitempty"`
 	ClientFingerprint string          `yaml:"client-fingerprint,omitempty"`
 	CustomCA          string          `yaml:"ca,omitempty"`
@@ -231,15 +232,16 @@ func (t *TLSOption) Build() *option.OutboundTLSOptions {
 		t.SNI = t.ServerName
 	}
 	return &option.OutboundTLSOptions{
-		Enabled:         t.TLS,
-		ServerName:      t.SNI,
-		Insecure:        t.SkipCertVerify,
-		ALPN:            t.ALPN,
-		UTLS:            clashClientFingerprint(t.ClientFingerprint),
-		Certificate:     strings.Split(t.CustomCAString, "\n"),
-		CertificatePath: t.CustomCA,
-		ECH:             t.ECHOpts.Build(),
-		Reality:         t.RealityOpts.Build(),
+		Enabled:              t.TLS,
+		ServerName:           t.SNI,
+		Insecure:             t.SkipCertVerify,
+		CertificatePinSHA256: t.Fingerprint,
+		ALPN:                 t.ALPN,
+		UTLS:                 clashClientFingerprint(t.ClientFingerprint),
+		Certificate:          strings.Split(t.CustomCAString, "\n"),
+		CertificatePath:      t.CustomCA,
+		ECH:                  t.ECHOpts.Build(),
+		Reality:              t.RealityOpts.Build(),
 	}
 }
 
