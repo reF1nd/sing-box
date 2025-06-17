@@ -215,6 +215,7 @@ type TLSOption struct {
 	SNI               string          `yaml:"sni,omitempty"`
 	ServerName        string          `yaml:"server-name,omitempty"`
 	SkipCertVerify    bool            `yaml:"skip-cert-verify,omitempty"`
+	Fingerprint       string          `yaml:"fingerprint,omitempty"`
 	ALPN              []string        `yaml:"alpn,omitempty"`
 	ClientFingerprint string          `yaml:"client-fingerprint,omitempty"`
 	CustomCA          string          `yaml:"ca,omitempty"`
@@ -231,15 +232,16 @@ func (t *TLSOption) Build() *option.OutboundTLSOptions {
 		t.SNI = t.ServerName
 	}
 	return &option.OutboundTLSOptions{
-		Enabled:         t.TLS,
-		ServerName:      t.SNI,
-		Insecure:        t.SkipCertVerify,
-		ALPN:            t.ALPN,
-		UTLS:            clashClientFingerprint(t.ClientFingerprint),
-		Certificate:     strings.Split(t.CustomCAString, "\n"),
-		CertificatePath: t.CustomCA,
-		ECH:             t.ECHOpts.Build(),
-		Reality:         t.RealityOpts.Build(),
+		Enabled:              t.TLS,
+		ServerName:           t.SNI,
+		Insecure:             t.SkipCertVerify,
+		CertificatePinSHA256: t.Fingerprint,
+		ALPN:                 t.ALPN,
+		UTLS:                 clashClientFingerprint(t.ClientFingerprint),
+		Certificate:          strings.Split(t.CustomCAString, "\n"),
+		CertificatePath:      t.CustomCA,
+		ECH:                  t.ECHOpts.Build(),
+		Reality:              t.RealityOpts.Build(),
 	}
 }
 
@@ -290,7 +292,7 @@ func (s *ShadowSocksOption) Build() any {
 
 type TuicOption struct {
 	BasicOption          `yaml:",inline"`
-	TLSOption           `yaml:",inline"`
+	TLSOption            `yaml:",inline"`
 	UUID                 string `yaml:"uuid,omitempty"`
 	Password             string `yaml:"password,omitempty"`
 	Ip                   string `yaml:"ip,omitempty"`
@@ -428,7 +430,7 @@ func (h *HttpOption) Build() any {
 
 type TrojanOption struct {
 	BasicOption `yaml:",inline"`
-	TLSOption  `yaml:",inline"`
+	TLSOption   `yaml:",inline"`
 	Password    string      `yaml:"password"`
 	UDP         bool        `yaml:"udp,omitempty"`
 	Network     string      `yaml:"network,omitempty"`
@@ -452,7 +454,7 @@ func (t *TrojanOption) Build() any {
 
 type HysteriaOption struct {
 	BasicOption         `yaml:",inline"`
-	TLSOption          `yaml:",inline"`
+	TLSOption           `yaml:",inline"`
 	Ports               string `yaml:"ports,omitempty"`
 	Up                  string `yaml:"up"`
 	UpSpeed             int    `yaml:"up-speed,omitempty"` // compatible with Stash
@@ -492,7 +494,7 @@ func (h *HysteriaOption) Build() any {
 
 type Hysteria2Option struct {
 	BasicOption  `yaml:",inline"`
-	TLSOption   `yaml:",inline"`
+	TLSOption    `yaml:",inline"`
 	Ports        string `yaml:"ports,omitempty"`
 	HopInterval  int    `yaml:"hop-interval,omitempty"`
 	Up           string `yaml:"up,omitempty"`
@@ -546,7 +548,7 @@ func (s *SSHOption) Build() any {
 
 type AnyTLSOption struct {
 	BasicOption              `yaml:",inline"`
-	TLSOption               `yaml:",inline"`
+	TLSOption                `yaml:",inline"`
 	Password                 string `yaml:"password"`
 	UDP                      bool   `yaml:"udp,omitempty"`
 	IdleSessionCheckInterval int    `yaml:"idle-session-check-interval,omitempty"`
