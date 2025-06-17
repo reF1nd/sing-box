@@ -141,6 +141,10 @@ func convertTLSOptions(proxy map[string]any) *option.OutboundTLSOptions {
 			options.Reality.ShortID = sid
 		}
 	}
+	if pinsha256, exists := proxy["fingerprint"].(string); exists {
+		options.Enabled = true
+		options.CertificatePinSHA256 = pinsha256
+	}
 	return &options
 }
 
