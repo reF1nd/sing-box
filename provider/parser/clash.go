@@ -80,14 +80,15 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 				Heartbeat:         badoption.Duration(tuicOption.HeartbeatInterval),
 			}
 			options.TLS = &option.OutboundTLSOptions{
-				Enabled:         true,
-				DisableSNI:      tuicOption.DisableSni,
-				ServerName:      tuicOption.SNI,
-				Insecure:        tuicOption.SkipCertVerify,
-				ALPN:            tuicOption.ALPN,
-				Certificate:     strings.Split(tuicOption.CustomCAString, "\n"),
-				CertificatePath: tuicOption.CustomCA,
-				ECH:             clashECHOptions(tuicOption.ECHOpts),
+				Enabled:              true,
+				DisableSNI:           tuicOption.DisableSni,
+				ServerName:           tuicOption.SNI,
+				Insecure:             tuicOption.SkipCertVerify,
+				CertificatePinSHA256: tuicOption.Fingerprint,
+				ALPN:                 tuicOption.ALPN,
+				Certificate:          strings.Split(tuicOption.CustomCAString, "\n"),
+				CertificatePath:      tuicOption.CustomCA,
+				ECH:                  clashECHOptions(tuicOption.ECHOpts),
 			}
 			basicOption.TFO = tuicOption.FastOpen
 			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
@@ -111,13 +112,14 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 				Transport:           clashTransport(vmessOption.Network, vmessOption.HTTPOpts, vmessOption.HTTP2Opts, vmessOption.GrpcOpts, vmessOption.WSOpts),
 			}
 			options.TLS = clashTLSOptions(&option.OutboundTLSOptions{
-				Enabled:    vmessOption.TLS,
-				ServerName: vmessOption.ServerName,
-				Insecure:   vmessOption.SkipCertVerify,
-				ALPN:       vmessOption.ALPN,
-				UTLS:       clashClientFingerprint(vmessOption.ClientFingerprint),
-				ECH:        clashECHOptions(vmessOption.ECHOpts),
-				Reality:    vmessOption.RealityOpts.Build(),
+				Enabled:              vmessOption.TLS,
+				ServerName:           vmessOption.ServerName,
+				Insecure:             vmessOption.SkipCertVerify,
+				CertificatePinSHA256: vmessOption.Fingerprint,
+				ALPN:                 vmessOption.ALPN,
+				UTLS:                 clashClientFingerprint(vmessOption.ClientFingerprint),
+				ECH:                  clashECHOptions(vmessOption.ECHOpts),
+				Reality:              vmessOption.RealityOpts.Build(),
 			})
 			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
 			outbound.Options = options
@@ -140,13 +142,14 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 				PacketEncoding: &vlessOption.PacketEncoding,
 			}
 			options.TLS = clashTLSOptions(&option.OutboundTLSOptions{
-				Enabled:    vlessOption.TLS,
-				ServerName: vlessOption.ServerName,
-				Insecure:   vlessOption.SkipCertVerify,
-				ALPN:       vlessOption.ALPN,
-				UTLS:       clashClientFingerprint(vlessOption.ClientFingerprint),
-				ECH:        clashECHOptions(vlessOption.ECHOpts),
-				Reality:    vlessOption.RealityOpts.Build(),
+				Enabled:              vlessOption.TLS,
+				ServerName:           vlessOption.ServerName,
+				Insecure:             vlessOption.SkipCertVerify,
+				CertificatePinSHA256: vlessOption.Fingerprint,
+				ALPN:                 vlessOption.ALPN,
+				UTLS:                 clashClientFingerprint(vlessOption.ClientFingerprint),
+				ECH:                  clashECHOptions(vlessOption.ECHOpts),
+				Reality:              vlessOption.RealityOpts.Build(),
 			})
 			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
 			outbound.Options = options
@@ -191,13 +194,14 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 				Transport: clashTransport(trojanOption.Network, HTTPOptions{}, HTTP2Options{}, trojanOption.GrpcOpts, trojanOption.WSOpts),
 			}
 			options.TLS = &option.OutboundTLSOptions{
-				Enabled:    true,
-				ServerName: trojanOption.SNI,
-				Insecure:   trojanOption.SkipCertVerify,
-				ALPN:       trojanOption.ALPN,
-				UTLS:       clashClientFingerprint(trojanOption.ClientFingerprint),
-				ECH:        clashECHOptions(trojanOption.ECHOpts),
-				Reality:    trojanOption.RealityOpts.Build(),
+				Enabled:              true,
+				ServerName:           trojanOption.SNI,
+				Insecure:             trojanOption.SkipCertVerify,
+				CertificatePinSHA256: trojanOption.Fingerprint,
+				ALPN:                 trojanOption.ALPN,
+				UTLS:                 clashClientFingerprint(trojanOption.ClientFingerprint),
+				ECH:                  clashECHOptions(trojanOption.ECHOpts),
+				Reality:              trojanOption.RealityOpts.Build(),
 			}
 			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
 			outbound.Options = options
@@ -215,12 +219,13 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 				MinIdleSession:           anytlsOption.MinIdleSession,
 			}
 			options.TLS = &option.OutboundTLSOptions{
-				Enabled:    true,
-				ServerName: anytlsOption.SNI,
-				Insecure:   anytlsOption.SkipCertVerify,
-				ALPN:       anytlsOption.ALPN,
-				UTLS:       clashClientFingerprint(anytlsOption.ClientFingerprint),
-				ECH:        clashECHOptions(anytlsOption.ECHOpts),
+				Enabled:              true,
+				ServerName:           anytlsOption.SNI,
+				Insecure:             anytlsOption.SkipCertVerify,
+				CertificatePinSHA256: anytlsOption.Fingerprint,
+				ALPN:                 anytlsOption.ALPN,
+				UTLS:                 clashClientFingerprint(anytlsOption.ClientFingerprint),
+				ECH:                  clashECHOptions(anytlsOption.ECHOpts),
 			}
 			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
 			outbound.Options = options
@@ -247,13 +252,14 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 				DisableMTUDiscovery: hysteriaOption.DisableMTUDiscovery,
 			}
 			options.TLS = &option.OutboundTLSOptions{
-				Enabled:         true,
-				ServerName:      hysteriaOption.SNI,
-				Insecure:        hysteriaOption.SkipCertVerify,
-				ALPN:            hysteriaOption.ALPN,
-				Certificate:     strings.Split(hysteriaOption.CustomCAString, "\n"),
-				CertificatePath: hysteriaOption.CustomCA,
-				ECH:             clashECHOptions(hysteriaOption.ECHOpts),
+				Enabled:              true,
+				ServerName:           hysteriaOption.SNI,
+				Insecure:             hysteriaOption.SkipCertVerify,
+				CertificatePinSHA256: hysteriaOption.Fingerprint,
+				ALPN:                 hysteriaOption.ALPN,
+				Certificate:          strings.Split(hysteriaOption.CustomCAString, "\n"),
+				CertificatePath:      hysteriaOption.CustomCA,
+				ECH:                  clashECHOptions(hysteriaOption.ECHOpts),
 			}
 			options.Up.UnmarshalJSON([]byte(hysteriaOption.Up))
 			options.Down.UnmarshalJSON([]byte(hysteriaOption.Down))
@@ -275,13 +281,14 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 				Password:    hysteria2Option.Password,
 			}
 			options.TLS = &option.OutboundTLSOptions{
-				Enabled:         true,
-				ServerName:      hysteria2Option.SNI,
-				Insecure:        hysteria2Option.SkipCertVerify,
-				ALPN:            hysteria2Option.ALPN,
-				Certificate:     strings.Split(hysteria2Option.CustomCAString, "\n"),
-				CertificatePath: hysteria2Option.CustomCA,
-				ECH:             clashECHOptions(hysteria2Option.ECHOpts),
+				Enabled:              true,
+				ServerName:           hysteria2Option.SNI,
+				Insecure:             hysteria2Option.SkipCertVerify,
+				CertificatePinSHA256: hysteria2Option.Fingerprint,
+				ALPN:                 hysteria2Option.ALPN,
+				Certificate:          strings.Split(hysteria2Option.CustomCAString, "\n"),
+				CertificatePath:      hysteria2Option.CustomCA,
+				ECH:                  clashECHOptions(hysteria2Option.ECHOpts),
 			}
 			options.DialerOptions, options.ServerOptions = clashBasicOption(ctx, basicOption)
 			outbound.Options = options
@@ -430,6 +437,7 @@ type TuicOption struct {
 
 	FastOpen            bool       `proxy:"fast-open,omitempty"`
 	SkipCertVerify      bool       `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint         string     `proxy:"fingerprint,omitempty"`
 	CustomCA            string     `proxy:"ca,omitempty"`
 	CustomCAString      string     `proxy:"ca-str,omitempty"`
 	DisableMTUDiscovery bool       `proxy:"disable-mtu-discovery,omitempty"`
@@ -448,6 +456,7 @@ type VmessOption struct {
 	TLS                 bool            `proxy:"tls,omitempty"`
 	ALPN                []string        `proxy:"alpn,omitempty"`
 	SkipCertVerify      bool            `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint         string          `proxy:"fingerprint,omitempty"`
 	ServerName          string          `proxy:"servername,omitempty"`
 	ECHOpts             ECHOptions      `proxy:"ech-opts,omitempty"`
 	RealityOpts         *RealityOptions `proxy:"reality-opts,omitempty"`
@@ -480,6 +489,7 @@ type VlessOption struct {
 	WSPath            string            `proxy:"ws-path,omitempty"`
 	WSHeaders         map[string]string `proxy:"ws-headers,omitempty"`
 	SkipCertVerify    bool              `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint       string            `proxy:"fingerprint,omitempty"`
 	ServerName        string            `proxy:"servername,omitempty"`
 	ClientFingerprint string            `proxy:"client-fingerprint,omitempty"`
 }
@@ -492,6 +502,7 @@ type TrojanOption struct {
 	ALPN              []string        `proxy:"alpn,omitempty"`
 	SNI               string          `proxy:"sni,omitempty"`
 	SkipCertVerify    bool            `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint       string          `proxy:"fingerprint,omitempty"`
 	UDP               bool            `proxy:"udp,omitempty"`
 	Network           string          `proxy:"network,omitempty"`
 	ECHOpts           ECHOptions      `proxy:"ech-opts,omitempty"`
@@ -511,6 +522,7 @@ type AnyTLSOption struct {
 	ECHOpts                  ECHOptions `proxy:"ech-opts,omitempty"`
 	ClientFingerprint        string     `proxy:"client-fingerprint,omitempty"`
 	SkipCertVerify           bool       `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint              string     `proxy:"fingerprint,omitempty"`
 	IdleSessionCheckInterval int        `proxy:"idle-session-check-interval,omitempty"`
 	IdleSessionTimeout       int        `proxy:"idle-session-timeout,omitempty"`
 	MinIdleSession           int        `proxy:"min-idle-session,omitempty"`
@@ -540,6 +552,7 @@ type HysteriaOption struct {
 	SNI                 string     `proxy:"sni,omitempty"`
 	ECHOpts             ECHOptions `proxy:"ech-opts,omitempty"`
 	SkipCertVerify      bool       `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint         string     `proxy:"fingerprint,omitempty"`
 	ALPN                []string   `proxy:"alpn,omitempty"`
 	CustomCA            string     `proxy:"ca,omitempty"`
 	CustomCAString      string     `proxy:"ca-str,omitempty"`
@@ -561,6 +574,7 @@ type Hysteria2Option struct {
 	SNI            string     `proxy:"sni,omitempty"`
 	ECHOpts        ECHOptions `proxy:"ech-opts,omitempty"`
 	SkipCertVerify bool       `proxy:"skip-cert-verify,omitempty"`
+	Fingerprint    string     `proxy:"fingerprint,omitempty"`
 	ALPN           []string   `proxy:"alpn,omitempty"`
 	CustomCA       string     `proxy:"ca,omitempty"`
 	CustomCAString string     `proxy:"ca-str,omitempty"`
