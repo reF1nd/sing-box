@@ -1,4 +1,4 @@
-name: Get Latest Tag and  Version
+name: Create Version
 
 on:
   push:
@@ -7,33 +7,29 @@ on:
   workflow_dispatch:  # 允许手动触发工作流
 
 jobs:
-  get-latest-tag:
+  calculate-version:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Get latest tag
-        id: get_latest_tag
-        run: |
-          # 获取最新标签
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "Latest tag: $LATEST_TAG"
-          echo "::set-output name=latest_tag::$LATEST_TAG"
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'  # 设置所需的 Go 版本
 
-      - name: Calculate new version
+      - name: Calculate version
         id: calculate_version
         run: |
-          # 获取标签版本号
-          TAG_VERSION="${{ steps.get_latest_tag.outputs.latest_tag }}"
-          # 计算新版本号（假设版本号格式为 vMAJOR.MINOR.PATCH）
-          IFS='.' read -r MAJOR MINOR PATCH <<< "${TAG_VERSION#v}"
-          NEW_PATCH=$((PATCH + 1))  # 增加 PATCH 版本
-          NEW_VERSION="v$MAJOR.$MINOR.$NEW_PATCH"
-          echo "New version: $NEW_VERSION"
-          echo "::set-output name=new_version::$NEW_VERSION"
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "Running version calculation for automatic triggers"
+            go run -v ./cmd/internal/read_tag --ci --nightly
+          else
+            echo "Running version calculation for manual triggers"
+            go run -v ./cmd/internal/read_tag --ci
+          fi
 
-      - name: Output new version
+      - name: Output version
         run: |
-          echo "The new version is ${{ steps.calculate_version.outputs.new_version }}"
+          echo "The calculated version is ${{ steps.calculate_version.outputs.version }}"
