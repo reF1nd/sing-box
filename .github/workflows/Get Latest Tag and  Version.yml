@@ -27,7 +27,7 @@ jobs:
           else
             echo "Running version calculation for manual triggers"
             go run -v ./cmd/internal/read_tag --ci
-
+          fi
       - name: Output version
         run: |
           echo "The calculated version is ${{ steps.calculate_version.outputs.version }}"
