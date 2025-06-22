@@ -1,0 +1,39 @@
+name: Get Latest Tag and  Version
+
+on:
+  push:
+    branches:
+      - main  # 你希望触发工作流的分支
+  workflow_dispatch:  # 允许手动触发工作流
+
+jobs:
+  get-latest-tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          # 获取最新标签
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          echo "Latest tag: $LATEST_TAG"
+          echo "::set-output name=latest_tag::$LATEST_TAG"
+
+      - name: Calculate new version
+        id: calculate_version
+        run: |
+          # 获取标签版本号
+          TAG_VERSION="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          # 计算新版本号（假设版本号格式为 vMAJOR.MINOR.PATCH）
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${TAG_VERSION#v}"
+          NEW_PATCH=$((PATCH + 1))  # 增加 PATCH 版本
+          NEW_VERSION="v$MAJOR.$MINOR.$NEW_PATCH"
+          echo "New version: $NEW_VERSION"
+          echo "::set-output name=new_version::$NEW_VERSION"
+
+      - name: Output new version
+        run: |
+          echo "The new version is ${{ steps.calculate_version.outputs.new_version }}"
