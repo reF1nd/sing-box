@@ -3,21 +3,20 @@ name: Create Version
 on:
   push:
     branches:
-      - main  # 你希望触发工作流的分支
-  workflow_dispatch:  # 允许手动触发工作流
+      - main
+  workflow_dispatch:
 
 jobs:
   calculate-version:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.17'  # 设置所需的 Go 版本
+          go-version: '1.23'
 
       - name: Calculate version
         id: calculate_version
@@ -28,7 +27,6 @@ jobs:
           else
             echo "Running version calculation for manual triggers"
             go run -v ./cmd/internal/read_tag --ci
-          fi
 
       - name: Output version
         run: |
