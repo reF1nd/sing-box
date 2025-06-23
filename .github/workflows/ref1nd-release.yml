@@ -1,0 +1,312 @@
+name: reF1nd Release Build
+
+on:
+  push:
+    tags:
+      - '*reF1nd*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name containing 'reF1nd'"
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TAGS: 'with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale'
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      commit_info: ${{ steps.commit.outputs.info }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+      - name: Get commit info
+        id: commit
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
+          COMMIT_DATE=$(git log -1 --pretty=format:"%ci")
+          
+          INFO="Commit: ${COMMIT_SHA:0:8} by ${COMMIT_AUTHOR} on ${COMMIT_DATE}\nMessage: ${COMMIT_MSG}"
+          echo "info<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${INFO}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "## 更新日志" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          git log --oneline -10 --pretty=format:"- %s (%h)" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  build_binaries:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - { os: windows, arch: amd64, ext: .exe }
+          - { os: linux, arch: amd64, ext: "" }
+          - { os: linux, arch: arm64, ext: "", openwrt: "aarch64_cortex-a53" }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.24
+
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box${{ matrix.ext }} -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}' \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+
+      - name: Set binary name
+        run: |
+          BINARY_NAME="sing-box-${{ needs.prepare.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}"
+          echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
+
+      - name: Archive binary
+        run: |
+          cd dist
+          mkdir -p "${BINARY_NAME}"
+          cp ../LICENSE "${BINARY_NAME}/"
+          if [ '${{ matrix.os }}' = 'windows' ]; then
+            cp sing-box${{ matrix.ext }} "${BINARY_NAME}/"
+            zip -r "${BINARY_NAME}.zip" "${BINARY_NAME}"
+            rm -rf "${BINARY_NAME}"
+          else
+            cp sing-box "${BINARY_NAME}/"
+            tar -czvf "${BINARY_NAME}.tar.gz" "${BINARY_NAME}"
+            rm -rf "${BINARY_NAME}"
+          fi
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/
+
+  build_packages:
+    name: Build Packages
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - { os: linux, arch: amd64, debian: amd64, package_type: deb }
+          - { os: linux, arch: amd64, alpine: x86_64, package_type: apk }
+          - { os: linux, arch: arm64, openwrt: aarch64_cortex-a53, package_type: ipk }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.24
+
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}' \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+
+      - name: Install packaging tools
+        run: |
+          sudo gem install fpm
+
+      - name: Package DEB
+        if: matrix.package_type == 'deb'
+        run: |
+          PKG_VERSION="${{ needs.prepare.outputs.version }}"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
+          cp .fpm_systemd .fpm
+          fpm -t deb \
+            -v "$PKG_VERSION" \
+            -p "dist/sing-box_${{ needs.prepare.outputs.version }}_${{ matrix.os }}_${{ matrix.debian }}.deb" \
+            --architecture ${{ matrix.debian }} \
+            dist/sing-box=/usr/bin/sing-box
+
+      - name: Package Alpine APK
+        if: matrix.package_type == 'apk'
+        run: |
+          PKG_VERSION="${{ needs.prepare.outputs.version }}"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
+          # 创建 Alpine APK 包配置
+          echo "-s dir" > .fpm_alpine
+          echo "--name sing-box" >> .fpm_alpine
+          echo "--category net" >> .fpm_alpine
+          echo "--license GPLv3-or-later" >> .fpm_alpine
+          echo "--description \"The universal proxy platform.\"" >> .fpm_alpine
+          echo "--url \"https://sing-box.sagernet.org/\"" >> .fpm_alpine
+          echo "--maintainer \"nekohasekai <contact-git@sekai.icu>\"" >> .fpm_alpine
+          cp .fpm_alpine .fpm
+          fpm -t apk \
+            -v "$PKG_VERSION" \
+            -p "dist/sing-box_${{ needs.prepare.outputs.version }}_alpine_${{ matrix.alpine }}.apk" \
+            --architecture ${{ matrix.alpine }} \
+            dist/sing-box=/usr/bin/sing-box
+
+      - name: Package OpenWrt IPK
+        if: matrix.package_type == 'ipk'
+        run: |
+          PKG_VERSION="${{ needs.prepare.outputs.version }}"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
+          cp .fpm_openwrt .fpm
+          fpm -t deb \
+            -v "$PKG_VERSION" \
+            -p "dist/openwrt.deb" \
+            --architecture all \
+            dist/sing-box=/usr/bin/sing-box
+          .github/deb2ipk.sh "${{ matrix.openwrt }}" "dist/openwrt.deb" "dist/sing-box_${{ needs.prepare.outputs.version }}_openwrt_${{ matrix.openwrt }}.ipk"
+          rm "dist/openwrt.deb"
+
+      - name: Cleanup binary
+        run: rm dist/sing-box
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.package_type }}-${{ matrix.arch }}
+          path: dist/
+
+  collect_and_upload:
+    name: Collect Artifacts and Upload
+    runs-on: ubuntu-latest
+    needs: [prepare, build_binaries, build_packages]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          echo "=== 构建产物列表 ==="
+          find artifacts -type f -name "*.zip" -o -name "*.tar.gz" -o -name "*.deb" -o -name "*.apk" -o -name "*.ipk" | sort
+
+      - name: Upload to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref1nd-release-${{ needs.prepare.outputs.version }}
+          path: artifacts/
+          retention-days: 30
+
+  telegram_notify:
+    name: Telegram Notification
+    runs-on: ubuntu-latest
+    needs: [prepare, collect_and_upload]
+    if: always()
+    steps:
+      - name: Checkout (for scripts)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/scripts/
+          sparse-checkout-cone-mode: false
+
+      - name: Make script executable
+        run: chmod +x .github/scripts/telegram-upload.sh
+
+      - name: Download artifacts for Telegram
+        if: needs.collect_and_upload.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: ref1nd-release-${{ needs.prepare.outputs.version }}
+          path: telegram_files/
+
+      - name: Send files to Telegram
+        if: needs.collect_and_upload.result == 'success' && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != ''
+        run: |
+          .github/scripts/telegram-upload.sh \
+            "${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            "${{ secrets.TELEGRAM_CHAT_ID }}" \
+            "${{ needs.prepare.outputs.version }}" \
+            "telegram_files"
+        continue-on-error: true
+
+      - name: Send build notification
+        if: secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != ''
+        run: |
+          # 获取构建状态
+          BUILD_STATUS="${{ needs.build_binaries.result }}"
+          PACKAGE_STATUS="${{ needs.build_packages.result }}"
+          UPLOAD_STATUS="${{ needs.collect_and_upload.result }}"
+
+          # 构建状态图标
+          if [ "$BUILD_STATUS" = "success" ]; then
+            BINARY_ICON="✅"
+          else
+            BINARY_ICON="❌"
+          fi
+
+          if [ "$PACKAGE_STATUS" = "success" ]; then
+            PACKAGE_ICON="✅"
+          else
+            PACKAGE_ICON="❌"
+          fi
+
+          if [ "$UPLOAD_STATUS" = "success" ]; then
+            UPLOAD_ICON="✅"
+            OVERALL_STATUS="✅ 构建成功"
+          else
+            UPLOAD_ICON="❌"
+            OVERALL_STATUS="❌ 构建失败"
+          fi
+
+          # 构建消息内容
+          MESSAGE="🎯 **sing-box reF1nd 构建报告**%0A%0A${OVERALL_STATUS}%0A%0A🏷️ **版本**: \`${{ needs.prepare.outputs.version }}\`%0A🕐 **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')%0A%0A📋 **提交信息**:%0A\`\`\`%0A${{ needs.prepare.outputs.commit_info }}%0A\`\`\`%0A%0A🔧 **构建状态**:%0A• 二进制文件: ${BINARY_ICON}%0A• 系统包: ${PACKAGE_ICON}%0A• 文件上传: ${UPLOAD_ICON}%0A%0A📦 **构建产物**:%0A• Windows AMD64 二进制%0A• Linux AMD64 二进制%0A• OpenWrt aarch64 二进制%0A• Debian 系统包%0A• Alpine 系统包%0A• OpenWrt IPK 包%0A%0A📝 **更新日志**:%0A${{ needs.prepare.outputs.changelog }}%0A%0A🔗 **详细日志**: [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          # 发送消息到 Telegram
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "text=${MESSAGE}" \
+            -d "parse_mode=Markdown" \
+            -d "disable_web_page_preview=true" || echo "Failed to send notification"
+        continue-on-error: true
