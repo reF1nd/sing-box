@@ -374,7 +374,7 @@ jobs:
           path: telegram_files/
 
       - name: Send files to Telegram
-        if: ${{ needs.collect_and_upload.result == 'success' && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+        if: ${{ needs.collect_and_upload.result == 'success' && env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
         run: |
           .github/scripts/telegram-upload.sh \
             "${{ secrets.TELEGRAM_BOT_TOKEN }}" \
@@ -384,7 +384,7 @@ jobs:
         continue-on-error: true
 
       - name: Send build notification
-        if: ${{ secrets.TELEGRAM_BOT_TOKEN && secrets.TELEGRAM_CHAT_ID }}
+        if: ${{ env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
         run: |
           # 获取构建状态
           BUILD_STATUS="${{ needs.build_binaries.result }}"
