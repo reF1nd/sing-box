@@ -1,4 +1,4 @@
-name: Android ARM64 Final Build
+name: Android ARM64 Stable Build
 
 on:
   push:
@@ -50,16 +50,15 @@ jobs:
         id: changelog
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            # 获取最近的标签变更
-            CHANGELOG=$(git log --oneline --no-merges $(git describe --tags --abbrev=0 HEAD~1)..HEAD | head -10 | sed 's/^/• /')
+            CHANGELOG=$(git log --oneline --no-merges $(git describe --tags --abbrev=0 HEAD~1)..HEAD | head -10 | sed 's/^/• /' || echo "• 首次发布")
           else
             CHANGELOG="• 手动触发构建"
           fi
-
+          
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="• 无重要变更"
           fi
-
+          
           echo "content<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -85,7 +84,6 @@ jobs:
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r28
-          local-cache: false
 
       - name: Build Android ARM64 Binary
         run: |
@@ -95,7 +93,7 @@ jobs:
           # 安装构建工具
           go install -v ./cmd/internal/build
           
-          # 设置编译器 - 完全按照现有工作流的方式
+          # 设置编译器
           export CC='aarch64-linux-android21-clang'
           export CXX="${CC}++"
           
@@ -109,7 +107,7 @@ jobs:
           # 创建输出目录
           mkdir -p dist
           
-          # 构建二进制文件 - 完全按照现有工作流的方式
+          # 构建二进制文件
           echo "=== 构建 Android ARM64 二进制文件 ==="
           GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
             -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}' \
@@ -119,8 +117,6 @@ jobs:
           echo "=== 验证构建结果 ==="
           ls -la dist/
           file dist/sing-box
-          
-          # 设置可执行权限
           chmod +x dist/sing-box
           
           echo "✅ Android ARM64 构建完成"
@@ -138,19 +134,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-arm64-binary-final
+          name: android-arm64-binary-stable
           path: |
             dist/sing-box
             dist/sing-box-${{ needs.prepare.outputs.version }}-android-arm64.tar.gz
-
-      - name: Show build summary
-        run: |
-          echo "🎉 Android ARM64 构建完成!"
-          echo "版本: ${{ needs.prepare.outputs.version }}"
-          echo "文件:"
-          ls -la dist/
-          echo "文件类型:"
-          file dist/sing-box
 
   push_to_magisk:
     name: Push to box_for_magisk
@@ -160,7 +147,7 @@ jobs:
       - name: Download Android ARM64 binary
         uses: actions/download-artifact@v4
         with:
-          name: android-arm64-binary-final
+          name: android-arm64-binary-stable
           path: android_binary/
 
       - name: Verify downloaded files
@@ -169,16 +156,6 @@ jobs:
           ls -la android_binary/
           file android_binary/sing-box
           chmod +x android_binary/sing-box
-
-      - name: Check token availability
-        run: |
-          if [ -n "${{ secrets.BOX_FOR_MAGISK_TOKEN }}" ]; then
-            echo "✅ 使用 BOX_FOR_MAGISK_TOKEN"
-            echo "TOKEN_TYPE=BOX_FOR_MAGISK_TOKEN" >> $GITHUB_ENV
-          else
-            echo "⚠️ BOX_FOR_MAGISK_TOKEN 未配置，使用 GITHUB_TOKEN"
-            echo "TOKEN_TYPE=GITHUB_TOKEN" >> $GITHUB_ENV
-          fi
 
       - name: Checkout box_for_magisk repository
         uses: actions/checkout@v4
@@ -194,47 +171,21 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-          echo "=== Git 配置验证 ==="
-          git config --list | grep user || true
-
-          echo "=== 仓库信息 ==="
-          git remote -v
-          git branch -a
-          git log --oneline -3 || true
-
-          echo "=== 使用的 Token 类型: $TOKEN_TYPE ==="
-
       - name: Update binary file
         run: |
           echo "=== 更新二进制文件 ==="
-
+          
           # 确保目标目录存在
           mkdir -p box_for_magisk/box/bin
-
-          # 检查现有文件
-          if [ -f "box_for_magisk/box/bin/sing-box" ]; then
-            echo "现有文件信息:"
-            ls -la box_for_magisk/box/bin/sing-box
-            echo "现有文件 MD5: $(md5sum box_for_magisk/box/bin/sing-box)"
-            echo "现有文件大小: $(stat -c%s box_for_magisk/box/bin/sing-box) bytes"
-          else
-            echo "目标位置没有现有文件"
-          fi
-
-          echo "新文件信息:"
-          ls -la android_binary/sing-box
-          echo "新文件 MD5: $(md5sum android_binary/sing-box)"
-          echo "新文件大小: $(stat -c%s android_binary/sing-box) bytes"
-
+          
           # 复制新的二进制文件
           cp android_binary/sing-box box_for_magisk/box/bin/sing-box
           chmod 755 box_for_magisk/box/bin/sing-box
-
+          
           # 验证文件
           echo "=== 验证更新后的文件 ==="
           ls -la box_for_magisk/box/bin/
           file box_for_magisk/box/bin/sing-box
-          echo "更新后文件 MD5: $(md5sum box_for_magisk/box/bin/sing-box)"
 
       - name: Commit and push changes
         run: |
@@ -243,78 +194,64 @@ jobs:
           echo "=== 检查 Git 状态 ==="
           git status
 
-          echo "=== 添加文件到暂存区 ==="
+          echo "=== 检查文件差异 ==="
+          git diff --name-only || true
+          git diff --stat || true
+
+          echo "=== 检查二进制文件信息 ==="
+          if [ -f "box/bin/sing-box" ]; then
+            echo "当前文件大小: $(stat -c%s box/bin/sing-box) bytes"
+            echo "当前文件修改时间: $(stat -c%y box/bin/sing-box)"
+            echo "文件 MD5: $(md5sum box/bin/sing-box)"
+          else
+            echo "❌ 文件不存在: box/bin/sing-box"
+          fi
+
+          # 强制添加文件并检查状态
           git add box/bin/sing-box
 
-          echo "=== 检查暂存区状态 ==="
+          echo "=== 添加文件后的状态 ==="
           git status
 
-          echo "=== 检查是否有变更需要提交 ==="
+          # 检查是否有变更需要提交
           if git diff --cached --quiet; then
-            echo "📝 没有文件变更需要提交"
-            echo "这通常意味着新文件与现有文件完全相同"
-
-            # 尝试强制更新时间戳
-            echo "=== 尝试强制更新 ==="
-            touch box/bin/sing-box
-            git add box/bin/sing-box
-
-            if git diff --cached --quiet; then
-              echo "📝 确认没有变更，跳过提交"
-              echo "NO_CHANGES=true" >> $GITHUB_ENV
-            else
-              echo "📝 时间戳更新后发现变更，准备提交"
-              git commit -m "Update sing-box binary to ${{ needs.prepare.outputs.version }} (Android ARM64) - force update"
-              git push origin simple
-              echo "✅ 成功推送到 ridesnails/box_for_magisk:simple"
-              echo "PUSH_SUCCESS=true" >> $GITHUB_ENV
-            fi
+            echo "📝 没有文件变更，跳过提交"
+            echo "这可能意味着文件内容与仓库中的完全相同"
           else
             echo "📝 发现文件变更，准备提交"
             echo "变更详情:"
             git diff --cached --stat
-            git diff --cached --name-only
 
             git commit -m "Update sing-box binary to ${{ needs.prepare.outputs.version }} (Android ARM64)"
-
-            echo "=== 推送到远程仓库 ==="
-            if git push origin simple; then
-              echo "✅ 成功推送到 ridesnails/box_for_magisk:simple"
-              echo "PUSH_SUCCESS=true" >> $GITHUB_ENV
-            else
-              echo "❌ 推送失败"
-              echo "PUSH_FAILED=true" >> $GITHUB_ENV
-              exit 1
-            fi
+            git push origin simple
+            echo "✅ 成功推送到 ridesnails/box_for_magisk:simple"
           fi
-
-          echo "=== 验证最终状态 ==="
-          git log --oneline -3
-          git status
 
   notify:
     name: Send Notification
     runs-on: ubuntu-latest
     needs: [prepare, build_android_arm64, push_to_magisk]
     if: always()
-    env:
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:
       - name: Send Telegram notification
-        if: ${{ env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
         run: |
+          # 检查是否配置了 Telegram
+          if [ -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ] || [ -z "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+            echo "📱 Telegram 未配置，跳过通知"
+            exit 0
+          fi
+          
           # 获取构建状态
           BUILD_STATUS="${{ needs.build_android_arm64.result }}"
           PUSH_STATUS="${{ needs.push_to_magisk.result }}"
-
+          
           # 设置状态图标
           if [ "$BUILD_STATUS" = "success" ]; then
             BUILD_ICON="✅"
           else
             BUILD_ICON="❌"
           fi
-
+          
           if [ "$PUSH_STATUS" = "success" ]; then
             PUSH_ICON="✅"
             OVERALL_STATUS="✅ 构建和部署成功"
@@ -322,13 +259,13 @@ jobs:
             PUSH_ICON="❌"
             OVERALL_STATUS="❌ 构建或部署失败"
           fi
-
+          
           # 构建消息内容
           MESSAGE="📱 **sing-box Android ARM64 构建报告**%0A%0A${OVERALL_STATUS}%0A%0A🏷️ **版本**: \`${{ needs.prepare.outputs.version }}\`%0A🕐 **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')%0A%0A📋 **提交信息**:%0A\`\`\`%0A${{ needs.prepare.outputs.commit_info }}\`\`\`%0A%0A🔧 **构建状态**:%0A• Android ARM64 构建: ${BUILD_ICON}%0A• Magisk 仓库推送: ${PUSH_ICON}%0A%0A📦 **部署信息**:%0A• 目标仓库: ridesnails/box_for_magisk%0A• 目标分支: simple%0A• 文件路径: box/bin/sing-box%0A• 文件权限: 755 (可执行)%0A%0A📝 **更新日志**:%0A${{ needs.prepare.outputs.changelog }}%0A%0A🔗 **详细日志**: [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
-
+          
           # 发送消息到 Telegram
-          curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d "text=${MESSAGE}" \
             -d "parse_mode=Markdown" \
             -d "disable_web_page_preview=true" || echo "Failed to send notification"

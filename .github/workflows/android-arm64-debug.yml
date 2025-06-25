@@ -1,0 +1,211 @@
+name: Android ARM64 Debug Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (例如: 1.10.0)'
+        required: true
+        type: string
+
+env:
+  BUILD_TAGS: "with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale"
+
+jobs:
+  prepare:
+    name: Prepare Build Info
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 构建版本: ${VERSION}"
+
+  build_android_arm64:
+    name: Build Android ARM64
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.24
+
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+
+      - name: Build Android ARM64 Binary
+        run: |
+          set -xeuo pipefail
+          echo "=== 开始 Android ARM64 构建 ==="
+          
+          go install -v ./cmd/internal/build
+          export CC='aarch64-linux-android21-clang'
+          export CXX="${CC}++"
+          
+          mkdir -p dist
+          
+          GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+            -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}' \
+            ./cmd/sing-box
+          
+          ls -la dist/
+          file dist/sing-box
+          chmod +x dist/sing-box
+          
+          echo "✅ Android ARM64 构建完成"
+        env:
+          CGO_ENABLED: "1"
+          BUILD_GOOS: android
+          BUILD_GOARCH: arm64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-binary-debug
+          path: dist/sing-box
+
+  push_to_magisk:
+    name: Push to box_for_magisk
+    runs-on: ubuntu-latest
+    needs: [prepare, build_android_arm64]
+    steps:
+      - name: Download Android ARM64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: android-arm64-binary-debug
+          path: android_binary/
+
+      - name: Verify downloaded files
+        run: |
+          echo "=== 查看下载的文件 ==="
+          ls -la android_binary/
+          file android_binary/sing-box
+          chmod +x android_binary/sing-box
+          echo "文件大小: $(stat -c%s android_binary/sing-box) bytes"
+          echo "文件 MD5: $(md5sum android_binary/sing-box)"
+
+      - name: Checkout box_for_magisk repository
+        uses: actions/checkout@v4
+        with:
+          repository: ridesnails/box_for_magisk
+          ref: simple
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: box_for_magisk
+
+      - name: Setup Git
+        run: |
+          cd box_for_magisk
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Check current state
+        run: |
+          cd box_for_magisk
+          echo "=== 当前仓库状态 ==="
+          git status
+          git log --oneline -5
+          
+          echo "=== 检查现有文件 ==="
+          if [ -f "box/bin/sing-box" ]; then
+            echo "现有文件大小: $(stat -c%s box/bin/sing-box) bytes"
+            echo "现有文件 MD5: $(md5sum box/bin/sing-box)"
+            echo "现有文件修改时间: $(stat -c%y box/bin/sing-box)"
+          else
+            echo "文件不存在: box/bin/sing-box"
+          fi
+
+      - name: Update binary file
+        run: |
+          echo "=== 更新二进制文件 ==="
+          
+          mkdir -p box_for_magisk/box/bin
+          
+          # 备份现有文件（如果存在）
+          if [ -f "box_for_magisk/box/bin/sing-box" ]; then
+            cp box_for_magisk/box/bin/sing-box box_for_magisk/box/bin/sing-box.backup
+            echo "已备份现有文件"
+          fi
+          
+          # 复制新文件
+          cp android_binary/sing-box box_for_magisk/box/bin/sing-box
+          chmod 755 box_for_magisk/box/bin/sing-box
+          
+          echo "=== 验证更新后的文件 ==="
+          ls -la box_for_magisk/box/bin/
+          file box_for_magisk/box/bin/sing-box
+          echo "新文件大小: $(stat -c%s box_for_magisk/box/bin/sing-box) bytes"
+          echo "新文件 MD5: $(md5sum box_for_magisk/box/bin/sing-box)"
+
+      - name: Force commit and push changes
+        run: |
+          cd box_for_magisk
+          
+          echo "=== 强制检查变更 ==="
+          
+          # 添加文件到 Git
+          git add box/bin/sing-box
+          
+          echo "=== Git 状态 ==="
+          git status
+          
+          echo "=== 检查暂存区变更 ==="
+          if git diff --cached --quiet; then
+            echo "📝 暂存区没有变更"
+            
+            # 尝试强制更新文件时间戳
+            touch box/bin/sing-box
+            git add box/bin/sing-box
+            
+            if git diff --cached --quiet; then
+              echo "📝 文件内容确实没有变更，跳过提交"
+              echo "这意味着新构建的文件与仓库中的文件完全相同"
+            else
+              echo "📝 时间戳更新后发现变更，准备提交"
+              git commit -m "Update sing-box binary to ${{ needs.prepare.outputs.version }} (Android ARM64) - timestamp update"
+              git push origin simple
+              echo "✅ 成功推送到 ridesnails/box_for_magisk:simple"
+            fi
+          else
+            echo "📝 发现文件变更，准备提交"
+            echo "变更详情:"
+            git diff --cached --stat
+            git diff --cached --name-only
+            
+            git commit -m "Update sing-box binary to ${{ needs.prepare.outputs.version }} (Android ARM64)"
+            git push origin simple
+            echo "✅ 成功推送到 ridesnails/box_for_magisk:simple"
+          fi
+
+      - name: Verify push result
+        run: |
+          cd box_for_magisk
+          echo "=== 验证推送结果 ==="
+          git log --oneline -3
+          echo "=== 最新提交详情 ==="
+          git show --stat HEAD
