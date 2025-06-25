@@ -374,17 +374,17 @@ jobs:
           path: telegram_files/
 
       - name: Send files to Telegram
-        if: ${{ needs.collect_and_upload.result == 'success' && env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
+        if: ${{ needs.collect_and_upload.result == 'success' && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
         run: |
           .github/scripts/telegram-upload.sh \
-            "$TELEGRAM_BOT_TOKEN" \
-            "$TELEGRAM_CHAT_ID" \
+            "${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            "${{ secrets.TELEGRAM_CHAT_ID }}" \
             "${{ needs.prepare.outputs.version }}" \
             "telegram_files"
         continue-on-error: true
 
       - name: Send build notification
-        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN && secrets.TELEGRAM_CHAT_ID }}
         run: |
           # 获取构建状态
           BUILD_STATUS="${{ needs.build_binaries.result }}"
@@ -428,8 +428,8 @@ jobs:
           MESSAGE="🎯 **sing-box reF1nd 构建报告**%0A%0A${OVERALL_STATUS}%0A%0A🏷️ **版本**: \`${{ needs.prepare.outputs.version }}\`%0A🕐 **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')%0A%0A📋 **提交信息**:%0A\`\`\`%0A${{ needs.prepare.outputs.commit_info }}%0A\`\`\`%0A%0A🔧 **构建状态**:%0A• 二进制文件: ${BINARY_ICON}%0A• 系统包: ${PACKAGE_ICON}%0A• 文件上传: ${UPLOAD_ICON}%0A• Android 推送: ${ANDROID_PUSH_ICON}%0A%0A📦 **构建产物**:%0A• Windows AMD64 二进制%0A• Linux AMD64 二进制%0A• OpenWrt aarch64 二进制%0A• Android ARM64 二进制%0A• Debian 系统包%0A• Alpine 系统包%0A• OpenWrt IPK 包%0A%0A📱 **Android 部署**:%0A• 仓库: ridesnails/box_for_magisk%0A• 分支: simple%0A• 路径: box/bin/sing-box%0A• 状态: ${ANDROID_PUSH_ICON}%0A%0A📝 **更新日志**:%0A${{ needs.prepare.outputs.changelog }}%0A%0A🔗 **详细日志**: [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
 
           # 发送消息到 Telegram
-          curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d "text=${MESSAGE}" \
             -d "parse_mode=Markdown" \
             -d "disable_web_page_preview=true" || echo "Failed to send notification"
