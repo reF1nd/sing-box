@@ -1,4 +1,4 @@
-name: Android ARM64 Simple Build
+name: Android ARM64 Fixed Build
 
 on:
   push:
@@ -73,48 +73,48 @@ jobs:
         run: |
           set -xeuo pipefail
           echo "=== 开始 Android ARM64 构建 ==="
-
+          
           # 安装构建工具
           go install -v ./cmd/internal/build
-
-          # 设置 NDK 环境变量和 PATH
+          
+          # 设置 NDK 环境变量
           export ANDROID_NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
           export NDK_TOOLCHAIN_DIR="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          export PATH="${NDK_TOOLCHAIN_DIR}:${PATH}"
-
-          # 设置编译器
-          export CC='aarch64-linux-android21-clang'
-          export CXX="${CC}++"
-
+          
+          # 使用完整路径设置编译器
+          export CC="${NDK_TOOLCHAIN_DIR}/aarch64-linux-android21-clang"
+          export CXX="${NDK_TOOLCHAIN_DIR}/aarch64-linux-android21-clang++"
+          
           # 验证 NDK 环境
           echo "=== 验证 NDK 环境 ==="
           echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
           echo "NDK_TOOLCHAIN_DIR: $NDK_TOOLCHAIN_DIR"
-          echo "PATH: $PATH"
           echo "CC: $CC"
           echo "CXX: $CXX"
-
+          
           # 检查工具链目录
           if [ -d "$NDK_TOOLCHAIN_DIR" ]; then
             echo "✅ 找到 NDK 工具链目录"
-            ls -la "$NDK_TOOLCHAIN_DIR" | grep aarch64 | head -5
+            ls -la "$NDK_TOOLCHAIN_DIR" | grep aarch64-linux-android21 || true
           else
             echo "❌ 未找到 NDK 工具链目录: $NDK_TOOLCHAIN_DIR"
             exit 1
           fi
-
-          # 验证编译器
-          if command -v "$CC" &> /dev/null; then
+          
+          # 验证编译器文件
+          if [ -f "$CC" ]; then
             echo "✅ 找到 Android 编译器: $CC"
             $CC --version
           else
-            echo "❌ 未找到 Android 编译器: $CC"
+            echo "❌ 未找到 Android 编译器文件: $CC"
+            echo "可用的 aarch64 编译器:"
+            ls -la "$NDK_TOOLCHAIN_DIR" | grep aarch64 || true
             exit 1
           fi
-
+          
           # 创建输出目录
           mkdir -p dist
-
+          
           # 构建二进制文件
           echo "=== 构建 Android ARM64 二进制文件 ==="
           echo "构建标签: ${BUILD_TAGS}"
@@ -123,20 +123,21 @@ jobs:
           echo "  BUILD_GOOS=$BUILD_GOOS"
           echo "  BUILD_GOARCH=$BUILD_GOARCH"
           echo "  CC=$CC"
-
+          echo "  CXX=$CXX"
+          
           GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box \
             -tags "${BUILD_TAGS}" \
             -ldflags "-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}" \
             ./cmd/sing-box
-
+          
           # 验证构建结果
           echo "=== 验证构建结果 ==="
           ls -la dist/
           file dist/sing-box
-
+          
           # 设置可执行权限
           chmod +x dist/sing-box
-
+          
           echo "✅ Android ARM64 构建完成"
         env:
           CGO_ENABLED: "1"
@@ -152,7 +153,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-arm64-binary
+          name: android-arm64-binary-fixed
           path: |
             dist/sing-box
             dist/sing-box-${{ needs.prepare.outputs.version }}-android-arm64.tar.gz
