@@ -1,4 +1,4 @@
-name: Android ARM64 Fixed Build
+name: Android ARM64 Final Build
 
 on:
   push:
@@ -58,16 +58,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r28
-
-      - name: Install build tool
-        run: |
-          echo "=== 安装构建工具 ==="
-          go install -v ./cmd/internal/build
-          which build
-          
-          echo "=== Go 环境信息 ==="
-          go version
-          go env GOOS GOARCH CGO_ENABLED
+          local-cache: true
 
       - name: Build Android ARM64 Binary
         run: |
@@ -77,67 +68,24 @@ jobs:
           # 安装构建工具
           go install -v ./cmd/internal/build
           
-          # 设置 NDK 环境变量
-          export ANDROID_NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
-          export NDK_TOOLCHAIN_DIR="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          # 设置编译器 - 完全按照现有工作流的方式
+          export CC='aarch64-linux-android21-clang'
+          export CXX="${CC}++"
           
-          # 使用完整路径设置编译器
-          export CC="${NDK_TOOLCHAIN_DIR}/aarch64-linux-android21-clang"
-          export CXX="${NDK_TOOLCHAIN_DIR}/aarch64-linux-android21-clang++"
-          export AR="${NDK_TOOLCHAIN_DIR}/llvm-ar"
-          export STRIP="${NDK_TOOLCHAIN_DIR}/llvm-strip"
-
-          # 设置 Android 特定的编译器标志
-          export CGO_CFLAGS="-D__ANDROID_API__=21 -D_GNU_SOURCE"
-          export CGO_LDFLAGS="-D__ANDROID_API__=21"
-          
-          # 验证 NDK 环境
-          echo "=== 验证 NDK 环境 ==="
-          echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
-          echo "NDK_TOOLCHAIN_DIR: $NDK_TOOLCHAIN_DIR"
+          echo "=== 验证环境 ==="
           echo "CC: $CC"
           echo "CXX: $CXX"
-          echo "AR: $AR"
-          echo "STRIP: $STRIP"
-          echo "CGO_CFLAGS: $CGO_CFLAGS"
-          echo "CGO_LDFLAGS: $CGO_LDFLAGS"
-          
-          # 检查工具链目录
-          if [ -d "$NDK_TOOLCHAIN_DIR" ]; then
-            echo "✅ 找到 NDK 工具链目录"
-            ls -la "$NDK_TOOLCHAIN_DIR" | grep aarch64-linux-android21 || true
-          else
-            echo "❌ 未找到 NDK 工具链目录: $NDK_TOOLCHAIN_DIR"
-            exit 1
-          fi
-          
-          # 验证编译器文件
-          if [ -f "$CC" ]; then
-            echo "✅ 找到 Android 编译器: $CC"
-            $CC --version
-          else
-            echo "❌ 未找到 Android 编译器文件: $CC"
-            echo "可用的 aarch64 编译器:"
-            ls -la "$NDK_TOOLCHAIN_DIR" | grep aarch64 || true
-            exit 1
-          fi
+          echo "CGO_ENABLED: $CGO_ENABLED"
+          echo "BUILD_GOOS: $BUILD_GOOS"
+          echo "BUILD_GOARCH: $BUILD_GOARCH"
           
           # 创建输出目录
           mkdir -p dist
           
-          # 构建二进制文件
+          # 构建二进制文件 - 完全按照现有工作流的方式
           echo "=== 构建 Android ARM64 二进制文件 ==="
-          echo "构建标签: ${BUILD_TAGS}"
-          echo "环境变量:"
-          echo "  CGO_ENABLED=$CGO_ENABLED"
-          echo "  BUILD_GOOS=$BUILD_GOOS"
-          echo "  BUILD_GOARCH=$BUILD_GOARCH"
-          echo "  CC=$CC"
-          echo "  CXX=$CXX"
-          
-          GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box \
-            -tags "${BUILD_TAGS}" \
-            -ldflags "-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}" \
+          GOOS=$BUILD_GOOS GOARCH=$BUILD_GOARCH build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+            -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}' \
             ./cmd/sing-box
           
           # 验证构建结果
@@ -151,7 +99,7 @@ jobs:
           echo "✅ Android ARM64 构建完成"
         env:
           CGO_ENABLED: "1"
-          BUILD_GOOS: linux
+          BUILD_GOOS: android
           BUILD_GOARCH: arm64
 
       - name: Create archive
@@ -163,7 +111,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-arm64-binary-fixed
+          name: android-arm64-binary-final
           path: |
             dist/sing-box
             dist/sing-box-${{ needs.prepare.outputs.version }}-android-arm64.tar.gz
