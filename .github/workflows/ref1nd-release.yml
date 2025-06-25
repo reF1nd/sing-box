@@ -90,6 +90,7 @@ jobs:
 
       - name: Setup Android NDK
         if: matrix.os == 'android'
+        id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r28
@@ -110,15 +111,18 @@ jobs:
       - name: Build binary (Android)
         if: matrix.os == 'android'
         run: |
-          mkdir -p dist
-          export CC='${{ matrix.ndk }}-clang'
+          set -xeuo pipefail
+          go install -v ./cmd/internal/build
+          export ANDROID_NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
+          export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.ndk }}-clang"
           export CXX="${CC}++"
-          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          mkdir -p dist
+          build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
           -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}' \
           ./cmd/sing-box
         env:
           CGO_ENABLED: "1"
-          GOOS: linux
+          GOOS: android
           GOARCH: ${{ matrix.arch }}
 
       - name: Set binary name
@@ -276,12 +280,17 @@ jobs:
       - name: Extract Android binary
         run: |
           cd android_binary
+          echo "=== 查看下载的文件 ==="
+          ls -la
+
           # 查找并提取 Android ARM64 二进制文件
           if [ -f "sing-box-${{ needs.prepare.outputs.version }}-android-arm64.tar.gz" ]; then
+            echo "找到打包文件，正在解压..."
             tar -xzf "sing-box-${{ needs.prepare.outputs.version }}-android-arm64.tar.gz"
             BINARY_DIR="sing-box-${{ needs.prepare.outputs.version }}-android-arm64"
+            ls -la "${BINARY_DIR}/"
           else
-            # 如果没有打包文件，直接查找二进制文件
+            echo "未找到打包文件，直接查找二进制文件..."
             BINARY_DIR="."
           fi
 
@@ -290,9 +299,11 @@ jobs:
             cp "${BINARY_DIR}/sing-box" ./sing-box-android-arm64
             echo "✅ 找到 Android ARM64 二进制文件"
             ls -la sing-box-android-arm64
+            file sing-box-android-arm64
           else
             echo "❌ 未找到 Android ARM64 二进制文件"
-            ls -la
+            echo "查找所有可能的文件："
+            find . -name "*sing-box*" -type f
             exit 1
           fi
 
@@ -373,7 +384,7 @@ jobs:
         continue-on-error: true
 
       - name: Send build notification
-        if: ${{ env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
         run: |
           # 获取构建状态
           BUILD_STATUS="${{ needs.build_binaries.result }}"
