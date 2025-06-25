@@ -76,7 +76,6 @@ jobs:
           - { os: windows, arch: amd64, ext: .exe }
           - { os: linux, arch: amd64, ext: "" }
           - { os: linux, arch: arm64, ext: "", openwrt: "aarch64_cortex-a53" }
-          - { os: android, arch: arm64, ext: "", ndk: "aarch64-linux-android21" }
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,16 +87,7 @@ jobs:
         with:
           go-version: ^1.24
 
-      - name: Setup Android NDK
-        if: matrix.os == 'android'
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r28
-          local-cache: true
-
-      - name: Build binary (Non-Android)
-        if: matrix.os != 'android'
+      - name: Build binary
         run: |
           mkdir -p dist
           go build -v -trimpath -o dist/sing-box${{ matrix.ext }} -tags "${BUILD_TAGS}" \
@@ -106,23 +96,6 @@ jobs:
         env:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-
-      - name: Build binary (Android)
-        if: matrix.os == 'android'
-        run: |
-          set -xeuo pipefail
-          go install -v ./cmd/internal/build
-          export ANDROID_NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
-          export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.ndk }}-clang"
-          export CXX="${CC}++"
-          mkdir -p dist
-          build go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
-          -ldflags '-s -buildid= -X github.com/sagernet/sing-box/constant.Version=${{ needs.prepare.outputs.version }}' \
-          ./cmd/sing-box
-        env:
-          CGO_ENABLED: "1"
-          GOOS: android
           GOARCH: ${{ matrix.arch }}
 
       - name: Set binary name
@@ -265,92 +238,10 @@ jobs:
           path: artifacts/
           retention-days: 30
 
-  push_android_binary:
-    name: Push Android Binary to box_for_magisk
-    runs-on: ubuntu-latest
-    needs: [prepare, build_binaries]
-    if: always() && needs.build_binaries.result == 'success'
-    steps:
-      - name: Download Android ARM64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-android-arm64
-          path: android_binary/
-
-      - name: Extract Android binary
-        run: |
-          cd android_binary
-          echo "=== 查看下载的文件 ==="
-          ls -la
-
-          # 查找并提取 Android ARM64 二进制文件
-          if [ -f "sing-box-${{ needs.prepare.outputs.version }}-android-arm64.tar.gz" ]; then
-            echo "找到打包文件，正在解压..."
-            tar -xzf "sing-box-${{ needs.prepare.outputs.version }}-android-arm64.tar.gz"
-            BINARY_DIR="sing-box-${{ needs.prepare.outputs.version }}-android-arm64"
-            ls -la "${BINARY_DIR}/"
-          else
-            echo "未找到打包文件，直接查找二进制文件..."
-            BINARY_DIR="."
-          fi
-
-          # 查找 sing-box 二进制文件
-          if [ -f "${BINARY_DIR}/sing-box" ]; then
-            cp "${BINARY_DIR}/sing-box" ./sing-box-android-arm64
-            echo "✅ 找到 Android ARM64 二进制文件"
-            ls -la sing-box-android-arm64
-            file sing-box-android-arm64
-          else
-            echo "❌ 未找到 Android ARM64 二进制文件"
-            echo "查找所有可能的文件："
-            find . -name "*sing-box*" -type f
-            exit 1
-          fi
-
-      - name: Checkout box_for_magisk repository
-        uses: actions/checkout@v4
-        with:
-          repository: ridesnails/box_for_magisk
-          ref: simple
-          token: ${{ secrets.BOX_FOR_MAGISK_TOKEN || secrets.GITHUB_TOKEN }}
-          path: box_for_magisk
-
-      - name: Setup Git
-        run: |
-          cd box_for_magisk
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-
-      - name: Update binary in box_for_magisk
-        run: |
-          cd box_for_magisk
-
-          # 创建 box/bin 目录（如果不存在）
-          mkdir -p box/bin
-
-          # 复制 Android ARM64 二进制文件
-          cp ../android_binary/sing-box-android-arm64 box/bin/sing-box
-          chmod +x box/bin/sing-box
-
-          # 检查文件
-          echo "=== 更新的文件信息 ==="
-          ls -la box/bin/sing-box
-          file box/bin/sing-box
-
-          # 提交更改
-          git add box/bin/sing-box
-          if git diff --staged --quiet; then
-            echo "没有更改需要提交"
-          else
-            git commit -m "Update sing-box binary to ${{ needs.prepare.outputs.version }} (reF1nd)"
-            git push origin simple
-            echo "✅ 成功推送 Android ARM64 二进制文件到 box_for_magisk/simple"
-          fi
-
   telegram_notify:
     name: Telegram Notification
     runs-on: ubuntu-latest
-    needs: [prepare, collect_and_upload, push_android_binary]
+    needs: [prepare, collect_and_upload]
     if: always()
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -377,8 +268,8 @@ jobs:
         if: ${{ needs.collect_and_upload.result == 'success' && env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
         run: |
           .github/scripts/telegram-upload.sh \
-            "${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-            "${{ secrets.TELEGRAM_CHAT_ID }}" \
+            "$TELEGRAM_BOT_TOKEN" \
+            "$TELEGRAM_CHAT_ID" \
             "${{ needs.prepare.outputs.version }}" \
             "telegram_files"
         continue-on-error: true
@@ -390,7 +281,6 @@ jobs:
           BUILD_STATUS="${{ needs.build_binaries.result }}"
           PACKAGE_STATUS="${{ needs.build_packages.result }}"
           UPLOAD_STATUS="${{ needs.collect_and_upload.result }}"
-          ANDROID_PUSH_STATUS="${{ needs.push_android_binary.result }}"
 
           # 构建状态图标
           if [ "$BUILD_STATUS" = "success" ]; then
@@ -407,29 +297,18 @@ jobs:
 
           if [ "$UPLOAD_STATUS" = "success" ]; then
             UPLOAD_ICON="✅"
-          else
-            UPLOAD_ICON="❌"
-          fi
-
-          if [ "$ANDROID_PUSH_STATUS" = "success" ]; then
-            ANDROID_PUSH_ICON="✅"
-          else
-            ANDROID_PUSH_ICON="❌"
-          fi
-
-          # 判断整体状态
-          if [ "$BUILD_STATUS" = "success" ] && [ "$PACKAGE_STATUS" = "success" ] && [ "$UPLOAD_STATUS" = "success" ]; then
             OVERALL_STATUS="✅ 构建成功"
           else
+            UPLOAD_ICON="❌"
             OVERALL_STATUS="❌ 构建失败"
           fi
 
           # 构建消息内容
-          MESSAGE="🎯 **sing-box reF1nd 构建报告**%0A%0A${OVERALL_STATUS}%0A%0A🏷️ **版本**: \`${{ needs.prepare.outputs.version }}\`%0A🕐 **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')%0A%0A📋 **提交信息**:%0A\`\`\`%0A${{ needs.prepare.outputs.commit_info }}%0A\`\`\`%0A%0A🔧 **构建状态**:%0A• 二进制文件: ${BINARY_ICON}%0A• 系统包: ${PACKAGE_ICON}%0A• 文件上传: ${UPLOAD_ICON}%0A• Android 推送: ${ANDROID_PUSH_ICON}%0A%0A📦 **构建产物**:%0A• Windows AMD64 二进制%0A• Linux AMD64 二进制%0A• OpenWrt aarch64 二进制%0A• Android ARM64 二进制%0A• Debian 系统包%0A• Alpine 系统包%0A• OpenWrt IPK 包%0A%0A📱 **Android 部署**:%0A• 仓库: ridesnails/box_for_magisk%0A• 分支: simple%0A• 路径: box/bin/sing-box%0A• 状态: ${ANDROID_PUSH_ICON}%0A%0A📝 **更新日志**:%0A${{ needs.prepare.outputs.changelog }}%0A%0A🔗 **详细日志**: [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          MESSAGE="🎯 **sing-box reF1nd 构建报告**%0A%0A${OVERALL_STATUS}%0A%0A🏷️ **版本**: \`${{ needs.prepare.outputs.version }}\`%0A🕐 **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')%0A%0A📋 **提交信息**:%0A\`\`\`%0A${{ needs.prepare.outputs.commit_info }}%0A\`\`\`%0A%0A🔧 **构建状态**:%0A• 二进制文件: ${BINARY_ICON}%0A• 系统包: ${PACKAGE_ICON}%0A• 文件上传: ${UPLOAD_ICON}%0A%0A📦 **构建产物**:%0A• Windows AMD64 二进制%0A• Linux AMD64 二进制%0A• OpenWrt aarch64 二进制%0A• Debian 系统包%0A• Alpine 系统包%0A• OpenWrt IPK 包%0A%0A📝 **更新日志**:%0A${{ needs.prepare.outputs.changelog }}%0A%0A🔗 **详细日志**: [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
 
           # 发送消息到 Telegram
-          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+          curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
             -d "text=${MESSAGE}" \
             -d "parse_mode=Markdown" \
             -d "disable_web_page_preview=true" || echo "Failed to send notification"
