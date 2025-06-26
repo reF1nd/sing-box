@@ -3,11 +3,11 @@ name: Android ARM64 Build and Deploy
 on:
   push:
     tags:
-      - 'v*'
+      - '*reF1nd*'
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号 (例如: 1.10.0)'
+        description: '版本号 (例如: v1.12.23-reF1nd-beta)'
         required: true
         type: string
 
