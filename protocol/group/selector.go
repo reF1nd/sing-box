@@ -97,7 +97,7 @@ func (s *Selector) Start() error {
 		for i, tag := range s.providerTags {
 			provider, loaded := s.provider.Get(tag)
 			if !loaded {
-				E.New("outbound provider ", i, " not found: ", tag)
+				return E.New("outbound provider ", i, " not found: ", tag)
 			}
 			providers[tag] = provider
 			provider.RegisterCallback(s.onProviderUpdated)
