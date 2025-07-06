@@ -419,6 +419,11 @@ type RemoteDNSServerOptions struct {
 	LegacyAddressFallbackDelay badoption.Duration `json:"-"`
 }
 
+type RemoteTCPDNSServerOptions struct {
+	RemoteDNSServerOptions
+	Reuse bool `json:"reuse,omitempty"`
+}
+
 type RemoteTLSDNSServerOptions struct {
 	RemoteDNSServerOptions
 	OutboundTLSOptionsContainer
