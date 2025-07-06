@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"net"
 	"sync"
 	"time"
 
@@ -35,11 +36,11 @@ type TLSTransport struct {
 	serverAddr  M.Socksaddr
 	tlsConfig   tls.Config
 	access      sync.Mutex
-	connections list.List[*tlsDNSConn]
+	connections list.List[*reusableDNSConn]
 }
 
-type tlsDNSConn struct {
-	tls.Conn
+type reusableDNSConn struct {
+	net.Conn
 	queryId uint16
 }
 
@@ -123,10 +124,10 @@ func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 	if err != nil {
 		return nil, E.Cause(err, "dial TLS connection")
 	}
-	return t.exchange(ctx, message, &tlsDNSConn{Conn: tlsConn})
+	return t.exchange(ctx, message, &reusableDNSConn{Conn: tlsConn})
 }
 
-func (t *TLSTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *tlsDNSConn) (*mDNS.Msg, error) {
+func (t *TLSTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *reusableDNSConn) (*mDNS.Msg, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		conn.SetDeadline(deadline)
 	}
