@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"net"
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -34,11 +35,11 @@ type TLSTransport struct {
 	serverAddr  M.Socksaddr
 	tlsConfig   tls.Config
 	access      sync.Mutex
-	connections list.List[*tlsDNSConn]
+	connections list.List[*reusableDNSConn]
 }
 
-type tlsDNSConn struct {
-	tls.Conn
+type reusableDNSConn struct {
+	net.Conn
 	queryId uint16
 }
 
@@ -109,10 +110,10 @@ func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		tcpConn.Close()
 		return nil, err
 	}
-	return t.exchange(message, &tlsDNSConn{Conn: tlsConn})
+	return t.exchange(message, &reusableDNSConn{Conn: tlsConn})
 }
 
-func (t *TLSTransport) exchange(message *mDNS.Msg, conn *tlsDNSConn) (*mDNS.Msg, error) {
+func (t *TLSTransport) exchange(message *mDNS.Msg, conn *reusableDNSConn) (*mDNS.Msg, error) {
 	conn.queryId++
 	err := WriteMessage(conn, conn.queryId, message)
 	if err != nil {
