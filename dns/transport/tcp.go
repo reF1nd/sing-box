@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/expiringpool"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
@@ -23,17 +24,19 @@ import (
 var _ adapter.DNSTransport = (*TCPTransport)(nil)
 
 func RegisterTCP(registry *dns.TransportRegistry) {
-	dns.RegisterTransport[option.RemoteDNSServerOptions](registry, C.DNSTypeTCP, NewTCP)
+	dns.RegisterTransport[option.RemoteTCPDNSServerOptions](registry, C.DNSTypeTCP, NewTCP)
 }
 
 type TCPTransport struct {
 	dns.TransportAdapter
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
+
+	connections *expiringpool.ExpiringPool[*reusableDNSConn]
 }
 
-func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteDNSServerOptions) (adapter.DNSTransport, error) {
-	transportDialer, err := dns.NewRemoteDialer(ctx, options)
+func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteTCPDNSServerOptions) (adapter.DNSTransport, error) {
+	transportDialer, err := dns.NewRemoteDialer(ctx, options.RemoteDNSServerOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -44,21 +47,34 @@ func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options o
 	if !serverAddr.IsValid() {
 		return nil, E.New("invalid server address: ", serverAddr)
 	}
-	return &TCPTransport{
-		TransportAdapter: dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeTCP, tag, options),
+	transport := &TCPTransport{
+		TransportAdapter: dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeTCP, tag, options.RemoteDNSServerOptions),
 		dialer:           transportDialer,
 		serverAddr:       serverAddr,
-	}, nil
+	}
+	if options.Reuse {
+		transport.connections = expiringpool.New(ctx, C.TCPKeepAliveInterval, func(t *reusableDNSConn) {
+			_ = t.Close()
+		})
+	}
+	return transport, nil
 }
 
 func (t *TCPTransport) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	if t.connections != nil {
+		t.connections.Start()
+	}
 	return dialer.InitializeDetour(t.dialer)
 }
 
 func (t *TCPTransport) Close() error {
+	if t.connections == nil {
+		return nil
+	}
+	t.connections.Close()
 	return nil
 }
 
@@ -66,18 +82,36 @@ func (t *TCPTransport) Reset() {
 }
 
 func (t *TCPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	if t.connections != nil {
+		conn := t.connections.Get()
+		if conn != nil {
+			response, err := t.exchange(message, conn)
+			if err == nil {
+				return response, nil
+			}
+		}
+	}
 	conn, err := t.dialer.DialContext(ctx, N.NetworkTCP, t.serverAddr)
 	if err != nil {
 		return nil, E.Cause(err, "dial TCP connection")
 	}
-	defer conn.Close()
-	err = WriteMessage(conn, 0, message)
+	return t.exchange(message, &reusableDNSConn{Conn: conn})
+}
+
+func (t *TCPTransport) exchange(message *mDNS.Msg, conn *reusableDNSConn) (*mDNS.Msg, error) {
+	conn.queryId++
+	err := WriteMessage(conn, conn.queryId, message)
 	if err != nil {
+		_ = conn.Close()
 		return nil, E.Cause(err, "write request")
 	}
 	response, err := ReadMessage(conn)
 	if err != nil {
+		_ = conn.Close()
 		return nil, E.Cause(err, "read response")
+	}
+	if t.connections != nil {
+		t.connections.Put(conn)
 	}
 	return response, nil
 }
