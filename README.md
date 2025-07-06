@@ -41,6 +41,28 @@ it will be rejected.
 
 拒绝未知 SNI：如果连接的 server name 与 `server_name` 不符 且 证书中不包含它，则拒绝连接。
 
+## DNS
+
+### TCP
+
+```json
+{
+  "dns": {
+    "servers": [
+      {
+        "type": "tcp",
+        "tag": "cloudlfare-tcp",
+        "server": "1.1.1.1",
+        "server_port": 53,
+        "reuse": true
+      }
+    ]
+  }
+}
+```
+
+- `reuse`: Reuse TCP connection.
+
 ## URLTest Fallback 支持
 
 按照**可用性**和**顺序**选择出站
