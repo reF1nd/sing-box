@@ -23,20 +23,27 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
+type reusableDNSConn struct {
+	net.Conn
+	queryId uint16
+}
+
 var _ adapter.DNSTransport = (*TCPTransport)(nil)
 
 func RegisterTCP(registry *dns.TransportRegistry) {
-	dns.RegisterTransport[option.RemoteDNSServerOptions](registry, C.DNSTypeTCP, NewTCP)
+	dns.RegisterTransport[option.RemoteTCPDNSServerOptions](registry, C.DNSTypeTCP, NewTCP)
 }
 
 type TCPTransport struct {
 	dns.TransportAdapter
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
+
+	connections *ConnPool[*reusableDNSConn]
 }
 
-func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteDNSServerOptions) (adapter.DNSTransport, error) {
-	transportDialer, err := dns.NewRemoteDialer(ctx, options)
+func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteTCPDNSServerOptions) (adapter.DNSTransport, error) {
+	transportDialer, err := dns.NewRemoteDialer(ctx, options.RemoteDNSServerOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -47,11 +54,23 @@ func NewTCP(ctx context.Context, logger log.ContextLogger, tag string, options o
 	if !serverAddr.IsValid() {
 		return nil, E.New("invalid server address: ", serverAddr)
 	}
-	return &TCPTransport{
-		TransportAdapter: dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeTCP, tag, options),
+	transport := &TCPTransport{
+		TransportAdapter: dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeTCP, tag, options.RemoteDNSServerOptions),
 		dialer:           transportDialer,
 		serverAddr:       serverAddr,
-	}, nil
+	}
+	if options.Reuse {
+		transport.connections = NewConnPool(ConnPoolOptions[*reusableDNSConn]{
+			Mode: ConnPoolOrdered,
+			IsAlive: func(conn *reusableDNSConn) bool {
+				return conn != nil
+			},
+			Close: func(conn *reusableDNSConn, _ error) {
+				_ = conn.Close()
+			},
+		})
+	}
+	return transport, nil
 }
 
 func (t *TCPTransport) Start(stage adapter.StartStage) error {
@@ -62,20 +81,58 @@ func (t *TCPTransport) Start(stage adapter.StartStage) error {
 }
 
 func (t *TCPTransport) Close() error {
-	return nil
+	if t.connections == nil {
+		return nil
+	}
+	return t.connections.Close()
 }
 
 func (t *TCPTransport) Reset() {
+	if t.connections != nil {
+		t.connections.Reset()
+	}
 }
 
 func (t *TCPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	conn, err := t.dialer.DialContext(ctx, N.NetworkTCP, t.serverAddr)
+	if t.connections != nil {
+		var lastErr error
+		for range 2 {
+			conn, created, err := t.connections.Acquire(ctx, func(ctx context.Context) (*reusableDNSConn, error) {
+				netConn, err := t.dialer.DialContext(ctx, N.NetworkTCP, t.serverAddr)
+				if err != nil {
+					return nil, E.Cause(err, "dial TCP connection")
+				}
+				return &reusableDNSConn{Conn: netConn}, nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			response, err := t.exchange(ctx, message, conn)
+			if err == nil {
+				t.connections.Release(conn, true)
+				return response, nil
+			}
+			lastErr = err
+			t.connections.Release(conn, false)
+			if created {
+				return nil, err
+			}
+		}
+		return nil, lastErr
+	}
+	netConn, err := t.dialer.DialContext(ctx, N.NetworkTCP, t.serverAddr)
 	if err != nil {
 		return nil, E.Cause(err, "dial TCP connection")
 	}
-	defer conn.Close()
+	response, err := t.exchange(ctx, message, &reusableDNSConn{Conn: netConn})
+	_ = netConn.Close()
+	return response, err
+}
+
+func (t *TCPTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *reusableDNSConn) (*mDNS.Msg, error) {
 	defer setConnDeadline(ctx, conn, deadline.NeedAdditionalReadDeadline(conn))()
-	err = WriteMessage(conn, 0, message)
+	conn.queryId++
+	err := WriteMessage(conn, conn.queryId, message)
 	if err != nil {
 		return nil, E.Cause(err, "write request")
 	}
