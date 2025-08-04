@@ -271,7 +271,7 @@ func ParseClashSubscription(ctx context.Context, content string) ([]option.Outbo
 			if err != nil {
 				return nil, E.Cause(err, "decode hysteria2 option", i)
 			}
-			outbound.Type = C.TypeHysteria
+			outbound.Type = C.TypeHysteria2
 			options := &option.Hysteria2OutboundOptions{
 				ServerPorts: clashPorts(hysteria2Option.Ports),
 				HopInterval: badoption.Duration(hysteria2Option.HopInterval),
