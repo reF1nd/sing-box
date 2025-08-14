@@ -36,6 +36,8 @@ func ParseSubscriptionLink(link string) (option.Outbound, error) {
 		return parseHysteriaLink(link)
 	case "hy2", "hysteria2":
 		return parseHysteria2Link(link)
+	case "anytls":
+		return parseAnyTLSLink(link)
 	}
 	result[3], _ = DecodeBase64URLSafe(result[3])
 	link = strings.Join(result[1:], "")
@@ -654,6 +656,58 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 	}
 	outbound := option.Outbound{
 		Type: C.TypeHysteria2,
+		Tag:  linkURL.Fragment,
+	}
+	options.TLS = &TLSOptions
+	outbound.Options = &options
+	return outbound, nil
+}
+
+func parseAnyTLSLink(link string) (option.Outbound, error) {
+	linkURL, err := url.Parse(link)
+	if err != nil {
+		return option.Outbound{}, err
+	}
+	if linkURL.User == nil || linkURL.User.Username() == "" {
+		return option.Outbound{}, E.New("missing password")
+	}
+	var options option.AnyTLSOutboundOptions
+	TLSOptions := option.OutboundTLSOptions{
+		Enabled: true,
+		ECH:     &option.OutboundECHOptions{},
+		UTLS:    &option.OutboundUTLSOptions{},
+		Reality: &option.OutboundRealityOptions{},
+	}
+	options.Server = linkURL.Hostname()
+	TLSOptions.ServerName = linkURL.Hostname()
+	options.ServerPort = StringToType[uint16](linkURL.Port())
+	options.Password = linkURL.User.Username()
+	proxy := map[string]string{}
+	for key, values := range linkURL.Query() {
+		value := values[0]
+		proxy[key] = value
+	}
+	for key, value := range proxy {
+		switch key {
+		case "insecure":
+			if value == "1" || value == "true" {
+				TLSOptions.Insecure = true
+			}
+		case "sni":
+			TLSOptions.ServerName = value
+		case "alpn":
+			TLSOptions.ALPN = strings.Split(value, ",")
+		case "fp":
+			TLSOptions.UTLS.Enabled = true
+			TLSOptions.UTLS.Fingerprint = value
+		case "tfo", "tcp-fast-open", "tcp_fast_open":
+			if value == "1" || value == "true" {
+				options.TCPFastOpen = true
+			}
+		}
+	}
+	outbound := option.Outbound{
+		Type: C.TypeAnyTLS,
 		Tag:  linkURL.Fragment,
 	}
 	options.TLS = &TLSOptions
