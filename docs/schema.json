@@ -11131,6 +11131,9 @@
             "fallback_delay": {
               "$ref": "#/$defs/Duration"
             },
+            "direct_domain_strategy": {
+              "$ref": "#/$defs/DomainStrategy"
+            },
             "proxy_protocol": {
               "type": "integer",
               "enum": [
