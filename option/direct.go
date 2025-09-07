@@ -16,7 +16,8 @@ type DirectInboundOptions struct {
 
 type _DirectOutboundOptions struct {
 	DialerOptions
-	ProxyProtocol uint8 `json:"proxy_protocol,omitempty"`
+	DirectDomainStrategy DomainStrategy `json:"direct_domain_strategy,omitempty"`
+	ProxyProtocol        uint8          `json:"proxy_protocol,omitempty"`
 	// Deprecated: Use Route Action instead
 	OverrideAddress string `json:"override_address,omitempty"`
 	// Deprecated: Use Route Action instead
