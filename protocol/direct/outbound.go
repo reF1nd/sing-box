@@ -37,13 +37,14 @@ var (
 
 type Outbound struct {
 	outbound.Adapter
-	ctx            context.Context
-	logger         logger.ContextLogger
-	dialer         dialer.ParallelInterfaceDialer
-	domainStrategy C.DomainStrategy
-	fallbackDelay  time.Duration
-	isEmpty        bool
-	proxyProto     uint8
+	ctx                  context.Context
+	logger               logger.ContextLogger
+	dialer               dialer.ParallelInterfaceDialer
+	domainStrategy       C.DomainStrategy
+	directDomainStrategy C.DomainStrategy
+	fallbackDelay        time.Duration
+	isEmpty              bool
+	proxyProto           uint8
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DirectOutboundOptions) (adapter.Outbound, error) {
@@ -65,11 +66,12 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		ctx:     ctx,
 		logger:  logger,
 		//nolint:staticcheck
-		domainStrategy: C.DomainStrategy(options.DomainStrategy),
-		fallbackDelay:  time.Duration(options.FallbackDelay),
-		dialer:         outboundDialer.(dialer.ParallelInterfaceDialer),
-		isEmpty:        reflect.DeepEqual(options.DialerOptions, option.DialerOptions{UDPFragmentDefault: true}),
-		proxyProto:     options.ProxyProtocol,
+		domainStrategy:       C.DomainStrategy(options.DomainStrategy),
+		directDomainStrategy: C.DomainStrategy(options.DirectDomainStrategy),
+		fallbackDelay:        time.Duration(options.FallbackDelay),
+		dialer:               outboundDialer.(dialer.ParallelInterfaceDialer),
+		isEmpty:              reflect.DeepEqual(options.DialerOptions, option.DialerOptions{UDPFragmentDefault: true}),
+		proxyProto:           options.ProxyProtocol,
 	}
 	if options.ProxyProtocol > 2 {
 		return nil, E.New("invalid proxy protocol option: ", options.ProxyProtocol)
@@ -145,7 +147,24 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	conn, err := dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, len(destinationAddresses) > 0 && destinationAddresses[0].Is6(), nil, nil, nil, h.fallbackDelay)
+	var preferIPv6 bool
+	switch h.directDomainStrategy {
+	case C.DomainStrategyAsIS:
+		preferIPv6 = len(destinationAddresses) > 0 && destinationAddresses[0].Is6()
+	case C.DomainStrategyIPv4Only:
+		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is4)
+		if len(destinationAddresses) == 0 {
+			return nil, E.New("no IPv4 address available for ", destination)
+		}
+	case C.DomainStrategyIPv6Only:
+		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is6)
+		if len(destinationAddresses) == 0 {
+			return nil, E.New("no IPv6 address available for ", destination)
+		}
+	case C.DomainStrategyPreferIPv6:
+		preferIPv6 = len(destinationAddresses) > 0
+	}
+	conn, err := dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, preferIPv6, nil, nil, nil, h.fallbackDelay)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +198,24 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	conn, err := dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, len(destinationAddresses) > 0 && destinationAddresses[0].Is6(), networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
+	var preferIPv6 bool
+	switch h.directDomainStrategy {
+	case C.DomainStrategyAsIS:
+		preferIPv6 = len(destinationAddresses) > 0 && destinationAddresses[0].Is6()
+	case C.DomainStrategyIPv4Only:
+		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is4)
+		if len(destinationAddresses) == 0 {
+			return nil, E.New("no IPv4 address available for ", destination)
+		}
+	case C.DomainStrategyIPv6Only:
+		destinationAddresses = common.Filter(destinationAddresses, netip.Addr.Is6)
+		if len(destinationAddresses) == 0 {
+			return nil, E.New("no IPv6 address available for ", destination)
+		}
+	case C.DomainStrategyPreferIPv6:
+		preferIPv6 = len(destinationAddresses) > 0
+	}
+	conn, err := dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, preferIPv6, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 	if err != nil {
 		return nil, err
 	}
