@@ -48,15 +48,17 @@ type parallelResolveDialer interface {
 
 type Outbound struct {
 	outbound.Adapter
-	ctx            context.Context
-	logger         logger.ContextLogger
-	network        adapter.NetworkManager
-	dialer         parallelResolveDialer
-	domainStrategy C.DomainStrategy
-	isEmpty        bool
-	myAddresses    common.TypedValue[[]netip.Prefix]
-	icmpPort       *ping.Port
-	proxyProto     uint8
+	ctx                  context.Context
+	logger               logger.ContextLogger
+	network              adapter.NetworkManager
+	dialer               parallelResolveDialer
+	domainResolveOptions adapter.DNSQueryOptions
+	domainStrategy       C.DomainStrategy
+	directDomainStrategy C.DomainStrategy
+	isEmpty              bool
+	myAddresses          common.TypedValue[[]netip.Prefix]
+	icmpPort             *ping.Port
+	proxyProto           uint8
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DirectOutboundOptions) (adapter.Outbound, error) {
@@ -79,12 +81,16 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:  logger,
 		network: service.FromContext[adapter.NetworkManager](ctx),
 		//nolint:staticcheck
-		domainStrategy: C.DomainStrategy(options.DomainStrategy),
-		dialer:         outboundDialer.(parallelResolveDialer),
-		isEmpty: options.ProxyProtocol == 0 && reflect.DeepEqual(options.DialerOptions, option.DialerOptions{
+		domainStrategy:       C.DomainStrategy(options.DomainStrategy),
+		directDomainStrategy: C.DomainStrategy(options.DirectDomainStrategy),
+		dialer:               outboundDialer.(parallelResolveDialer),
+		isEmpty: options.ProxyProtocol == 0 && options.DirectDomainStrategy == 0 && reflect.DeepEqual(options.DialerOptions, option.DialerOptions{
 			AbstractDialerOptions: option.AbstractDialerOptions{UDPFragmentDefault: true},
 		}),
 		proxyProto: options.ProxyProtocol,
+	}
+	if resolveDialer, loaded := outboundDialer.(dialer.ResolveDialer); loaded {
+		outbound.domainResolveOptions = resolveDialer.QueryOptions()
 	}
 	if options.ProxyProtocol > 2 {
 		return nil, E.New("invalid proxy protocol option: ", options.ProxyProtocol)
@@ -180,7 +186,27 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
-	conn, err := h.dialer.DialContext(ctx, network, destination)
+	var (
+		conn net.Conn
+		err  error
+	)
+	if h.directDomainStrategy != C.DomainStrategyAsIS && destination.IsDomain() {
+		var destinationAddresses []netip.Addr
+		destinationAddresses, err = h.resolveAndApplyDirectDomainStrategy(ctx, destination, nil)
+		if err != nil {
+			return nil, err
+		}
+		if len(destinationAddresses) > 0 {
+			if h.isMyLoopbackAddress(destinationAddresses...) {
+				return nil, E.New("loopback connection to TUN range")
+			}
+			conn, err = h.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, nil, nil, nil, 0)
+		} else {
+			conn, err = h.dialer.DialContext(ctx, network, destination)
+		}
+	} else {
+		conn, err = h.dialer.DialContext(ctx, network, destination)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -273,6 +299,13 @@ func (h *Outbound) DialParallel(ctx context.Context, network string, destination
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
+	destinationAddresses, err := h.resolveAndApplyDirectDomainStrategy(ctx, destination, destinationAddresses)
+	if err != nil {
+		return nil, err
+	}
+	if h.isMyLoopbackAddress(destinationAddresses...) {
+		return nil, E.New("loopback connection to TUN range")
+	}
 	conn, err := h.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, nil, nil, nil, 0)
 	if err != nil {
 		return nil, err
@@ -301,6 +334,13 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
+	destinationAddresses, err := h.resolveAndApplyDirectDomainStrategy(ctx, destination, destinationAddresses)
+	if err != nil {
+		return nil, err
+	}
+	if h.isMyLoopbackAddress(destinationAddresses...) {
+		return nil, E.New("loopback connection to TUN range")
+	}
 	conn, err := h.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 	if err != nil {
 		return nil, err
@@ -314,6 +354,78 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	return conn, nil
 }
 
+func (h *Outbound) resolveAndApplyDirectDomainStrategy(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr) ([]netip.Addr, error) {
+	if len(destinationAddresses) == 0 {
+		if destination.IsDomain() {
+			if h.directDomainStrategy == C.DomainStrategyAsIS {
+				return nil, nil
+			}
+			var dnsRouter adapter.DNSRouter
+			if h.ctx != nil {
+				dnsRouter = service.FromContext[adapter.DNSRouter](h.ctx)
+			}
+			if dnsRouter == nil && ctx != nil {
+				dnsRouter = service.FromContext[adapter.DNSRouter](ctx)
+			}
+			if dnsRouter == nil {
+				return nil, nil
+			}
+			lookupCtx := log.ContextWithOverrideLevel(ctx, log.LevelDebug)
+			var err error
+			destinationAddresses, err = dnsRouter.Lookup(lookupCtx, destination.Fqdn, h.domainResolveOptions)
+			if err != nil {
+				return nil, err
+			}
+		} else if destination.Addr.IsValid() {
+			destinationAddresses = []netip.Addr{destination.Addr}
+		}
+	}
+	return h.applyDirectDomainStrategy(destination, destinationAddresses)
+}
+
+func (h *Outbound) applyDirectDomainStrategy(destination M.Socksaddr, destinationAddresses []netip.Addr) ([]netip.Addr, error) {
+	switch h.directDomainStrategy {
+	case C.DomainStrategyAsIS:
+		return destinationAddresses, nil
+	case C.DomainStrategyPreferIPv4:
+		return sortAddressesByFamily(destinationAddresses, false), nil
+	case C.DomainStrategyPreferIPv6:
+		return sortAddressesByFamily(destinationAddresses, true), nil
+	case C.DomainStrategyIPv4Only:
+		filtered := common.Filter(destinationAddresses, netip.Addr.Is4)
+		if len(filtered) == 0 {
+			return nil, E.New("no IPv4 address available for ", destination)
+		}
+		return filtered, nil
+	case C.DomainStrategyIPv6Only:
+		filtered := common.Filter(destinationAddresses, netip.Addr.Is6)
+		if len(filtered) == 0 {
+			return nil, E.New("no IPv6 address available for ", destination)
+		}
+		return filtered, nil
+	default:
+		return destinationAddresses, nil
+	}
+}
+
+func sortAddressesByFamily(addresses []netip.Addr, preferIPv6 bool) []netip.Addr {
+	if len(addresses) <= 1 {
+		return addresses
+	}
+	sorted := make([]netip.Addr, 0, len(addresses))
+	for _, addr := range addresses {
+		if addr.Is6() == preferIPv6 {
+			sorted = append(sorted, addr)
+		}
+	}
+	for _, addr := range addresses {
+		if addr.Is6() != preferIPv6 {
+			sorted = append(sorted, addr)
+		}
+	}
+	return sorted
+}
+
 func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, networkStrategy *C.NetworkStrategy, networkType []C.InterfaceType, fallbackNetworkType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
 	if h.isMyLoopbackAddress(destinationAddresses...) || destination.IsIP() && h.isMyLoopbackAddress(destination.Addr) {
 		return nil, netip.Addr{}, E.New("loopback connection to TUN range")
@@ -322,6 +434,16 @@ func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "outbound packet connection")
+	if len(destinationAddresses) > 0 || destination.IsDomain() || (destination.Addr.IsValid() && !destination.Addr.IsUnspecified()) {
+		var err error
+		destinationAddresses, err = h.resolveAndApplyDirectDomainStrategy(ctx, destination, destinationAddresses)
+		if err != nil {
+			return nil, netip.Addr{}, err
+		}
+		if h.isMyLoopbackAddress(destinationAddresses...) {
+			return nil, netip.Addr{}, E.New("loopback connection to TUN range")
+		}
+	}
 	conn, newDestination, err := h.dialer.ListenSerialNetworkPacket(ctx, destination, destinationAddresses, networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 	if err != nil {
 		return nil, netip.Addr{}, err
