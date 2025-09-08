@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/sagernet/sing-box/common/badversion"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/shell"
 
-	"github.com/blang/semver/v4"
 	"golang.org/x/sys/unix"
 )
 
@@ -55,46 +55,42 @@ var KernelSupport = sync.OnceValues(func() (*Support, error) {
 		return nil, err
 	}
 
-	kernelVersion, err := semver.Parse(strings.Trim(string(uname.Release[:]), "\x00"))
+	kernelVersion := badversion.Parse(strings.Trim(string(uname.Release[:]), "\x00"))
 	if err != nil {
 		return nil, err
 	}
-	kernelVersion.Pre = nil
-	kernelVersion.Build = nil
-
 	var support Support
-
 	switch {
-	case kernelVersion.GTE(semver.Version{Major: 6, Minor: 14}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 6, Minor: 14}):
 		support.TLS_Version13_KeyUpdate = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 6, Minor: 1}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 6, Minor: 1}):
 		support.TLS_ARIA_GCM = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 6}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 6}):
 		support.TLS_Version13_RX = true
 		support.TLS_RX_NOPADDING = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 5, Minor: 19}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 5, Minor: 19}):
 		support.TLS_TX_ZEROCOPY = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 5, Minor: 16}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 5, Minor: 16}):
 		support.TLS_SM4 = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 5, Minor: 11}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 5, Minor: 11}):
 		support.TLS_CHACHA20_POLY1305 = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 5, Minor: 2}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 5, Minor: 2}):
 		support.TLS_AES_128_CCM = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 5, Minor: 1}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 5, Minor: 1}):
 		support.TLS_AES_256_GCM = true
 		support.TLS_Version13 = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 4, Minor: 17}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 4, Minor: 17}):
 		support.TLS_RX = true
 		fallthrough
-	case kernelVersion.GTE(semver.Version{Major: 4, Minor: 13}):
+	case kernelVersion.GreaterThanOrEqual(badversion.Version{Major: 4, Minor: 13}):
 		support.TLS = true
 	}
 
@@ -118,7 +114,7 @@ var KernelSupport = sync.OnceValues(func() (*Support, error) {
 func Load() error {
 	support, err := KernelSupport()
 	if err != nil {
-		return err
+		return E.Cause(err, "ktls: check availability")
 	}
 	if !support.TLS || !support.TLS_Version13 {
 		return E.New("ktls: kernel does not support TLS 1.3")
@@ -132,10 +128,10 @@ func (c *Conn) setupKernel(txOffload, rxOffload bool) error {
 	}
 	support, err := KernelSupport()
 	if err != nil {
-		return err
+		return E.Cause(err, "check availability")
 	}
 	if !support.TLS || !support.TLS_Version13 {
-		return E.New("ktls: kernel does not support TLS 1.3")
+		return E.New("kernel does not support TLS 1.3")
 	}
 	c.rawConn.Out.Lock()
 	defer c.rawConn.Out.Unlock()
@@ -143,13 +139,13 @@ func (c *Conn) setupKernel(txOffload, rxOffload bool) error {
 		return syscall.SetsockoptString(int(fd), unix.SOL_TCP, unix.TCP_ULP, "tls")
 	})
 	if err != nil {
-		return E.Cause(err, "initialize kernel TLS")
+		return os.NewSyscallError("setsockopt", err)
 	}
 
 	if txOffload {
 		txCrypto := kernelCipher(support, c.rawConn.Out, *c.rawConn.CipherSuite, false)
 		if txCrypto == nil {
-			return E.New("kTLS: unsupported cipher suite")
+			return E.New("unsupported cipher suite")
 		}
 		err = control.Raw(c.rawSyscallConn, func(fd uintptr) error {
 			return syscall.SetsockoptString(int(fd), unix.SOL_TLS, TLS_TX, txCrypto.String())
@@ -172,7 +168,7 @@ func (c *Conn) setupKernel(txOffload, rxOffload bool) error {
 	if rxOffload {
 		rxCrypto := kernelCipher(support, c.rawConn.In, *c.rawConn.CipherSuite, true)
 		if rxCrypto == nil {
-			return E.New("kTLS: unsupported cipher suite")
+			return E.New("unsupported cipher suite")
 		}
 		err = control.Raw(c.rawSyscallConn, func(fd uintptr) error {
 			return syscall.SetsockoptString(int(fd), unix.SOL_TLS, TLS_RX, rxCrypto.String())

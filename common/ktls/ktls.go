@@ -61,7 +61,7 @@ func NewConn(ctx context.Context, logger logger.ContextLogger, conn aTLS.Conn, t
 		for rawConn.Hand.Len() > 0 {
 			err = rawConn.HandlePostHandshakeMessage()
 			if err != nil {
-				return nil, E.Cause(err, "ktls: failed to handle post-handshake messages")
+				return nil, E.Cause(err, "handle post-handshake messages")
 			}
 		}
 	}

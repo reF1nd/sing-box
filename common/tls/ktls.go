@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/sagernet/sing-box/common/ktls"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	aTLS "github.com/sagernet/sing/common/tls"
 )
@@ -20,7 +21,12 @@ func (w *KTLSClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (
 	if err != nil {
 		return nil, err
 	}
-	return ktls.NewConn(ctx, w.logger, tlsConn, w.kernelTx, w.kernelRx)
+	kConn, err := ktls.NewConn(ctx, w.logger, tlsConn, w.kernelTx, w.kernelRx)
+	if err != nil {
+		tlsConn.Close()
+		return nil, E.Cause(err, "initialize kernel TLS")
+	}
+	return kConn, nil
 }
 
 func (w *KTLSClientConfig) Clone() Config {
@@ -43,7 +49,12 @@ func (w *KTlSServerConfig) ServerHandshake(ctx context.Context, conn net.Conn) (
 	if err != nil {
 		return nil, err
 	}
-	return ktls.NewConn(ctx, w.logger, tlsConn, w.kernelTx, w.kernelRx)
+	kConn, err := ktls.NewConn(ctx, w.logger, tlsConn, w.kernelTx, w.kernelRx)
+	if err != nil {
+		tlsConn.Close()
+		return nil, E.Cause(err, "initialize kernel TLS")
+	}
+	return kConn, nil
 }
 
 func (w *KTlSServerConfig) Clone() Config {

@@ -12,8 +12,6 @@ github.com/anytls/sing-anytls v0.0.8 h1:1u/fnH1HoeeMV5mX7/eUOjLBvPdkd1UJRmXiRi6V
 github.com/anytls/sing-anytls v0.0.8/go.mod h1:7rjN6IukwysmdusYsrV51Fgu1uW6vsrdd6ctjnEAln8=
 github.com/bits-and-blooms/bitset v1.13.0 h1:bAQ9OPNFYbGHV6Nez0tmNI0RiEu7/hxlYJRUA0wFAVE=
 github.com/bits-and-blooms/bitset v1.13.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
-github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
-github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/caddyserver/certmagic v0.23.0 h1:CfpZ/50jMfG4+1J/u2LV6piJq4HOfO6ppOnOf7DkFEU=
 github.com/caddyserver/certmagic v0.23.0/go.mod h1:9mEZIWqqWoI+Gf+4Trh04MOVPD0tGSxtqsxg87hAIH4=
 github.com/caddyserver/zerossl v0.1.3 h1:onS+pxp3M8HnHpN5MMbOMyNjmTheJyWRaZYwn+YTAyA=

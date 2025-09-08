@@ -4,7 +4,6 @@ go 1.23.1
 
 require (
 	github.com/anytls/sing-anytls v0.0.8
-	github.com/blang/semver/v4 v4.0.0
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/coder/websocket v1.8.13
 	github.com/cretz/bine v0.2.0
