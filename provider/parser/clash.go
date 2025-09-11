@@ -221,6 +221,8 @@ type TLSOption struct {
 	CustomCAString    string          `yaml:"ca-str,omitempty"`
 	ECHOpts           *ECHOptions     `yaml:"ech-opts,omitempty"`
 	RealityOpts       *RealityOptions `yaml:"reality-opts,omitempty"`
+	KernelTx          bool            `yaml:"kernel-tx,omitempty"`
+	KernelRx          bool            `yaml:"kernel-rx,omitempty"`
 }
 
 func (t *TLSOption) Build() *option.OutboundTLSOptions {
@@ -240,6 +242,8 @@ func (t *TLSOption) Build() *option.OutboundTLSOptions {
 		CertificatePath: t.CustomCA,
 		ECH:             t.ECHOpts.Build(),
 		Reality:         t.RealityOpts.Build(),
+		KernelTx:        t.KernelTx,
+		KernelRx:        t.KernelRx,
 	}
 }
 
