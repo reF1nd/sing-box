@@ -230,13 +230,17 @@ func (t *TLSOption) Build() *option.OutboundTLSOptions {
 	if t.SNI == "" {
 		t.SNI = t.ServerName
 	}
+	var customCAString badoption.Listable[string]
+	if t.CustomCAString != "" {
+		customCAString = strings.Split(t.CustomCAString, "\n")
+	}
 	return &option.OutboundTLSOptions{
 		Enabled:         t.TLS,
 		ServerName:      t.SNI,
 		Insecure:        t.SkipCertVerify,
 		ALPN:            t.ALPN,
 		UTLS:            clashClientFingerprint(t.ClientFingerprint),
-		Certificate:     strings.Split(t.CustomCAString, "\n"),
+		Certificate:     customCAString,
 		CertificatePath: t.CustomCA,
 		ECH:             t.ECHOpts.Build(),
 		Reality:         t.RealityOpts.Build(),
