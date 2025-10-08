@@ -636,6 +636,9 @@ func (r *Router) matchRule(
 
 match:
 	for currentRuleIndex, currentRule := range r.rules {
+		if currentRule.Disabled() {
+			continue
+		}
 		metadata.ResetRuleCache()
 		if !currentRule.Match(metadata) {
 			continue
@@ -1013,4 +1016,9 @@ func isAllIPv6(addresses []netip.Addr) bool {
 		}
 	}
 	return true
+}
+
+func (r *Router) Rule(uuid string) (adapter.Rule, bool) {
+	rule, exists := r.ruleByUUID[uuid]
+	return rule, exists
 }
