@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"go4.org/netipx"
 )
+
+func TestAbstractRuleConcurrentChangeStatus(t *testing.T) {
+	var rule abstractRule
+	var waitGroup sync.WaitGroup
+	const toggleCount = 100
+	waitGroup.Add(toggleCount)
+	for range toggleCount {
+		go func() {
+			defer waitGroup.Done()
+			rule.ChangeStatus()
+		}()
+	}
+	waitGroup.Wait()
+	require.False(t, rule.Disabled())
+}
 
 type fakeRuleSet struct {
 	matched bool
