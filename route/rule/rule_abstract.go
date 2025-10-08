@@ -10,7 +10,25 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
+type abstractRule struct {
+	disabled bool
+	uuid     string
+}
+
+func (r *abstractRule) Disabled() bool {
+	return r.disabled
+}
+
+func (r *abstractRule) UUID() string {
+	return r.uuid
+}
+
+func (r *abstractRule) ChangeStatus() {
+	r.disabled = !r.disabled
+}
+
 type abstractDefaultRule struct {
+	abstractRule
 	items                   []RuleItem
 	sourceAddressItems      []RuleItem
 	sourcePortItems         []RuleItem
@@ -157,6 +175,7 @@ func (r *abstractDefaultRule) String() string {
 }
 
 type abstractLogicalRule struct {
+	abstractRule
 	rules               []adapter.HeadlessRule
 	mode                string
 	domainMatchStrategy C.DomainMatchStrategy
