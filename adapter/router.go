@@ -26,6 +26,7 @@ type Router interface {
 	RuleSets() []RuleSet
 	RuleSet(tag string) (RuleSet, bool)
 	Rules() []Rule
+	Rule(uuid string) (Rule, bool)
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
 	DefaultDomainMatchStrategy() C.DomainMatchStrategy
