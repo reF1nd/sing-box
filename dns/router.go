@@ -36,6 +36,7 @@ type Router struct {
 	outbound              adapter.OutboundManager
 	client                adapter.DNSClient
 	rules                 []adapter.DNSRule
+	ruleByUUID            map[string]adapter.DNSRule
 	defaultDomainStrategy C.DomainStrategy
 	dnsReverseMapping     freelru.Cache[netip.Addr, string]
 	platformInterface     platform.Interface
@@ -49,6 +50,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		transport:             service.FromContext[adapter.DNSTransportManager](ctx),
 		outbound:              service.FromContext[adapter.OutboundManager](ctx),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
+		ruleByUUID:            make(map[string]adapter.DNSRule),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
 		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
 	}
@@ -87,6 +89,7 @@ func (r *Router) Initialize(rules []option.DNSRule) error {
 			return E.Cause(err, "parse dns rule[", i, "]")
 		}
 		r.rules = append(r.rules, dnsRule)
+		r.ruleByUUID[dnsRule.UUID()] = dnsRule
 	}
 	return nil
 }
@@ -135,6 +138,9 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 	}
 	for ; currentRuleIndex < len(r.rules); currentRuleIndex++ {
 		currentRule := r.rules[currentRuleIndex]
+		if currentRule.Disabled() {
+			continue
+		}
 		if currentRule.WithAddressLimit() && !isAddressQuery {
 			continue
 		}
@@ -498,6 +504,11 @@ func addressLimitResponseCheck(rule adapter.DNSRule, metadata *adapter.InboundCo
 
 func (r *Router) Rules() []adapter.DNSRule {
 	return r.rules
+}
+
+func (r *Router) Rule(uuid string) (adapter.DNSRule, bool) {
+	rule, exists := r.ruleByUUID[uuid]
+	return rule, exists
 }
 
 func findLastCNAMETarget(name string, records []mDNS.RR) string {
