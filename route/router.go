@@ -30,6 +30,7 @@ type Router struct {
 	connection        adapter.ConnectionManager
 	network           adapter.NetworkManager
 	rules             []adapter.Rule
+	ruleByUUID        map[string]adapter.Rule
 	needFindProcess   bool
 	needFindNeighbor  bool
 	leaseFiles        []string
@@ -57,6 +58,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		connection:        service.FromContext[adapter.ConnectionManager](ctx),
 		network:           service.FromContext[adapter.NetworkManager](ctx),
 		rules:             make([]adapter.Rule, 0, len(options.Rules)),
+		ruleByUUID:        make(map[string]adapter.Rule),
 		ruleSetMap:        make(map[string]adapter.RuleSet),
 		needFindProcess:   hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
 		needFindNeighbor:  hasRule(options.Rules, isNeighborRule) || hasDNSRule(dnsOptions.Rules, isNeighborDNSRule) || options.FindNeighbor,
@@ -78,7 +80,9 @@ func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) erro
 		if err != nil {
 			return E.Cause(err, "parse rule[", i, "]")
 		}
+		uuid := rule.UUID()
 		r.rules = append(r.rules, rule)
+		r.ruleByUUID[uuid] = rule
 	}
 	for i, options := range ruleSets {
 		if _, exists := r.ruleSetMap[options.Tag]; exists {
