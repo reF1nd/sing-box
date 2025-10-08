@@ -40,6 +40,17 @@ func (r *legacyAliasRule) Close() error {
 	return nil
 }
 
+func (r *legacyAliasRule) Disabled() bool {
+	return false
+}
+
+func (r *legacyAliasRule) UUID() string {
+	return ""
+}
+
+func (r *legacyAliasRule) ChangeStatus() {
+}
+
 func (r *legacyAliasRule) Type() string {
 	return C.RuleTypeDefault
 }
