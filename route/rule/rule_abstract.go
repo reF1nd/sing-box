@@ -3,6 +3,7 @@ package rule
 import (
 	"io"
 	"strings"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -10,7 +11,30 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
+type abstractRule struct {
+	disabled atomic.Bool
+	uuid     string
+}
+
+func (r *abstractRule) Disabled() bool {
+	return r.disabled.Load()
+}
+
+func (r *abstractRule) UUID() string {
+	return r.uuid
+}
+
+func (r *abstractRule) ChangeStatus() {
+	for {
+		disabled := r.disabled.Load()
+		if r.disabled.CompareAndSwap(disabled, !disabled) {
+			return
+		}
+	}
+}
+
 type abstractDefaultRule struct {
+	abstractRule
 	items                   []RuleItem
 	sourceAddressItems      []RuleItem
 	sourcePortItems         []RuleItem
@@ -190,6 +214,7 @@ func (r *abstractDefaultRule) String() string {
 }
 
 type abstractLogicalRule struct {
+	abstractRule
 	rules               []adapter.HeadlessRule
 	mode                string
 	domainMatchStrategy C.DomainMatchStrategy
