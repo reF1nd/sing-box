@@ -21,6 +21,7 @@ type DNSRouter interface {
 	ClearCache()
 	LookupReverseMapping(ip netip.Addr) (string, bool)
 	Rules() []DNSRule
+	Rule(uuid string) (DNSRule, bool)
 	ResetNetwork()
 }
 
