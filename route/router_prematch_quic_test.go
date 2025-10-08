@@ -136,7 +136,8 @@ func (*preMatchQUICDNSManager) FakeIP() adapter.FakeIPTransport { return nil }
 
 type preMatchQUICRule struct {
 	adapter.Rule
-	action adapter.RuleAction
+	action   adapter.RuleAction
+	disabled bool
 }
 
 func (r *preMatchQUICRule) Action() adapter.RuleAction { return r.action }
@@ -173,3 +174,5 @@ func (h *preMatchQUICHandle) CloseFlow() {
 	h.closes++
 	h.tracker.CloseFlow(tun.FlowCloseReset)
 }
+
+func (r *preMatchQUICRule) Disabled() bool { return r.disabled }
