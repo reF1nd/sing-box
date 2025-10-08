@@ -113,6 +113,7 @@ func (r *fakeRouter) RuleSet(tag string) (adapter.RuleSet, bool) {
 }
 
 func (r *fakeRouter) Rules() []adapter.Rule                      { return nil }
+func (r *fakeRouter) Rule(string) (adapter.Rule, bool)           { return nil, false }
 func (r *fakeRouter) NeedFindProcess() bool                      { return false }
 func (r *fakeRouter) NeedFindNeighbor() bool                     { return false }
 func (r *fakeRouter) NeighborResolver() adapter.NeighborResolver { return nil }
