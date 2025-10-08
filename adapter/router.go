@@ -9,7 +9,7 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ntp"
@@ -29,6 +29,7 @@ type Router interface {
 	NeedFindProcess() bool
 	NeedFindNeighbor() bool
 	NeighborResolver() NeighborResolver
+	Rule(uuid string) (Rule, bool)
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
 	DefaultDomainMatchStrategy() C.DomainMatchStrategy
