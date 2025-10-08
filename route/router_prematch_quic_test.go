@@ -149,8 +149,11 @@ func (*preMatchQUICDNSManager) FakeIP() adapter.FakeIPTransport { return nil }
 
 type preMatchQUICRule struct {
 	adapter.Rule
-	action adapter.RuleAction
+	action   adapter.RuleAction
+	disabled bool
 }
+
+func (r *preMatchQUICRule) Disabled() bool { return r.disabled }
 
 func (r *preMatchQUICRule) Action() adapter.RuleAction { return r.action }
 
