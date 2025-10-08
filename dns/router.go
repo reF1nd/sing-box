@@ -41,6 +41,7 @@ type Router struct {
 	client                adapter.DNSClient
 	rawRules              []option.DNSRule
 	rules                 []adapter.DNSRule
+	ruleByUUID            map[string]adapter.DNSRule
 	defaultDomainStrategy C.DomainStrategy
 	dnsReverseMapping     *freelru.Cache[netip.Addr, string]
 	platformInterface     adapter.PlatformInterface
@@ -59,6 +60,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		outbound:              service.FromContext[adapter.OutboundManager](ctx),
 		rawRules:              make([]option.DNSRule, 0, len(options.Rules)),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
+		ruleByUUID:            make(map[string]adapter.DNSRule),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
 		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
 	}
@@ -152,6 +154,10 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			return nil
 		}
 		r.rules = newRules
+		r.ruleByUUID = make(map[string]adapter.DNSRule)
+		for _, rule := range newRules {
+			r.ruleByUUID[rule.UUID()] = rule
+		}
 		r.legacyDNSMode = legacyDNSMode
 		r.started = true
 		r.rulesAccess.Unlock()
@@ -289,6 +295,9 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 	}
 	for ; currentRuleIndex < len(rules); currentRuleIndex++ {
 		currentRule := rules[currentRuleIndex]
+		if currentRule.Disabled() {
+			continue
+		}
 		if currentRule.WithAddressLimit() && !isAddressQuery {
 			continue
 		}
@@ -425,6 +434,9 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 	var evaluatedResponse *mDNS.Msg
 	var evaluatedTransport adapter.DNSTransport
 	for currentRuleIndex, currentRule := range rules {
+		if currentRule.Disabled() {
+			continue
+		}
 		metadata.ResetRuleCache()
 		metadata.DNSResponse = evaluatedResponse
 		metadata.DestinationAddressMatchFromResponse = false
@@ -899,6 +911,11 @@ func addressLimitResponseCheck(rule adapter.DNSRule, metadata *adapter.InboundCo
 
 func (r *Router) Rules() []adapter.DNSRule {
 	return r.rules
+}
+
+func (r *Router) Rule(uuid string) (adapter.DNSRule, bool) {
+	rule, exists := r.ruleByUUID[uuid]
+	return rule, exists
 }
 
 func findLastCNAMETarget(name string, records []mDNS.RR) string {
