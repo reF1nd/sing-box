@@ -3,6 +3,7 @@ package rule
 import (
 	"context"
 
+	"github.com/gofrs/uuid/v5"
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
@@ -49,8 +50,12 @@ type DefaultDNSRule struct {
 }
 
 func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+	id, _ := uuid.NewV4()
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
+			abstractRule: abstractRule{
+				uuid: id.String(),
+			},
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
 		},
@@ -318,8 +323,12 @@ type LogicalDNSRule struct {
 }
 
 func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+	id, _ := uuid.NewV4()
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
+			abstractRule: abstractRule{
+				uuid: id.String(),
+			},
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
