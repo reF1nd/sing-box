@@ -22,6 +22,7 @@ type DNSRouter interface {
 	LookupReverseMapping(ip netip.Addr) (string, bool)
 	LookupECHPublicName(domain string) string
 	Rules() []DNSRule
+	Rule(uuid string) (DNSRule, bool)
 	ResetNetwork()
 }
 
