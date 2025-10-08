@@ -10,6 +10,8 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool) (adapter.DNSRule, error) {
@@ -52,8 +54,12 @@ func (r *DefaultDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatch
 }
 
 func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule) (*DefaultDNSRule, error) {
+	id, _ := uuid.NewV4()
 	rule := &DefaultDNSRule{
 		abstractDefaultRule: abstractDefaultRule{
+			abstractRule: abstractRule{
+				uuid: id.String(),
+			},
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
 		},
@@ -321,8 +327,12 @@ func (r *LogicalDNSRule) matchStates(metadata *adapter.InboundContext) ruleMatch
 }
 
 func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options option.LogicalDNSRule) (*LogicalDNSRule, error) {
+	id, _ := uuid.NewV4()
 	r := &LogicalDNSRule{
 		abstractLogicalRule: abstractLogicalRule{
+			abstractRule: abstractRule{
+				uuid: id.String(),
+			},
 			rules:  make([]adapter.HeadlessRule, len(options.Rules)),
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
