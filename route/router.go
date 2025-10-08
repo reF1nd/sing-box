@@ -43,6 +43,7 @@ type Router struct {
 	network                      adapter.NetworkManager
 	httpClientManager            adapter.HTTPClientManager
 	rules                        []adapter.Rule
+	ruleByUUID                   map[string]adapter.Rule
 	needFindProcess              bool
 	ruleSetNeedFindProcess       atomic.Bool
 	ruleSetNeedFindProcessAccess sync.Mutex
@@ -78,6 +79,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		network:           service.FromContext[adapter.NetworkManager](ctx),
 		httpClientManager: service.FromContext[adapter.HTTPClientManager](ctx),
 		rules:             make([]adapter.Rule, 0, len(options.Rules)),
+		ruleByUUID:        make(map[string]adapter.Rule),
 		ruleSetMap:        make(map[string]adapter.RuleSet),
 		needFindProcess:   hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess || C.IsAndroid && platformInterface != nil,
 		needFindNeighbor:  hasRule(options.Rules, isNeighborRule) || hasDNSRule(dnsOptions.Rules, isNeighborDNSRule) || hasLocalNeighborDNSServer(dnsOptions.Servers) || options.FindNeighbor,
@@ -103,7 +105,9 @@ func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) erro
 		if err != nil {
 			return E.Cause(err, "parse rule[", i, "]")
 		}
+		uuid := rule.UUID()
 		r.rules = append(r.rules, rule)
+		r.ruleByUUID[uuid] = rule
 	}
 	for i, options := range ruleSets {
 		for _, tag := range options.Tag {

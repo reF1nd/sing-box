@@ -234,16 +234,26 @@ func (m *ReferenceManager) update() {
 	httpClientManager := service.FromContext[adapter.HTTPClientManager](m.ctx)
 	certificateProviderManager := service.FromContext[adapter.CertificateProviderManager](m.ctx)
 
+	// Runtime rules retain configuration order. Disabled rules must not shadow
+	// later rules or the default outbound/transport during reference collection.
+	rules := m.rules
+	if router := service.FromContext[adapter.Router](m.ctx); router != nil {
+		rules = enabledRuleOptions(rules, router.Rules())
+	}
+	dnsRules := m.dnsRules
+	if router := service.FromContext[adapter.DNSRouter](m.ctx); router != nil {
+		dnsRules = enabledRuleOptions(dnsRules, router.Rules())
+	}
 	transportQueue := slices.Clone(m.staticTransports)
 	outboundQueue := slices.Clone(m.staticOutbounds)
-	if !collectDNSRuleReferences(m.dnsRules, mode, &outboundQueue, &transportQueue) {
+	if !collectDNSRuleReferences(dnsRules, mode, &outboundQueue, &transportQueue) {
 		defaultTransport := transportManager.Default()
 		if defaultTransport != nil {
 			transportQueue = append(transportQueue, defaultTransport.Tag())
 		}
 	}
 	transportQueue = append(transportQueue, networkManager.DefaultOptions().DomainResolver)
-	if !collectRuleReferences(m.rules, mode, outboundManager, &outboundQueue, &transportQueue) {
+	if !collectRuleReferences(rules, mode, outboundManager, &outboundQueue, &transportQueue) {
 		defaultOutbound := outboundManager.Default()
 		if defaultOutbound != nil {
 			outboundQueue = append(outboundQueue, defaultOutbound.Tag())
@@ -434,4 +444,18 @@ func (m *ReferenceManager) CloseIdleConnections() {
 			keeper.CloseIdleConnections()
 		}
 	}
+}
+
+// Fall back to all configured rules until runtime initialization is complete.
+func enabledRuleOptions[O any, R adapter.Rule](options []O, runtime []R) []O {
+	if len(options) != len(runtime) {
+		return options
+	}
+	enabled := make([]O, 0, len(options))
+	for i, rule := range runtime {
+		if !rule.Disabled() {
+			enabled = append(enabled, options[i])
+		}
+	}
+	return enabled
 }
