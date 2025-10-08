@@ -10,6 +10,8 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 func NewRule(ctx context.Context, logger log.ContextLogger, options option.Rule, checkOutbound bool) (adapter.Rule, error) {
@@ -61,11 +63,15 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 	if err != nil {
 		return nil, E.Cause(err, "action")
 	}
+	id, _ := uuid.NewV4()
 	rule := &DefaultRule{
 		abstractDefaultRule{
 			domainMatchStrategy: C.DomainMatchStrategy(options.DomainMatchStrategy),
-			invert:              options.Invert,
-			action:              action,
+			abstractRule: abstractRule{
+				uuid: id.String(),
+			},
+			invert: options.Invert,
+			action: action,
 		},
 	}
 	router := service.FromContext[adapter.Router](ctx)
@@ -314,8 +320,12 @@ func NewLogicalRule(ctx context.Context, logger log.ContextLogger, options optio
 	if err != nil {
 		return nil, E.Cause(err, "action")
 	}
+	id, _ := uuid.NewV4()
 	rule := &LogicalRule{
 		abstractLogicalRule{
+			abstractRule: abstractRule{
+				uuid: id.String(),
+			},
 			rules:               make([]adapter.HeadlessRule, len(options.Rules)),
 			domainMatchStrategy: C.DomainMatchStrategy(options.DomainMatchStrategy),
 			invert:              options.Invert,
