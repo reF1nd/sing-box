@@ -15,7 +15,7 @@ jobs:
 
       - name: Fetch Upstream Tags
         run: |
-          git remote add upstream https://github.com/ORIGINAL_OWNER/ORIGINAL_REPO.git
+          git remote add upstream https://github.com/reF1nd/sing-box.git
           git fetch upstream --tags
 
       - name: Push Tags to Fork
