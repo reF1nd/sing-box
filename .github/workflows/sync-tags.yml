@@ -1,0 +1,23 @@
+name: Sync Tags from Upstream
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天同步一次（可调整）
+  workflow_dispatch:     # 允许手动触发
+
+jobs:
+  sync-tags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史记录（包括标签）
+
+      - name: Fetch Upstream Tags
+        run: |
+          git remote add upstream https://github.com/ORIGINAL_OWNER/ORIGINAL_REPO.git
+          git fetch upstream --tags
+
+      - name: Push Tags to Fork
+        run: |
+          git push origin --tags
