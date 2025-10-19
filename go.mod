@@ -7,7 +7,7 @@ require (
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/coder/websocket v1.8.13
 	github.com/cretz/bine v0.2.0
-	github.com/database64128/tfo-go/v2 v2.2.2
+	github.com/database64128/tfo-go/v2 v2.3.1
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/render v1.0.3
 	github.com/godbus/dbus/v5 v5.1.1-0.20230522191255-76236955d466
@@ -66,7 +66,7 @@ require (
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/coreos/go-iptables v0.7.1-0.20240112124308-65c67c9f46e6 // indirect
-	github.com/database64128/netx-go v0.0.0-20240905055117-62795b8b054a // indirect
+	github.com/database64128/netx-go v0.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1 // indirect
