@@ -15576,6 +15576,256 @@
       },
       "additionalProperties": false
     },
+    "OverrideECHOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "config": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "config_path": {
+          "type": "string"
+        },
+        "pq_signature_schemes_enabled": {
+          "type": "boolean"
+        },
+        "dynamic_record_sizing_disabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "OverrideRealityOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "public_key": {
+          "type": "string"
+        },
+        "short_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "OverrideTLSOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "disable_sni": {
+          "type": "boolean"
+        },
+        "server_name": {
+          "type": "string"
+        },
+        "certificate_server_name": {
+          "type": "string"
+        },
+        "insecure": {
+          "type": "boolean"
+        },
+        "alpn": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "min_version": {
+          "type": "string"
+        },
+        "max_version": {
+          "type": "string"
+        },
+        "cipher_suites": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "curve_preferences": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "P256",
+                "P384",
+                "P521",
+                "X25519",
+                "X25519MLKEM768"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "P256",
+                  "P384",
+                  "P521",
+                  "X25519",
+                  "X25519MLKEM768"
+                ]
+              }
+            }
+          ]
+        },
+        "certificate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "certificate_path": {
+          "type": "string"
+        },
+        "certificate_public_key_sha256": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  }
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 255
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "client_certificate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "client_certificate_path": {
+          "type": "string"
+        },
+        "client_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "client_key_path": {
+          "type": "string"
+        },
+        "certificate_pin_sha256": {
+          "type": "string"
+        },
+        "fragment": {
+          "type": "boolean"
+        },
+        "fragment_fallback_delay": {
+          "$ref": "#/$defs/Duration"
+        },
+        "record_fragment": {
+          "type": "boolean"
+        },
+        "kernel_tx": {
+          "type": "boolean"
+        },
+        "kernel_rx": {
+          "type": "boolean"
+        },
+        "ech": {
+          "$ref": "#/$defs/OverrideECHOptions"
+        },
+        "utls": {
+          "$ref": "#/$defs/OverrideUTLSOptions"
+        },
+        "reality": {
+          "$ref": "#/$defs/OverrideRealityOptions"
+        }
+      },
+      "additionalProperties": false
+    },
+    "OverrideUTLSOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "fingerprint": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "Provider": {
       "oneOf": [
         {
@@ -15625,6 +15875,9 @@
             },
             "override_dialer": {
               "$ref": "#/$defs/OverrideDialerOptions"
+            },
+            "override_tls": {
+              "$ref": "#/$defs/OverrideTLSOptions"
             }
           },
           "required": [
@@ -15666,6 +15919,9 @@
                 },
                 "override_dialer": {
                   "$ref": "#/$defs/OverrideDialerOptions"
+                },
+                "override_tls": {
+                  "$ref": "#/$defs/OverrideTLSOptions"
                 }
               },
               "required": [
@@ -15708,6 +15964,9 @@
                 },
                 "override_dialer": {
                   "$ref": "#/$defs/OverrideDialerOptions"
+                },
+                "override_tls": {
+                  "$ref": "#/$defs/OverrideTLSOptions"
                 }
               },
               "required": [
@@ -15751,6 +16010,9 @@
                 },
                 "override_dialer": {
                   "$ref": "#/$defs/OverrideDialerOptions"
+                },
+                "override_tls": {
+                  "$ref": "#/$defs/OverrideTLSOptions"
                 }
               },
               "required": [
