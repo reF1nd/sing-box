@@ -25,7 +25,8 @@ List of subscription providers.
             "interval": "",
             "timeout": "",
           },
-          "override_dialer": {}
+          "override_dialer": {},
+          "override_tls": {}
         }
       ]
     }
@@ -53,6 +54,7 @@ List of subscription providers.
           "http_client": "", // or {}
           "update_interval": "",
           "override_dialer": {},
+          "override_tls": {},
 
           // Deprecated
 
@@ -103,6 +105,10 @@ Health check timeout. the default value is `3s`.
 ##### override_dialer
 
 Override dialer fields of outbounds in provider, see [Dialer Fields Override](/configuration/provider/override_dialer/) for details.
+
+##### override_tls
+
+Override TLS fields of outbounds in provider, see [TLS Fields Override](/configuration/provider/override_tls/) for details.
 
 ### Local Fields
 
