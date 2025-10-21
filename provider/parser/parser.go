@@ -17,12 +17,12 @@ var subscriptionParsers = []func(ctx context.Context, content string) ([]option.
 	ParseRawSubscription,
 }
 
-func ParseSubscription(ctx context.Context, content string, overrideDialerOptions *option.OverrideDialerOptions, providerTag string) ([]option.Outbound, []option.Endpoint, error) {
+func ParseSubscription(ctx context.Context, content string, overrideDialerOptions *option.OverrideDialerOptions, overrideTLSOptions *option.OverrideTLSOptions, providerTag string) ([]option.Outbound, []option.Endpoint, error) {
 	var pErr error
 	for _, parser := range subscriptionParsers {
 		outbounds, endpoints, err := parser(ctx, content)
 		if len(outbounds) > 0 || len(endpoints) > 0 {
-			return overrideOutbounds(outbounds, overrideDialerOptions, providerTag),
+			return overrideOutbounds(outbounds, overrideDialerOptions, overrideTLSOptions, providerTag),
 				overrideEndpoints(endpoints, overrideDialerOptions, providerTag),
 				nil
 		}
@@ -31,7 +31,7 @@ func ParseSubscription(ctx context.Context, content string, overrideDialerOption
 	return nil, nil, E.Cause(pErr, "no servers found")
 }
 
-func overrideOutbounds(outbounds []option.Outbound, overrideDialerOptions *option.OverrideDialerOptions, providerTag string) []option.Outbound {
+func overrideOutbounds(outbounds []option.Outbound, overrideDialerOptions *option.OverrideDialerOptions, overrideTLSOptions *option.OverrideTLSOptions, providerTag string) []option.Outbound {
 	var tags []string
 	for _, outbound := range outbounds {
 		tags = append(tags, outbound.Tag)
@@ -42,6 +42,7 @@ func overrideOutbounds(outbounds []option.Outbound, overrideDialerOptions *optio
 		case C.TypeHTTP:
 			options := outbound.Options.(*option.HTTPOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeSOCKS:
 			options := outbound.Options.(*option.SOCKSOutboundOptions)
@@ -50,34 +51,42 @@ func overrideOutbounds(outbounds []option.Outbound, overrideDialerOptions *optio
 		case C.TypeTUIC:
 			options := outbound.Options.(*option.TUICOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeVMess:
 			options := outbound.Options.(*option.VMessOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeVLESS:
 			options := outbound.Options.(*option.VLESSOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeTrojan:
 			options := outbound.Options.(*option.TrojanOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeHysteria:
 			options := outbound.Options.(*option.HysteriaOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeShadowTLS:
 			options := outbound.Options.(*option.ShadowTLSOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeHysteria2:
 			options := outbound.Options.(*option.Hysteria2OutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeAnyTLS:
 			options := outbound.Options.(*option.AnyTLSOutboundOptions)
 			options.DialerOptions = overrideDialerOption(options.DialerOptions, overrideDialerOptions, tags, providerTag)
+			options.OutboundTLSOptionsContainer.TLS = overrideTLSOption(options.OutboundTLSOptionsContainer.TLS, overrideTLSOptions)
 			outbound.Options = options
 		case C.TypeShadowsocks:
 			options := outbound.Options.(*option.ShadowsocksOutboundOptions)
@@ -188,6 +197,32 @@ func overrideDialerOption(options option.DialerOptions, overrideDialerOptions *o
 	//nolint:staticcheck
 	if overrideDialerOptions.DomainStrategy != nil {
 		options.DomainStrategy = *overrideDialerOptions.DomainStrategy
+	}
+	return options
+}
+
+func overrideTLSOption(options *option.OutboundTLSOptions, overrideTLSOptions *option.OverrideTLSOptions) *option.OutboundTLSOptions {
+	if options == nil {
+		return options
+	}
+	var defaultOptions option.OutboundTLSOptions
+	if overrideTLSOptions == nil || reflect.DeepEqual(*overrideTLSOptions, defaultOptions) {
+		return options
+	}
+	if overrideTLSOptions.Enabled != nil && !*overrideTLSOptions.Enabled {
+		return &defaultOptions
+	}
+	// if override.OverrideTLSOptions.Enabled != nil {
+	// options.Enabled = *override.OverrideTLSOptions.Enabled
+	// }
+	if overrideTLSOptions.DisableSNI != nil {
+		options.DisableSNI = *overrideTLSOptions.DisableSNI
+	}
+	if overrideTLSOptions.ServerName != nil {
+		options.ServerName = *overrideTLSOptions.ServerName
+	}
+	if overrideTLSOptions.Insecure != nil {
+		options.Insecure = *overrideTLSOptions.Insecure
 	}
 	return options
 }
