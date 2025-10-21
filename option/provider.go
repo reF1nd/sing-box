@@ -51,6 +51,7 @@ type ProviderLocalOptions struct {
 	HealthCheck ProviderHealthCheckOptions `json:"health_check,omitempty"`
 
 	OverrideDialer *OverrideDialerOptions `json:"override_dialer,omitempty"`
+	OverrideTLS    *OverrideTLSOptions    `json:"override_tls,omitempty"`
 }
 
 type ProviderRemoteOptions struct {
@@ -65,6 +66,7 @@ type ProviderRemoteOptions struct {
 	HealthCheck ProviderHealthCheckOptions `json:"health_check,omitempty"`
 
 	OverrideDialer *OverrideDialerOptions `json:"override_dialer,omitempty"`
+	OverrideTLS    *OverrideTLSOptions    `json:"override_tls,omitempty"`
 }
 
 type ProviderInlineOptions struct {
@@ -103,4 +105,46 @@ type OverrideDialerOptions struct {
 
 	// Deprecated: migrated to domain resolver
 	DomainStrategy *DomainStrategy `json:"domain_strategy,omitempty"`
+}
+
+type OverrideTLSOptions struct {
+	Enabled               *bool                       `json:"enabled,omitempty"`
+	DisableSNI            *bool                       `json:"disable_sni,omitempty"`
+	ServerName            *string                     `json:"server_name,omitempty"`
+	Insecure              *bool                       `json:"insecure,omitempty"`
+	ALPN                  *badoption.Listable[string] `json:"alpn,omitempty"`
+	MinVersion            *string                     `json:"min_version,omitempty"`
+	MaxVersion            *string                     `json:"max_version,omitempty"`
+	CipherSuites          *badoption.Listable[string] `json:"cipher_suites,omitempty"`
+	Certificate           *badoption.Listable[string] `json:"certificate,omitempty"`
+	CertificatePath       *string                     `json:"certificate_path,omitempty"`
+	CertificatePinSHA256  *string                     `json:"certificate_pin_sha256,omitempty"`
+	Fragment              *bool                       `json:"fragment,omitempty"`
+	FragmentFallbackDelay *badoption.Duration         `json:"fragment_fallback_delay,omitempty"`
+	RecordFragment        *bool                       `json:"record_fragment,omitempty"`
+	ECH                   *OverrideECHOptions         `json:"ech,omitempty"`
+	UTLS                  *OverrideUTLSOptions        `json:"utls,omitempty"`
+	Reality               *OverrideRealityOptions     `json:"reality,omitempty"`
+}
+
+type OverrideECHOptions struct {
+	Enabled    *bool                       `json:"enabled,omitempty"`
+	Config     *badoption.Listable[string] `json:"config,omitempty"`
+	ConfigPath *string                     `json:"config_path,omitempty"`
+
+	// Deprecated: not supported by stdlib
+	PQSignatureSchemesEnabled *bool `json:"pq_signature_schemes_enabled,omitempty"`
+	// Deprecated: added by fault
+	DynamicRecordSizingDisabled *bool `json:"dynamic_record_sizing_disabled,omitempty"`
+}
+
+type OverrideUTLSOptions struct {
+	Enabled     *bool   `json:"enabled,omitempty"`
+	Fingerprint *string `json:"fingerprint,omitempty"`
+}
+
+type OverrideRealityOptions struct {
+	Enabled   *bool   `json:"enabled,omitempty"`
+	PublicKey *string `json:"public_key,omitempty"`
+	ShortID   *string `json:"short_id,omitempty"`
 }
