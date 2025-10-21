@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,52 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+type ClashListable[T any] badoption.Listable[T]
+
+func (l *ClashListable[T]) UnmarshalYAML(value *yaml.Node) error {
+	// 尝试解析为单个值
+	var singleItem T
+	if err := value.Decode(&singleItem); err == nil {
+		*l = ClashListable[T]{singleItem}
+		return nil
+	}
+	
+	// 尝试解析为列表
+	var list []T
+	if err := value.Decode(&list); err != nil {
+		return err
+	}
+	*l = list
+	return nil
+}
+
+func (l ClashListable[T]) MarshalYAML() (interface{}, error) {
+	if len(l) == 1 {
+		return l[0], nil
+	}
+	return []T(l), nil
+}
+
+type ClashHTTPHeader map[string]ClashListable[string]
+
+func (h ClashHTTPHeader) Build() http.Header {
+	header := make(http.Header)
+	for name, values := range h {
+		for _, value := range values {
+			header.Add(name, value)
+		}
+	}
+	return header
+}
+
+func ConvertClashToHTTPHeader(clashHeader ClashHTTPHeader) badoption.HTTPHeader {
+	httpHeader := make(badoption.HTTPHeader)
+	for key, clashValues := range clashHeader {
+		httpHeader[key] = badoption.Listable[string](clashValues)
+	}
+	return httpHeader
+}
 
 type ClashConfig struct {
 	Proxies []ClashProxy `yaml:"proxies"`
@@ -412,14 +459,14 @@ type HttpOption struct {
 	*TLSOption  `yaml:",inline"`
 	UserName    string               `yaml:"username,omitempty"`
 	Password    string               `yaml:"password,omitempty"`
-	Headers     badoption.HTTPHeader `yaml:"headers,omitempty"`
+	Headers     ClashHTTPHeader      `yaml:"headers,omitempty"`
 }
 
 func (h *HttpOption) Build() any {
 	options := &option.HTTPOutboundOptions{
 		Username: h.UserName,
 		Password: h.Password,
-		Headers:  h.Headers,
+		Headers:  ConvertClashToHTTPHeader(h.Headers),
 	}
 	options.TLS = h.TLSOption.Build()
 	options.DialerOptions, options.ServerOptions = clashBasicOption(h.BasicOption)
