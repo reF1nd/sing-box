@@ -580,7 +580,7 @@ type TLSOptions struct {
 }
 
 func (t *TLSOptions) Build() *option.OutboundTLSOptions {
-	if t == nil {
+	if t == nil || !t.TLS {
 		return nil
 	}
 	return &option.OutboundTLSOptions{
