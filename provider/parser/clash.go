@@ -211,7 +211,7 @@ func (e *ECHOptions) Build() *option.OutboundECHOptions {
 type TLSOption struct {
 	TLS               bool            `yaml:"tls,omitempty"`
 	SNI               string          `yaml:"sni,omitempty"`
-	ServerName        string          `yaml:"server-name,omitempty"`
+	ServerName        string          `yaml:"servername,omitempty"`
 	SkipCertVerify    bool            `yaml:"skip-cert-verify,omitempty"`
 	Fingerprint       string          `yaml:"fingerprint,omitempty"`
 	ALPN              []string        `yaml:"alpn,omitempty"`
@@ -225,7 +225,7 @@ type TLSOption struct {
 }
 
 func (t *TLSOption) Build() *option.OutboundTLSOptions {
-	if t == nil {
+	if t == nil || !t.TLS {
 		return nil
 	}
 	if t.SNI == "" {
