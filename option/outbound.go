@@ -85,6 +85,7 @@ type DialerOptions struct {
 	FallbackDelay        badoption.Duration                `json:"fallback_delay,omitempty"`
 	TCPKeepAliveInterval badoption.Duration                `json:"tcp_keep_alive_interval,omitempty"`
 	TCPKeepAliveIdle     badoption.Duration                `json:"tcp_keep_alive_idle,omitempty"`
+	DisableTCPKeepAlive  bool                              `json:"disable_tcp_keep_alive,omitempty"`
 
 	// Deprecated: migrated to domain resolver
 	DomainStrategy DomainStrategy `json:"domain_strategy,omitempty"`

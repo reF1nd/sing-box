@@ -143,22 +143,26 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	} else {
 		dialer.Timeout = C.TCPConnectTimeout
 	}
-	var (
-		keepAliveInterval time.Duration
-		keepAliveIdle     time.Duration
-	)
-	if options.TCPKeepAliveInterval != 0 {
-		keepAliveInterval = time.Duration(options.TCPKeepAliveInterval)
+	if options.DisableTCPKeepAlive {
+		dialer.KeepAlive = -1
 	} else {
-		keepAliveInterval = C.TCPKeepAliveInterval
+		var (
+			keepAliveInterval time.Duration
+			keepAliveIdle     time.Duration
+		)
+		if options.TCPKeepAliveInterval != 0 {
+			keepAliveInterval = time.Duration(options.TCPKeepAliveInterval)
+		} else {
+			keepAliveInterval = C.TCPKeepAliveInterval
+		}
+		dialer.KeepAlive = keepAliveInterval
+		if options.TCPKeepAliveIdle != 0 {
+			keepAliveIdle = time.Duration(options.TCPKeepAliveIdle)
+		} else {
+			keepAliveIdle = C.TCPKeepAliveInitial
+		}
+		dialer.Control = control.Append(dialer.Control, control.SetKeepAlivePeriod(keepAliveIdle, keepAliveInterval))
 	}
-	dialer.KeepAlive = keepAliveInterval
-	if options.TCPKeepAliveIdle != 0 {
-		keepAliveIdle = time.Duration(options.TCPKeepAliveIdle)
-	} else {
-		keepAliveIdle = C.TCPKeepAliveInitial
-	}
-	dialer.Control = control.Append(dialer.Control, control.SetKeepAlivePeriod(keepAliveIdle, keepAliveInterval))
 	var udpFragment bool
 	if options.UDPFragment != nil {
 		udpFragment = *options.UDPFragment
