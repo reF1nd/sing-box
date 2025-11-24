@@ -8674,6 +8674,19 @@
         "server_name": {
           "type": "string"
         },
+        "server_names": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
         "insecure": {
           "type": "boolean"
         },
