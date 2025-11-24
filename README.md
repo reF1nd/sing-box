@@ -31,15 +31,29 @@ https://sing-box.sagernet.org
         "key_path": "key.key",
         "reject_unknown_sni": true
       }
+    },
+    {
+      "type": "anytls",
+      "tag": "anytls-in",
+      "tls": {
+        "enabled": true,
+        "server_names": [
+          "sagernet.sekai.love",
+          "sekai.love"
+        ],
+        "certificate_path": "cert.pem",
+        "key_path": "key.key",
+        "reject_unknown_sni": true
+      }
     }
   ]
 }
 ```
 
-Reject unknown sni: If the server name of connection is not equal to `server_name` and not be included in certificate,
-it will be rejected.
+Reject unknown SNI: If the server name of connection does not match `server_name` or any domain in `server_names`,
+and is not included in the certificate, it will be rejected.
 
-拒绝未知 SNI：如果连接的 server name 与 `server_name` 不符 且 证书中不包含它，则拒绝连接。
+拒绝未知 SNI：如果连接的 server name 与 `server_name` 或者 `server_names` 中包含的域名 不符 且 证书中不包含它，则拒绝连接。
 
 ## Dialer
 
