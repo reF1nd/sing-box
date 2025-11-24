@@ -34,6 +34,8 @@ type STDServerConfig struct {
 	clientCertificatePath []string
 	echKeyPath            string
 	watcher               *fswatch.Watcher
+	rejectUnknownSNI      bool
+	serverNames           map[string]bool
 }
 
 func (c *STDServerConfig) ServerName() string {
@@ -216,6 +218,9 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 	if !options.Enabled {
 		return nil, nil
 	}
+	if options.ServerName != "" && len(options.ServerNames) > 0 {
+		return nil, E.New("server_name and server_names cannot be configured at the same time")
+	}
 	var tlsConfig *tls.Config
 	var acmeService adapter.SimpleLifecycle
 	var err error
@@ -357,6 +362,15 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 			return nil, err
 		}
 	}
+	serverNames := make(map[string]bool)
+	if options.ServerName != "" {
+		serverNames[options.ServerName] = true
+	}
+	for _, name := range options.ServerNames {
+		if name != "" {
+			serverNames[name] = true
+		}
+	}
 	serverConfig := &STDServerConfig{
 		config:                tlsConfig,
 		logger:                logger,
@@ -367,10 +381,22 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 		clientCertificatePath: options.ClientCertificatePath,
 		keyPath:               options.KeyPath,
 		echKeyPath:            echKeyPath,
+		rejectUnknownSNI:      options.RejectUnknownSNI,
+		serverNames:           serverNames,
 	}
 	serverConfig.config.GetConfigForClient = func(info *tls.ClientHelloInfo) (*tls.Config, error) {
 		serverConfig.access.Lock()
 		defer serverConfig.access.Unlock()
+		if serverConfig.rejectUnknownSNI {
+			sni := info.ServerName
+			if len(serverConfig.serverNames) > 0 {
+				if sni == "" || !serverConfig.serverNames[sni] {
+					return nil, E.New("unknown or missing server name")
+				}
+			} else if sni != "" {
+				return nil, E.New("unknown server name: no server names configured")
+			}
+		}
 		return serverConfig.config, nil
 	}
 	var config ServerConfig = serverConfig
