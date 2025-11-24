@@ -5,6 +5,7 @@ import "github.com/sagernet/sing/common/json/badoption"
 type InboundTLSOptions struct {
 	Enabled         bool                       `json:"enabled,omitempty"`
 	ServerName      string                     `json:"server_name,omitempty"`
+	ServerNames     badoption.Listable[string] `json:"server_names,omitempty"`
 	Insecure        bool                       `json:"insecure,omitempty"`
 	ALPN            badoption.Listable[string] `json:"alpn,omitempty"`
 	MinVersion      string                     `json:"min_version,omitempty"`
