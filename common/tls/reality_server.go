@@ -33,6 +33,9 @@ type RealityServerConfig struct {
 func NewRealityServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
 	var tlsConfig utls.RealityConfig
 
+	if options.ServerName != "" && len(options.ServerNames) > 0 {
+		return nil, E.New("server_name and server_names cannot be configured at the same time")
+	}
 	if options.ACME != nil && len(options.ACME.Domain) > 0 {
 		return nil, E.New("acme is unavailable in reality")
 	}
@@ -88,7 +91,15 @@ func NewRealityServer(ctx context.Context, logger log.ContextLogger, options opt
 	tlsConfig.Type = N.NetworkTCP
 	tlsConfig.Dest = options.Reality.Handshake.ServerOptions.Build().String()
 
-	tlsConfig.ServerNames = map[string]bool{options.ServerName: true}
+	tlsConfig.ServerNames = make(map[string]bool)
+	if options.ServerName != "" {
+		tlsConfig.ServerNames[options.ServerName] = true
+	}
+	for _, name := range options.ServerNames {
+		if name != "" {
+			tlsConfig.ServerNames[name] = true
+		}
+	}
 	privateKey, err := base64.RawURLEncoding.DecodeString(options.Reality.PrivateKey)
 	if err != nil {
 		return nil, E.Cause(err, "decode private key")
@@ -185,10 +196,14 @@ func (c *RealityServerConfig) ServerHandshake(ctx context.Context, conn net.Conn
 	}
 	if c.rejectUnknownSNI {
 		sni := tlsConn.ConnectionState().ServerName
-		loadedSNI := c.config.ServerNames[sni]
-		if !loadedSNI && sni != c.config.ServerName {
+		if len(c.config.ServerNames) > 0 {
+			if sni == "" || !c.config.ServerNames[sni] {
+				_ = tlsConn.Close()
+				return nil, E.New("unknown or missing server name")
+			}
+		} else if sni != "" {
 			_ = tlsConn.Close()
-			return nil, E.Cause(err, "unknown server name")
+			return nil, E.New("unknown server name: no server names configured")
 		}
 	}
 	return &realityConnWrapper{Conn: tlsConn}, nil
