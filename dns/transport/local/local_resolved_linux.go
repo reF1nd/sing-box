@@ -18,7 +18,7 @@ import (
 	dnsTransport "github.com/sagernet/sing-box/dns/transport"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/service/resolved"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -363,7 +363,18 @@ func (t *DBusResolvedResolver) createResolvedTransport(serverDialer N.Dialer, se
 		if err != nil {
 			return nil, err
 		}
-		serverTransport := dnsTransport.NewTLSRaw(t.logger, dns.NewTransportAdapter(C.DNSTypeTLS, "", nil), serverDialer, serverAddress, tlsConfig)
+		serverTransport := dnsTransport.NewTLSRaw(
+			t.ctx,
+			t.logger,
+			dns.NewTransportAdapter(C.DNSTypeTLS, "", nil),
+			serverDialer,
+			serverAddress,
+			tlsConfig,
+			false,
+			C.TCPKeepAliveInterval,
+			false,
+			0,
+		)
 		err = serverTransport.Start(adapter.StartStateStart)
 		if err != nil {
 			_ = serverTransport.Close()

@@ -146,8 +146,7 @@ func (t *Transport) updateTransports(link *TransportLink) error {
 				Enabled:    true,
 				ServerName: serverAddr.String(),
 			}))
-			transports = append(transports, transport.NewTLSRaw(t.logger, t.TransportAdapter, serverDialer, M.SocksaddrFrom(serverAddr, 53), tlsConfig))
-
+			transports = append(transports, transport.NewTLSRaw(t.ctx, t.logger, t.TransportAdapter, serverDialer, M.SocksaddrFrom(serverAddr, 53), tlsConfig, false, C.TCPKeepAliveInitial+C.TCPKeepAliveInterval, false, 0))
 		} else {
 			transports = append(transports, transport.NewUDPRaw(t.logger, t.TransportAdapter, serverDialer, M.SocksaddrFrom(serverAddr, 53)))
 		}
@@ -168,8 +167,7 @@ func (t *Transport) updateTransports(link *TransportLink) error {
 				Enabled:    true,
 				ServerName: serverName,
 			}))
-			transports = append(transports, transport.NewTLSRaw(t.logger, t.TransportAdapter, serverDialer, M.SocksaddrFrom(serverAddr, address.Port), tlsConfig))
-
+			transports = append(transports, transport.NewTLSRaw(t.ctx, t.logger, t.TransportAdapter, serverDialer, M.SocksaddrFrom(serverAddr, address.Port), tlsConfig, false, C.TCPKeepAliveInitial+C.TCPKeepAliveInterval, false, 0))
 		} else {
 			transports = append(transports, transport.NewUDPRaw(t.logger, t.TransportAdapter, serverDialer, M.SocksaddrFrom(serverAddr, address.Port)))
 		}
