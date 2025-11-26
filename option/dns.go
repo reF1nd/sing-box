@@ -390,12 +390,16 @@ type RemoteDNSServerOptions struct {
 
 type RemoteTCPDNSServerOptions struct {
 	RemoteDNSServerOptions
-	Reuse bool `json:"reuse,omitempty"`
+	Reuse      bool `json:"reuse,omitempty"`
+	Pipeline   bool `json:"pipeline,omitempty"`
+	MaxQueries int  `json:"max_queries,omitempty"`
 }
 
 type RemoteTLSDNSServerOptions struct {
 	RemoteDNSServerOptions
 	OutboundTLSOptionsContainer
+	Pipeline   bool `json:"pipeline,omitempty"`
+	MaxQueries int  `json:"max_queries,omitempty"`
 }
 
 type _RemoteHTTPSDNSServerOptions struct {
