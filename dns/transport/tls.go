@@ -28,17 +28,10 @@ func RegisterTLS(registry *dns.TransportRegistry) {
 
 type TLSTransport struct {
 	dns.TransportAdapter
-	logger logger.ContextLogger
-
-	dialer      tls.Dialer
-	serverAddr  M.Socksaddr
-	tlsConfig   tls.Config
-	connections *ConnPool[*tlsDNSConn]
-}
-
-type tlsDNSConn struct {
-	tls.Conn
-	queryId uint16
+	dialer     tls.Dialer
+	serverAddr M.Socksaddr
+	tlsConfig  tls.Config
+	pipelinePool
 }
 
 func NewTLS(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteTLSDNSServerOptions) (adapter.DNSTransport, error) {
@@ -59,25 +52,47 @@ func NewTLS(ctx context.Context, logger log.ContextLogger, tag string, options o
 	if !serverAddr.IsValid() {
 		return nil, E.New("invalid server address: ", serverAddr)
 	}
-	return NewTLSRaw(logger, dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeTLS, tag, options.RemoteDNSServerOptions), transportDialer, serverAddr, tlsConfig), nil
+	var poolIdleTimeout time.Duration
+	if options.DisableTCPKeepAlive {
+		poolIdleTimeout = 2 * time.Minute
+	} else {
+		var keepAliveIdle, keepAliveInterval time.Duration
+		if options.TCPKeepAlive != 0 {
+			keepAliveIdle = time.Duration(options.TCPKeepAlive)
+		} else {
+			keepAliveIdle = C.TCPKeepAliveInitial
+		}
+		if options.TCPKeepAliveInterval != 0 {
+			keepAliveInterval = time.Duration(options.TCPKeepAliveInterval)
+		} else {
+			keepAliveInterval = C.TCPKeepAliveInterval
+		}
+		poolIdleTimeout = keepAliveIdle + keepAliveInterval
+	}
+	maxQueries := options.MaxQueries
+	if maxQueries <= 0 {
+		maxQueries = 0
+	}
+	if !options.Pipeline && maxQueries > 0 {
+		maxQueries = 0
+	}
+	return NewTLSRaw(ctx, logger, dns.NewTransportAdapterWithRemoteOptions(C.DNSTypeTLS, tag, options.RemoteDNSServerOptions), transportDialer, serverAddr, tlsConfig, options.Pipeline, poolIdleTimeout, options.DisableTCPKeepAlive, maxQueries), nil
 }
 
-func NewTLSRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer N.Dialer, serverAddr M.Socksaddr, tlsConfig tls.Config) *TLSTransport {
+func NewTLSRaw(_ context.Context, logger logger.ContextLogger, adapter dns.TransportAdapter, dialer N.Dialer, serverAddr M.Socksaddr, tlsConfig tls.Config, enablePipeline bool, idleTimeout time.Duration, disableKeepAlive bool, maxQueries int) *TLSTransport {
 	return &TLSTransport{
 		TransportAdapter: adapter,
-		logger:           logger,
 		dialer:           tls.NewDialer(dialer, tlsConfig),
 		serverAddr:       serverAddr,
 		tlsConfig:        tlsConfig,
-		connections: NewConnPool(ConnPoolOptions[*tlsDNSConn]{
-			Mode: ConnPoolOrdered,
-			IsAlive: func(conn *tlsDNSConn) bool {
-				return conn != nil
-			},
-			Close: func(conn *tlsDNSConn, _ error) {
-				conn.Close()
-			},
-		}),
+		pipelinePool: pipelinePool{
+			logger:           logger,
+			enablePipeline:   enablePipeline,
+			idleTimeout:      idleTimeout,
+			disableKeepAlive: disableKeepAlive,
+			maxQueries:       maxQueries,
+			connections:      newReuseableDNSConnPool(),
+		},
 	}
 }
 
@@ -89,54 +104,34 @@ func (t *TLSTransport) Start(stage adapter.StartStage) error {
 }
 
 func (t *TLSTransport) Close() error {
-	return t.connections.Close()
+	return t.pipelinePool.closePool()
 }
 
 func (t *TLSTransport) Reset() {
-	t.connections.Reset()
+	t.pipelinePool.resetPool()
 }
 
 func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
-		conn, created, err := t.connections.Acquire(ctx, func(ctx context.Context) (*tlsDNSConn, error) {
-			tlsConn, err := t.dialer.DialTLSContext(ctx, t.serverAddr)
-			if err != nil {
-				return nil, E.Cause(err, "dial TLS connection")
-			}
-			return &tlsDNSConn{Conn: tlsConn}, nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		response, err := t.exchange(ctx, message, conn)
-		if err == nil {
-			t.connections.Release(conn, true)
-			return response, nil
-		}
-		lastErr = err
-		t.logger.DebugContext(ctx, "discarded pooled connection: ", err)
-		t.connections.Release(conn, false)
-		if created {
-			return nil, err
-		}
-	}
-	return nil, lastErr
+	return t.pipelinePool.exchange(ctx, message, t.createNewConnection)
 }
 
-func (t *TLSTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *tlsDNSConn) (*mDNS.Msg, error) {
-	if deadline, ok := ctx.Deadline(); ok {
-		conn.SetDeadline(deadline)
-	}
-	conn.queryId++
-	err := WriteMessage(conn, conn.queryId, message)
+func (t *TLSTransport) createNewConnection(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	conn, _, err := t.connections.Acquire(ctx, func(ctx context.Context) (*reuseableDNSConn, error) {
+		tlsConn, err := t.dialer.DialTLSContext(ctx, t.serverAddr)
+		if err != nil {
+			return nil, E.Cause(err, "dial TLS connection")
+		}
+		var connIdleTimeout time.Duration
+		if t.disableKeepAlive {
+			connIdleTimeout = t.idleTimeout
+		}
+		return newReuseableDNSConn(tlsConn, t.logger, t.enablePipeline, connIdleTimeout, t.maxQueries, t.connections, t), nil
+	})
 	if err != nil {
-		return nil, E.Cause(err, "write request")
+		return nil, err
 	}
-	response, err := ReadMessage(conn)
-	if err != nil {
-		return nil, E.Cause(err, "read response")
+	if t.enablePipeline && t.maxQueries > 0 {
+		t.addActiveConn(conn)
 	}
-	conn.SetDeadline(time.Time{})
-	return response, nil
+	return conn.Exchange(ctx, message)
 }
