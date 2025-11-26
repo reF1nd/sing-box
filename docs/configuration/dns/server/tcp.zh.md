@@ -19,6 +19,10 @@ icon: material/new-box
         "server": "",
         "server_port": 53,
 
+        "reuse": false,
+        "pipeline": false,
+        "max_queries": 0,
+
         // 拨号字段
       }
     ]
@@ -46,6 +50,26 @@ DNS 服务器的地址。
 DNS 服务器的端口。
 
 默认使用 `53`。
+
+#### reuse
+
+启用连接复用。启用后，空闲的 TCP 连接将被缓存并用于后续查询，而不是每次都新建连接。
+
+默认禁用。
+
+#### pipeline
+
+启用 DNS 管线化（[RFC 7766](https://datatracker.ietf.org/doc/html/rfc7766#section-6.2.1.1)）。启用后，可以在单条 TCP 连接上并发发送多个 DNS 查询，无需等待前一个响应。
+
+隐式启用 `reuse`。
+
+默认禁用。
+
+#### max_queries
+
+管线化模式下每条连接的最大并发查询数。当连接达到此限制时，新查询将通过新连接发送。
+
+仅在启用 `pipeline` 时生效。`0` 表示不限制。
 
 ### 拨号字段
 
