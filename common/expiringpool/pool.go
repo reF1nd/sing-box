@@ -73,14 +73,20 @@ func (e *ExpiringPool[T]) Start() {
 }
 
 func (e *ExpiringPool[T]) cleanLoop() {
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	defer timer.Stop()
 	for {
 		e.access.Lock()
 		if len(e.heap) == 0 {
 			e.access.Unlock()
+			timer.Reset(e.expire)
 			select {
 			case <-e.ctx.Done():
 				return
-			case <-time.After(e.expire):
+			case <-timer.C:
 				continue
 			}
 		}
@@ -91,25 +97,27 @@ func (e *ExpiringPool[T]) cleanLoop() {
 		e.access.Unlock()
 
 		if wait > 0 {
+			timer.Reset(wait)
 			select {
 			case <-e.ctx.Done():
 				return
-			case <-time.After(wait):
+			case <-timer.C:
 				continue
 			}
 		}
 
 		e.access.Lock()
-		// re-check
-		if len(e.heap) == 0 || !e.heap[0].expiresAt.Before(time.Now()) {
-			e.access.Unlock()
-			continue
+		var toClean []T
+		for len(e.heap) > 0 && e.heap[0].expiresAt.Before(time.Now()) {
+			it := heap.Pop(&e.heap).(*item[T])
+			delete(e.items, it.value)
+			toClean = append(toClean, it.value)
 		}
-		it := heap.Pop(&e.heap).(*item[T])
-		delete(e.items, it.value)
 		e.access.Unlock()
 
-		e.onClean(it.value)
+		for _, v := range toClean {
+			e.onClean(v)
+		}
 	}
 }
 
@@ -128,22 +136,44 @@ func (e *ExpiringPool[T]) Get() T {
 func (e *ExpiringPool[T]) Put(value T) {
 	e.access.Lock()
 	defer e.access.Unlock()
+	if e.cancel == nil {
+		e.onClean(value)
+		return
+	}
 	expiresAt := time.Now().Add(e.expire)
 	it := &item[T]{value: value, expiresAt: expiresAt}
 	heap.Push(&e.heap, it)
 	e.items[value] = it
 }
 
+func (e *ExpiringPool[T]) Drain() {
+	e.access.Lock()
+	var toClean []T
+	for len(e.heap) > 0 {
+		it := heap.Pop(&e.heap).(*item[T])
+		delete(e.items, it.value)
+		toClean = append(toClean, it.value)
+	}
+	e.access.Unlock()
+	for _, v := range toClean {
+		e.onClean(v)
+	}
+}
+
 func (e *ExpiringPool[T]) Close() {
 	e.access.Lock()
-	defer e.access.Unlock()
 	if e.cancel != nil {
 		e.cancel()
 		e.cancel = nil
 	}
-	// clean remaining
+	var toClean []T
 	for len(e.heap) > 0 {
 		it := heap.Pop(&e.heap).(*item[T])
-		e.onClean(it.value)
+		delete(e.items, it.value)
+		toClean = append(toClean, it.value)
+	}
+	e.access.Unlock()
+	for _, v := range toClean {
+		e.onClean(v)
 	}
 }

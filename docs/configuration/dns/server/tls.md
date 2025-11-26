@@ -21,6 +21,9 @@ icon: material/new-box
         
         "tls": {},
         
+        "pipeline": false,
+        "max_queries": 0,
+        
         // Dial Fields
       }
     ]
@@ -52,6 +55,18 @@ The port of the DNS server.
 #### tls
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
+
+#### pipeline
+
+Enable DNS pipelining ([RFC 7766](https://datatracker.ietf.org/doc/html/rfc7766#section-6.2.1.1)). When enabled, multiple DNS queries can be sent over a single TLS connection concurrently without waiting for the previous response.
+
+Disabled by default.
+
+#### max_queries
+
+Maximum number of concurrent queries per connection in pipeline mode. When a connection reaches this limit, new queries are sent over a new connection.
+
+Only effective when `pipeline` is enabled. `0` means unlimited.
 
 ### Dial Fields
 
