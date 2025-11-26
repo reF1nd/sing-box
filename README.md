@@ -87,14 +87,37 @@ TCP Keep alive options.
         "tag": "cloudlfare-tcp",
         "server": "1.1.1.1",
         "server_port": 53,
-        "reuse": true
+        "reuse": true,
+        "pipeline": true
       }
     ]
   }
 }
 ```
 
-- `reuse`: Reuse TCP connection.
+- `reuse`: Reuse TCP connection. Always enabled when `pipeline` is true.
+- `pipeline`: Enable DNS pipelining (RFC 9210). Multiple queries can be sent without waiting for responses, improving performance.
+
+### DoT
+
+```json
+{
+  "dns": {
+    "servers": [
+      {
+        "type": "tls",
+        "tag": "cloudflare-dot",
+        "server": "1.1.1.1",
+        "server_port": 853,
+        "pipeline": true
+      }
+    ]
+  }
+}
+```
+
+- `pipeline`: Enable DNS pipelining (RFC 9210). Multiple queries can be sent over the same TLS connection without waiting for responses,
+significantly improving performance in high-concurrency scenarios.
 
 ## URLTest Fallback 支持
 
