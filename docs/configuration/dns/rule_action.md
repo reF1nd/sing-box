@@ -18,7 +18,8 @@ icon: material/new-box
   "strategy": "",
   "disable_cache": false,
   "rewrite_ttl": null,
-  "client_subnet": null
+  "client_subnet": null,
+  "lazy_cache_ttl": null
 }
 ```
 
@@ -54,6 +55,12 @@ If value is an IP address instead of prefix, `/32` or `/128` will be appended au
 
 Will overrides `dns.client_subnet`.
 
+#### lazy_cache_ttl
+
+Serve expired cached response with given extra ttl for this rule. It will attempt to refresh the query in the background.
+
+Takes priority over the global `dns.lazy_cache_ttl` setting.
+
 ### route-options
 
 ```json
@@ -61,7 +68,8 @@ Will overrides `dns.client_subnet`.
   "action": "route-options",
   "disable_cache": false,
   "rewrite_ttl": null,
-  "client_subnet": null
+  "client_subnet": null,
+  "lazy_cache_ttl": null
 }
 ```
 
