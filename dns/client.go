@@ -441,7 +441,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 		}
 	}
 	if !disableCache {
-		c.storeCache(transport, question, response, timeToLive)
+		c.storeCache(transport, question, response, timeToLive, options.LazyCacheTTL)
 	}
 	response.Id = messageId
 	requestEDNSOpt := message.IsEdns0()
@@ -517,7 +517,7 @@ func sortAddresses(response4 []netip.Addr, response6 []netip.Addr, strategy C.Do
 	}
 }
 
-func (c *Client) storeCache(transport adapter.DNSTransport, question dns.Question, message *dns.Msg, timeToLive uint32) {
+func (c *Client) storeCache(transport adapter.DNSTransport, question dns.Question, message *dns.Msg, timeToLive uint32, lazyCacheTTL *uint32) {
 	if timeToLive == 0 {
 		return
 	}
@@ -534,7 +534,11 @@ func (c *Client) storeCache(transport adapter.DNSTransport, question dns.Questio
 	} else {
 		lifetime := time.Second * time.Duration(timeToLive)
 		pdnsMsg.expireTime = time.Now().Add(lifetime)
-		if c.useLazyCache {
+		if lazyCacheTTL != nil {
+			if *lazyCacheTTL > 0 {
+				lifetime = lifetime + (time.Second * time.Duration(*lazyCacheTTL))
+			}
+		} else if c.useLazyCache {
 			lifetime = lifetime + time.Second*time.Duration(c.lazyCacheTTL)
 		}
 		if !c.independentCache {
