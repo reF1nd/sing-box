@@ -187,6 +187,7 @@ type DNSRouteActionOptions struct {
 	DisableCache bool                  `json:"disable_cache,omitempty"`
 	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
 	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
+	LazyCacheTTL *uint32               `json:"lazy_cache_ttl,omitempty"`
 }
 
 type _DNSRouteOptionsActionOptions struct {
@@ -194,6 +195,7 @@ type _DNSRouteOptionsActionOptions struct {
 	DisableCache bool                  `json:"disable_cache,omitempty"`
 	RewriteTTL   *uint32               `json:"rewrite_ttl,omitempty"`
 	ClientSubnet *badoption.Prefixable `json:"client_subnet,omitempty"`
+	LazyCacheTTL *uint32               `json:"lazy_cache_ttl,omitempty"`
 }
 
 type DNSRouteOptionsActionOptions _DNSRouteOptionsActionOptions
