@@ -118,6 +118,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 				DisableCache: action.RouteOptions.DisableCache,
 				RewriteTTL:   action.RouteOptions.RewriteTTL,
 				ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
+				LazyCacheTTL: action.RouteOptions.LazyCacheTTL,
 			},
 		}
 	case C.RuleActionTypeRouteOptions:
@@ -126,6 +127,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			DisableCache: action.RouteOptionsOptions.DisableCache,
 			RewriteTTL:   action.RouteOptionsOptions.RewriteTTL,
 			ClientSubnet: netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
+			LazyCacheTTL: action.RouteOptionsOptions.LazyCacheTTL,
 		}
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
@@ -255,6 +257,7 @@ type RuleActionDNSRouteOptions struct {
 	DisableCache bool
 	RewriteTTL   *uint32
 	ClientSubnet netip.Prefix
+	LazyCacheTTL *uint32
 }
 
 func (r *RuleActionDNSRouteOptions) Type() string {
