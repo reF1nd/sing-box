@@ -15,7 +15,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -161,6 +161,13 @@ func (s *URLTest) CheckOutbounds() {
 	s.group.CheckOutbounds(true)
 }
 
+func (s *URLTest) isGroupActive() bool {
+	if !s.group.started {
+		return false
+	}
+	return time.Since(s.group.lastActive.Load()) <= s.group.idleTimeout
+}
+
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	s.group.Touch()
 	var outbound adapter.Outbound
@@ -273,17 +280,19 @@ func (s *URLTest) onProviderUpdated(tag string) error {
 		outbounds = append(outbounds, detour)
 	}
 	s.tags, s.group.outbounds = tags, outbounds
-	s.group.access.Lock()
-	if s.group.ticker != nil {
-		s.group.ticker.Reset(s.group.interval)
+	if s.isGroupActive() {
+		s.group.access.Lock()
+		if s.group.ticker != nil {
+			s.group.ticker.Reset(s.group.interval)
+		}
+		s.group.access.Unlock()
+		ctx, cancel := context.WithCancel(s.ctx)
+		if s.cancel != nil {
+			s.cancel()
+		}
+		s.cancel = cancel
+		s.URLTest(ctx)
 	}
-	s.group.access.Unlock()
-	ctx, cancel := context.WithCancel(s.ctx)
-	if s.cancel != nil {
-		s.cancel()
-	}
-	s.cancel = cancel
-	s.URLTest(ctx)
 	return nil
 }
 
