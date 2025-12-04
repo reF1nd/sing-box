@@ -71,7 +71,7 @@ type ProviderRemoteOptions struct {
 	Path           string             `json:"path,omitempty"`
 	InitialPath    string             `json:"initial_path,omitempty"`
 	UserAgent      string             `json:"user_agent,omitempty"`
-	DownloadDetour string             `json:"download_detour,omitempty" reference:"outbound"`
+	HTTPClient     *HTTPClientOptions `json:"http_client,omitempty"`
 	UpdateInterval badoption.Duration `json:"update_interval,omitempty"`
 
 	Exclude     *badoption.Regexp          `json:"exclude,omitempty"`
@@ -79,6 +79,9 @@ type ProviderRemoteOptions struct {
 	HealthCheck ProviderHealthCheckOptions `json:"health_check,omitempty"`
 
 	OverrideDialer *OverrideDialerOptions `json:"override_dialer,omitempty"`
+
+	// Deprecated: use http_client instead
+	DownloadDetour string `json:"download_detour,omitempty" reference:"outbound" schema:"omit"`
 }
 
 type providerRemoteOptionsSchema ProviderRemoteOptions
