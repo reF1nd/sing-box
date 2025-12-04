@@ -92,16 +92,18 @@ func NewProviderLocal(ctx context.Context, router adapter.Router, logFactory log
 	return provider, nil
 }
 
-func (s *ProviderLocal) Start() error {
-	err := s.reloadFile(s.path)
-	if err != nil {
-		return err
-	}
-	s.UpdateGroups()
-	if s.watcher != nil {
-		err := s.watcher.Start()
+func (s *ProviderLocal) StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error {
+	if s.path != "" {
+		err := s.reloadFile(s.path)
 		if err != nil {
-			s.logger.Error(E.Cause(err, "watch provider file"))
+			return err
+		}
+		s.UpdateGroups()
+		if s.watcher != nil {
+			err := s.watcher.Start()
+			if err != nil {
+				s.logger.Error(E.Cause(err, "watch provider file"))
+			}
 		}
 	}
 	return s.Adapter.Start()
