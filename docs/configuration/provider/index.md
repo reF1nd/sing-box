@@ -1,5 +1,10 @@
 # Provider
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [http_client](#http_client)  
+    :material-delete-clock: [download_detour](#download_detour)
+
 ### Structure
 
 List of subscription providers.
@@ -43,9 +48,13 @@ List of subscription providers.
           "exclude": "",
           "include": "",
           "user_agent": "",
-          "download_detour": "",
+          "http_client": "", // or {}
           "update_interval": "",
-          "override_dialer": {}
+          "override_dialer": {},
+
+          // Deprecated
+
+          "download_detour": ""
         }
       ]
     }
@@ -125,11 +134,23 @@ Include regular expression to filter nodes.
 
 User agent used to download the provider.
 
+#### http_client
+
+!!! question "Since sing-box 1.14.0"
+
+HTTP Client for downloading provider.
+
+See [HTTP Client Fields](/configuration/shared/http-client/) for details.
+
+Default transport will be used if empty.
+
 #### download_detour
 
-The tag of the outbound used to download from the provider.
+!!! failure "Deprecated in sing-box 1.14.0"
 
-Default outbound will be used if empty.
+    `download_detour` is deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0, use `http_client` instead.
+
+Tag of the outbound used to download from the provider.
 
 #### update_interval
 
