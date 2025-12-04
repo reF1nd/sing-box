@@ -120,7 +120,7 @@ func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory lo
 	}, nil
 }
 
-func (s *ProviderRemote) Start() error {
+func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
 	err := s.loadCacheFile()
 	if err != nil {
@@ -135,7 +135,13 @@ func (s *ProviderRemote) Start() error {
 	} else {
 		s.dialer = s.outbound.Default()
 	}
-
+	if s.lastUpdated.IsZero() {
+		ctx = interrupt.ContextWithIsProviderConnection(ctx)
+		err := s.fetch(ctx, startContext)
+		if err != nil {
+			return E.Cause(err, "initial outbound provider: ", s.Tag())
+		}
+	}
 	go s.loopUpdate()
 	return s.Adapter.Start()
 }
@@ -145,7 +151,7 @@ func (s *ProviderRemote) Update() error {
 		s.ticker.Reset(s.updateInterval)
 	}
 	ctx := interrupt.ContextWithIsProviderConnection(s.ctx)
-	return s.fetch(ctx)
+	return s.fetch(ctx, nil)
 }
 
 func (s *ProviderRemote) UpdatedAt() time.Time {
@@ -166,29 +172,34 @@ func (s *ProviderRemote) Close() error {
 
 func (s *ProviderRemote) updateOnce() {
 	ctx := interrupt.ContextWithIsProviderConnection(s.ctx)
-	if err := s.fetch(ctx); err != nil {
+	if err := s.fetch(ctx, nil); err != nil {
 		s.logger.Error("update outbound provider: ", err)
 	}
 }
 
-func (s *ProviderRemote) fetch(ctx context.Context) error {
+func (s *ProviderRemote) fetch(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	if s.updating.Swap(true) {
 		return E.New("provider is updating")
 	}
 	defer s.updating.Store(false)
 	s.logger.Debug("updating outbound provider ", s.Tag(), " from URL: ", s.url)
-	client := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2:   true,
-			TLSHandshakeTimeout: C.TCPTimeout,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+	var client *http.Client
+	if startContext != nil {
+		client = startContext.HTTPClient(s.downloadDetour, s.dialer)
+	} else {
+		client = &http.Client{
+			Transport: &http.Transport{
+				ForceAttemptHTTP2:   true,
+				TLSHandshakeTimeout: C.TCPTimeout,
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
+				},
+				TLSClientConfig: &tls.Config{
+					Time:    ntp.TimeFuncFromContext(ctx),
+					RootCAs: adapter.RootPoolFromContext(ctx),
+				},
 			},
-			TLSClientConfig: &tls.Config{
-				Time:    ntp.TimeFuncFromContext(ctx),
-				RootCAs: adapter.RootPoolFromContext(ctx),
-			},
-		},
+		}
 	}
 	req, err := http.NewRequest(http.MethodGet, s.url, nil)
 	if err != nil {
