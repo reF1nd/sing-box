@@ -48,11 +48,20 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	m.stage = stage
 	providers := m.providers
 	m.access.Unlock()
-	for _, provider := range providers {
-		err := adapter.LegacyStart(provider, stage)
-		if err != nil {
-			return E.Cause(err, stage, " provider/", provider.Type(), "[", provider.Tag(), "]")
+	if stage == adapter.StartStateStart && len(providers) > 0 {
+		startContext := adapter.NewHTTPStartContext(context.Background())
+		defer startContext.Close()
+		for _, provider := range providers {
+			if contextStarter, ok := provider.(interface {
+				StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error
+			}); ok {
+				err := contextStarter.StartContext(context.Background(), startContext)
+				if err != nil {
+					return E.Cause(err, stage, " provider/", provider.Type(), "[", provider.Tag(), "]")
+				}
+			}
 		}
+		return nil
 	}
 	return nil
 }
@@ -129,10 +138,14 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logFactory 
 	m.access.Lock()
 	defer m.access.Unlock()
 	if m.started {
-		for _, stage := range adapter.ListStartStages {
-			err = adapter.LegacyStart(provider, stage)
-			if err != nil {
-				return E.Cause(err, stage, " provider/", provider.Type(), "[", provider.Tag(), "]")
+		if m.stage >= adapter.StartStateStart {
+			if contextStarter, ok := provider.(interface {
+				StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error
+			}); ok {
+				err = contextStarter.StartContext(context.Background(), nil)
+				if err != nil {
+					return E.Cause(err, "start provider/", provider.Type(), "[", provider.Tag(), "]")
+				}
 			}
 		}
 	}
