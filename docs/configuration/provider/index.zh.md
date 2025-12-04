@@ -1,5 +1,10 @@
 # 订阅
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [http_client](#http_client)  
+    :material-delete-clock: [download_detour](#download_detour)
+
 ### 结构
 
 订阅源列表。
@@ -43,9 +48,13 @@
           "exclude": "",
           "include": "",
           "user_agent": "",
-          "download_detour": "",
+          "http_client": "", // or {}
           "update_interval": "",
-          "override_dialer": {}
+          "override_dialer": {},
+
+          // Deprecated
+
+          "download_detour": ""
         }
       ]
     }
@@ -125,11 +134,23 @@
 
 用于下载订阅内容的 User-Agent。
 
+#### http_client
+
+!!! question "自 sing-box 1.14.0 起"
+
+用于下载订阅内容的 HTTP 客户端。
+
+参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/) 了解详情。
+
+如果为空，将使用默认传输。
+
 #### download_detour
 
-用于下载订阅内容的出站的标签。
+!!! failure "已在 sing-box 1.14.0 废弃"
 
-如果为空，将使用默认出站。
+    `download_detour` 已在 sing-box 1.14.0 废弃且将在 sing-box 1.16.0 中被移除，请使用 `http_client` 代替。
+
+用于下载订阅内容的出站的标签。
 
 #### update_interval
 
