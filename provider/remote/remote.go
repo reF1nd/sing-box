@@ -3,10 +3,8 @@ package remote
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,6 +19,7 @@ import (
 	"github.com/sagernet/sing-box/common/hash"
 	"github.com/sagernet/sing-box/common/interrupt"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/provider/parser"
@@ -28,9 +27,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
@@ -50,7 +46,7 @@ type ProviderRemote struct {
 	outbound         adapter.OutboundManager
 	provider         adapter.ProviderManager
 	cacheFile        adapter.CacheFile
-	dialer           N.Dialer
+	httpClient       *http.Client
 	hash             hash.HashType
 	lastEtag         string
 	lastOutOpts      []option.Outbound
@@ -60,13 +56,14 @@ type ProviderRemote struct {
 	ticker           *time.Ticker
 	updating         atomic.Bool
 
-	url            string
-	path           string
-	userAgent      string
-	downloadDetour string
-	updateInterval time.Duration
-	exclude        *regexp.Regexp
-	include        *regexp.Regexp
+	httpClientOptions *option.HTTPClientOptions
+	downloadDetour    string
+	url               string
+	path              string
+	userAgent         string
+	updateInterval    time.Duration
+	exclude           *regexp.Regexp
+	include           *regexp.Regexp
 
 	overrideDialer *option.OverrideDialerOptions
 }
@@ -110,34 +107,38 @@ func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory lo
 		outbound: outbound,
 		provider: service.FromContext[adapter.ProviderManager](ctx),
 
-		url:            options.URL,
-		path:           path,
-		userAgent:      userAgent,
-		downloadDetour: options.DownloadDetour,
-		updateInterval: updateInterval,
-		exclude:        (*regexp.Regexp)(options.Exclude),
-		include:        (*regexp.Regexp)(options.Include),
+		httpClientOptions: options.HTTPClient,
+		downloadDetour:    options.DownloadDetour,
+		url:               options.URL,
+		path:              path,
+		userAgent:         userAgent,
+		updateInterval:    updateInterval,
+		exclude:           (*regexp.Regexp)(options.Exclude),
+		include:           (*regexp.Regexp)(options.Include),
 
 		overrideDialer: options.OverrideDialer,
 	}, nil
 }
 
-func (s *ProviderRemote) Start() error {
+func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
 	err := s.loadCacheFile()
 	if err != nil {
 		return E.Cause(err, "restore cached outbound provider")
 	}
-	if s.downloadDetour != "" {
-		outbound, loaded := s.outbound.Outbound(s.downloadDetour)
-		if !loaded {
-			return E.New("detour outbound not found: ", s.downloadDetour)
-		}
-		s.dialer = outbound
-	} else {
-		s.dialer = s.outbound.Default()
+	transport, err := s.resolveTransport()
+	if err != nil {
+		return E.Cause(err, "create provider http client")
 	}
-
+	startContext.Register(transport)
+	s.httpClient = &http.Client{Transport: transport}
+	if s.lastUpdated.IsZero() {
+		ctx = interrupt.ContextWithIsProviderConnection(ctx)
+		err := s.fetch(ctx, true)
+		if err != nil {
+			return E.Cause(err, "initial outbound provider: ", s.Tag())
+		}
+	}
 	go s.loopUpdate()
 	return s.Adapter.Start()
 }
@@ -147,7 +148,7 @@ func (s *ProviderRemote) Update() error {
 		s.ticker.Reset(s.updateInterval)
 	}
 	ctx := interrupt.ContextWithIsProviderConnection(s.ctx)
-	return s.fetch(ctx)
+	return s.fetch(ctx, false)
 }
 
 func (s *ProviderRemote) UpdatedAt() time.Time {
@@ -166,32 +167,43 @@ func (s *ProviderRemote) Close() error {
 	return common.Close(&s.Adapter)
 }
 
+func (s *ProviderRemote) resolveTransport() (adapter.HTTPTransport, error) {
+	httpClientManager := service.FromContext[adapter.HTTPClientManager](s.ctx)
+	if s.httpClientOptions != nil && !s.httpClientOptions.IsEmpty() {
+		if s.downloadDetour != "" {
+			return nil, E.New("http_client is conflict with deprecated download_detour field")
+		}
+		return httpClientManager.ResolveTransport(s.ctx, s.logger, *s.httpClientOptions)
+	}
+	if s.downloadDetour != "" {
+		deprecated.Report(s.ctx, deprecated.OptionLegacyProviderDownloadDetour)
+		return httpClientManager.ResolveTransport(s.ctx, s.logger, option.HTTPClientOptions{
+			DialerOptions: option.DialerOptions{
+				Detour: s.downloadDetour,
+			},
+			DisableEmptyDirectCheck: true,
+		})
+	}
+	defaultTransport := httpClientManager.DefaultTransport()
+	if defaultTransport == nil {
+		return nil, E.New("default http client transport is not initialized")
+	}
+	return defaultTransport, nil
+}
+
 func (s *ProviderRemote) updateOnce() {
 	ctx := interrupt.ContextWithIsProviderConnection(s.ctx)
-	if err := s.fetch(ctx); err != nil {
+	if err := s.fetch(ctx, false); err != nil {
 		s.logger.Error("update outbound provider: ", err)
 	}
 }
 
-func (s *ProviderRemote) fetch(ctx context.Context) error {
+func (s *ProviderRemote) fetch(ctx context.Context, isStart bool) error {
 	if s.updating.Swap(true) {
 		return E.New("provider is updating")
 	}
 	defer s.updating.Store(false)
 	s.logger.Debug("updating outbound provider ", s.Tag(), " from URL: ", s.url)
-	client := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2:   true,
-			TLSHandshakeTimeout: C.TCPTimeout,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return s.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
-			},
-			TLSClientConfig: &tls.Config{
-				Time:    ntp.TimeFuncFromContext(ctx),
-				RootCAs: adapter.RootPoolFromContext(ctx),
-			},
-		},
-	}
 	req, err := http.NewRequest(http.MethodGet, s.url, nil)
 	if err != nil {
 		return err
@@ -200,7 +212,10 @@ func (s *ProviderRemote) fetch(ctx context.Context) error {
 		req.Header.Set("If-None-Match", s.lastEtag)
 	}
 	req.Header.Set("User-Agent", s.userAgent)
-	resp, err := client.Do(req.WithContext(ctx))
+	if !isStart {
+		defer s.httpClient.CloseIdleConnections()
+	}
+	resp, err := s.httpClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return err
 	}
