@@ -15330,9 +15330,8 @@
                 "user_agent": {
                   "type": "string"
                 },
-                "download_detour": {
-                  "type": "string",
-                  "x-tag-reference": "outbound"
+                "http_client": {
+                  "$ref": "#/$defs/HTTPClientReference"
                 },
                 "update_interval": {
                   "$ref": "#/$defs/Duration"
@@ -15373,9 +15372,8 @@
                 "user_agent": {
                   "type": "string"
                 },
-                "download_detour": {
-                  "type": "string",
-                  "x-tag-reference": "outbound"
+                "http_client": {
+                  "$ref": "#/$defs/HTTPClientReference"
                 },
                 "update_interval": {
                   "$ref": "#/$defs/Duration"
@@ -15417,9 +15415,8 @@
                 "user_agent": {
                   "type": "string"
                 },
-                "download_detour": {
-                  "type": "string",
-                  "x-tag-reference": "outbound"
+                "http_client": {
+                  "$ref": "#/$defs/HTTPClientReference"
                 },
                 "update_interval": {
                   "$ref": "#/$defs/Duration"
