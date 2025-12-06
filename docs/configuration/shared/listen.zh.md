@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)  
-    :material-alert: [tcp_keep_alive](#tcp_keep_alive)
+    :material-alert: [tcp_keep_alive](#tcp_keep_alive)  
+    :material-plus: [tcp_keep_alive_count](#tcp_keep_alive_count)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -37,6 +38,7 @@ icon: material/new-box
   "disable_tcp_keep_alive": false,
   "tcp_keep_alive": "",
   "tcp_keep_alive_interval": "",
+  "tcp_keep_alive_count": 0,
   "udp_fragment": false,
   "udp_timeout": "",
   "detour": "",
@@ -130,6 +132,14 @@ TCP keep alive 初始周期。
 TCP keep alive 间隔。
 
 默认使用 `75s`。
+
+#### tcp_keep_alive_count
+
+!!! question "自 sing-box 1.13.0 起"
+
+TCP keep-alive 探测次数。
+
+未设置或设置为 `0` 时使用系统默认值。
 
 #### udp_fragment
 
