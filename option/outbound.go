@@ -88,6 +88,8 @@ type DialerOptions struct {
 	FallbackNetworkType  badoption.Listable[InterfaceType] `json:"fallback_network_type,omitempty"`
 	FallbackDelay        badoption.Duration                `json:"fallback_delay,omitempty"`
 
+	TCPKeepAliveCount int `json:"tcp_keep_alive_count,omitempty"`
+
 	// Deprecated: migrated to domain resolver
 	DomainStrategy DomainStrategy `json:"domain_strategy,omitempty"`
 }
