@@ -38,6 +38,7 @@ icon: material/new-box
   "disable_tcp_keep_alive": false,
   "tcp_keep_alive": "",
   "tcp_keep_alive_interval": "",
+  "tcp_keep_alive_count": 0,
   "udp_fragment": false,
 
   "domain_resolver": "", // 或 {}
@@ -142,6 +143,12 @@ TCP keep alive 初始周期。
 TCP keep alive 间隔。
 
 默认使用 `75s`。
+
+#### tcp_keep_alive_count
+
+TCP keep-alive 探测次数。
+
+未设置或设置为 `0` 时使用系统默认值。
 
 #### udp_fragment
 
