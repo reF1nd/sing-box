@@ -146,22 +146,24 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	if options.DisableTCPKeepAlive {
 		dialer.KeepAlive = -1
 	} else {
-		var (
-			keepAliveInterval time.Duration
-			keepAliveIdle     time.Duration
-		)
-		if options.TCPKeepAliveInterval != 0 {
-			keepAliveInterval = time.Duration(options.TCPKeepAliveInterval)
-		} else {
-			keepAliveInterval = C.TCPKeepAliveInterval
-		}
-		dialer.KeepAlive = keepAliveInterval
+		keepAliveIdle := C.TCPKeepAliveInitial
 		if options.TCPKeepAliveIdle != 0 {
 			keepAliveIdle = time.Duration(options.TCPKeepAliveIdle)
-		} else {
-			keepAliveIdle = C.TCPKeepAliveInitial
 		}
-		dialer.Control = control.Append(dialer.Control, control.SetKeepAlivePeriod(keepAliveIdle, keepAliveInterval))
+		keepAliveInterval := C.TCPKeepAliveInterval
+		if options.TCPKeepAliveInterval != 0 {
+			keepAliveInterval = time.Duration(options.TCPKeepAliveInterval)
+		}
+		keepAliveCount := options.TCPKeepAliveCount
+		if keepAliveCount < 0 {
+			keepAliveCount = 0
+		}
+		dialer.KeepAliveConfig = net.KeepAliveConfig{
+			Enable:   true,
+			Idle:     keepAliveIdle,
+			Interval: keepAliveInterval,
+			Count:    keepAliveCount,
+		}
 	}
 	var udpFragment bool
 	if options.UDPFragment != nil {
