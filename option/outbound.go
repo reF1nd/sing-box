@@ -86,6 +86,11 @@ type DialerOptions struct {
 
 	ResolverOnDetour bool `json:"resolve_on_detour,omitempty"`
 
+	TCPKeepAlive         badoption.Duration `json:"tcp_keep_alive,omitempty"`
+	TCPKeepAliveInterval badoption.Duration `json:"tcp_keep_alive_interval,omitempty"`
+	TCPKeepAliveCount    int                `json:"tcp_keep_alive_count,omitempty"`
+	DisableTCPKeepAlive  bool               `json:"disable_tcp_keep_alive,omitempty"`
+
 	// Deprecated: migrated to domain resolver
 	DomainStrategy DomainStrategy `json:"domain_strategy,omitempty"`
 }
