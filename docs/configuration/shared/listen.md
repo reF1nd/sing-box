@@ -9,7 +9,8 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)  
-    :material-alert: [tcp_keep_alive](#tcp_keep_alive)
+    :material-alert: [tcp_keep_alive](#tcp_keep_alive)  
+    :material-plus: [tcp_keep_alive_count](#tcp_keep_alive_count)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -41,6 +42,7 @@ icon: material/new-box
   "disable_tcp_keep_alive": false,
   "tcp_keep_alive": "",
   "tcp_keep_alive_interval": "",
+  "tcp_keep_alive_count": 0,
   "udp_fragment": false,
   "udp_timeout": "",
   "detour": "",
@@ -136,6 +138,14 @@ TCP keep alive initial period.
 TCP keep alive interval.
 
 `75s` will be used by default.
+
+#### tcp_keep_alive_count
+
+!!! question "Since sing-box 1.13.0"
+
+TCP keep-alive probe count.
+
+Uses system default if not set or set to `0`.
 
 #### udp_fragment
 
