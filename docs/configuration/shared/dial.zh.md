@@ -27,6 +27,10 @@ icon: material/new-box
   "reuse_addr": false,
   "netns": "",
   "connect_timeout": "",
+  "tcp_keep_alive": "",
+  "tcp_keep_alive_interval": "",
+  "tcp_keep_alive_count": 0,
+  "disable_tcp_keep_alive": false,
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
@@ -96,6 +100,34 @@ icon: material/new-box
 
 持续时间字符串是一个可能有符号的序列十进制数，每个都有可选的分数和单位后缀， 例如 "300ms"、"-1.5h" 或 "2h45m"。
 有效时间单位为 "ns"、"us"（或 "µs"）、"ms"、"s"、"m"、"h"。
+
+#### tcp_keep_alive
+
+TCP keep-alive 初始空闲时间。
+
+默认使用 `5m`。
+
+#### tcp_keep_alive_interval
+
+TCP keep-alive 探测间隔。
+
+默认使用 `75s`。
+
+#### tcp_keep_alive_count
+
+!!! warning ""
+
+    需要 Go 1.23。
+
+TCP keep-alive 探测次数。
+
+在宣布连接断开之前的 keepalive 探测次数。
+
+设置为 0 时使用系统默认值。
+
+#### disable_tcp_keep_alive
+
+禁用 TCP keep-alive。
 
 #### tcp_fast_open
 

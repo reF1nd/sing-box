@@ -7,10 +7,11 @@ import (
 	"time"
 )
 
-func setKeepAliveConfig(listener *net.ListenConfig, idle time.Duration, interval time.Duration) {
+func setKeepAliveConfig(listener *net.ListenConfig, idle time.Duration, interval time.Duration, count int) {
 	listener.KeepAliveConfig = net.KeepAliveConfig{
 		Enable:   true,
 		Idle:     idle,
 		Interval: interval,
+		Count:    count,
 	}
 }
