@@ -27,6 +27,10 @@ icon: material/new-box
   "reuse_addr": false,
   "netns": "",
   "connect_timeout": "",
+  "tcp_keep_alive": "",
+  "tcp_keep_alive_interval": "",
+  "tcp_keep_alive_count": 0,
+  "disable_tcp_keep_alive": false,
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
@@ -99,6 +103,34 @@ A duration string is a possibly signed sequence of
 decimal numbers, each with optional fraction and a unit suffix,
 such as "300ms", "-1.5h" or "2h45m".
 Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+
+#### tcp_keep_alive
+
+TCP keep-alive initial idle time.
+
+`5m` is used by default.
+
+#### tcp_keep_alive_interval
+
+TCP keep-alive probe interval.
+
+`75s` is used by default.
+
+#### tcp_keep_alive_count
+
+!!! warning ""
+
+    Go 1.23 required.
+
+TCP keep-alive probe count.
+
+The number of keepalive probes before declaring the connection dead.
+
+System default is used when set to 0.
+
+#### disable_tcp_keep_alive
+
+Disable TCP keep-alive.
 
 #### tcp_fast_open
 
