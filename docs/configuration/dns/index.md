@@ -25,6 +25,7 @@ icon: material/alert-decagram
     "disable_expire": false,
     "independent_cache": false,
     "round_robin_cache": false,
+    "lazy_cache_ttl": 0,
     "cache_capacity": 0,
     "min_cache_ttl": 0,
     "max_cache_ttl": 0,
@@ -71,6 +72,10 @@ Make each DNS server's cache independent for special purposes. If enabled, will 
 #### round_robin_cache
 
 Make the order of cached response addresses rotated in round robin manner.
+
+#### lazy_cache_ttl
+
+Serve expired cached response with given extra ttl. It will attempt to refresh the query in the background.
 
 #### cache_capacity
 

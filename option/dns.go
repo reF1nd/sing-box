@@ -113,6 +113,7 @@ type DNSClientOptions struct {
 	CacheCapacity    uint32                `json:"cache_capacity,omitempty"`
 	MinCacheTTL      uint32                `json:"min_cache_ttl,omitempty"`
 	MaxCacheTTL      uint32                `json:"max_cache_ttl,omitempty"`
+	LazyCacheTTL     uint32                `json:"lazy_cache_ttl,omitempty"`
 	ClientSubnet     *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 

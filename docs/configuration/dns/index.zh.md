@@ -25,6 +25,7 @@ icon: material/alert-decagram
     "disable_expire": false,
     "independent_cache": false,
     "round_robin_cache": false,
+    "lazy_cache_ttl": 0,
     "cache_capacity": 0,
     "min_cache_ttl": 0,
     "max_cache_ttl": 0,
@@ -70,6 +71,10 @@ icon: material/alert-decagram
 #### round_robin_cache
 
 响应缓存时轮转缓存地址的顺序。
+
+#### lazy_cache_ttl
+
+设置额外的 TTL 值用于响应已过期的缓存，并在后台尝试刷新。
 
 #### cache_capacity
 
