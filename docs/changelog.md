@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.0-beta.2
+
+* Fixes and improvements
+
 #### 1.13.0-beta.1
 
 * Add system interface support for Tailscale endpoint **1**
