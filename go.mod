@@ -32,10 +32,10 @@ require (
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.11
 	github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1
-	github.com/sagernet/quic-go v0.58.0-sing-box-mod.1
+	github.com/sagernet/quic-go v0.57.1-sing-box-mod.3
 	github.com/sagernet/sing v0.8.0-beta.9
 	github.com/sagernet/sing-mux v0.3.3
-	github.com/sagernet/sing-quic v0.6.0-beta.8
+	github.com/sagernet/sing-quic v0.6.0-beta.5.0.20251218085114-6968f531a8c0
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
