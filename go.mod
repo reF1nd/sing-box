@@ -31,7 +31,7 @@ require (
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.11
 	github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1
-	github.com/sagernet/quic-go v0.58.0-sing-box-mod.1
+	github.com/sagernet/quic-go v0.57.1-sing-box-mod.3
 	github.com/sagernet/sing v0.8.0-beta.9.0.20260109141034-50e1ed36c6f6
 	github.com/sagernet/sing-mux v0.3.3
 	github.com/sagernet/sing-quic v0.6.0-beta.8
@@ -59,6 +59,8 @@ require (
 	google.golang.org/protobuf v1.36.11
 	howett.net/plist v1.0.1
 )
+
+replace github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.6.0-beta.8.0.20260111084521-f2b3c986f335
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
