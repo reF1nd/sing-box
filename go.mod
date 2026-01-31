@@ -61,6 +61,8 @@ require (
 	howett.net/plist v1.0.1
 )
 
+replace github.com/sagernet/sing => github.com/reF1nd/sing v0.8.0-beta.12-reF1nd
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/ajg/form v1.5.1 // indirect
