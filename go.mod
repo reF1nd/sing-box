@@ -55,7 +55,7 @@ require (
 	howett.net/plist v1.0.1
 )
 
-//replace github.com/sagernet/sing => ../sing
+replace github.com/sagernet/sing => github.com/reF1nd/sing v0.7.16-reF1nd
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
