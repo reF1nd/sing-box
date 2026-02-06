@@ -53,7 +53,8 @@ func (a *tunDeviceAdapter) File() *os.File {
 }
 
 func (a *tunDeviceAdapter) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
-	if a.linuxTUN != nil {
+	// Without GSO, Linux TUN packets lack the virtio header required by BatchRead.
+	if a.linuxTUN != nil && a.linuxTUN.BatchSize() > 1 {
 		n, err := a.linuxTUN.BatchRead(bufs, offset-singTun.PacketOffset, sizes)
 		if err == nil {
 			for i := range n {
