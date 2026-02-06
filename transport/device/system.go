@@ -100,7 +100,7 @@ func (d *systemDevice) buildTunOptions() tun.Options {
 		Inet4Address:         inet4Addresses,
 		Inet6Address:         inet6Addresses,
 		MTU:                  d.options.MTU,
-		GSO:                  true,
+		GSO:                  d.options.GSO,
 		InterfaceScope:       true,
 		DNSMode:              tun.DNSModeDisabled,
 		InterfaceMonitor:     nil,

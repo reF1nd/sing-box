@@ -36,10 +36,15 @@ func newDeviceOptions(ctx context.Context, logger log.ContextLogger, handler tun
 	if udpTimeout == 0 {
 		udpTimeout = C.UDPTimeout
 	}
+	gso := options.System
+	if options.GSO != nil {
+		gso = *options.GSO
+	}
 	return &device.Options{
 		Context:         ctx,
 		Logger:          logger,
 		System:          options.System,
+		GSO:             gso,
 		Handler:         handler,
 		UDPTimeout:      udpTimeout,
 		ICMPTimeout:     C.ICMPTimeout,

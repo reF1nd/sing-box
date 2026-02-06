@@ -3577,6 +3577,9 @@
             "system": {
               "type": "boolean"
             },
+            "gso": {
+              "type": "boolean"
+            },
             "name": {
               "type": "string"
             },
@@ -3768,6 +3771,9 @@
               "type": "boolean"
             },
             "system": {
+              "type": "boolean"
+            },
+            "gso": {
               "type": "boolean"
             },
             "name": {
@@ -4014,6 +4020,9 @@
               "$ref": "#/$defs/Duration"
             },
             "system": {
+              "type": "boolean"
+            },
+            "gso": {
               "type": "boolean"
             },
             "name": {
@@ -4302,6 +4311,9 @@
               "maximum": 65535
             },
             "system": {
+              "type": "boolean"
+            },
+            "gso": {
               "type": "boolean"
             },
             "name": {
@@ -4687,6 +4699,9 @@
             "system": {
               "type": "boolean"
             },
+            "gso": {
+              "type": "boolean"
+            },
             "name": {
               "type": "string"
             },
@@ -5058,6 +5073,9 @@
             "system_interface_name": {
               "type": "string"
             },
+            "system_interface_gso": {
+              "type": "boolean"
+            },
             "system_interface_mtu": {
               "type": "integer",
               "minimum": 0,
@@ -5113,6 +5131,9 @@
               "type": "string"
             },
             "system": {
+              "type": "boolean"
+            },
+            "gso": {
               "type": "boolean"
             },
             "name": {

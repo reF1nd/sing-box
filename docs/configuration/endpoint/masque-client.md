@@ -22,6 +22,7 @@
   "tls": {},
   "advertise_routes": [],
   "system": false,
+  "gso": false,
   "name": "",
   "mtu": 1280,
   "on_demand": false,
@@ -106,6 +107,18 @@ The endpoint configures interface addresses and MTU but does not install
 operating-system routes or DNS settings.
 
 If disabled, sing-box uses the internal network stack.
+
+### gso
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Attempt to enable generic segmentation offload for the system interface.
+
+Enabled by default when `system` is `true`. Set to `false` to disable.
+
+This option has no effect when `system` is `false`.
 
 ### name
 

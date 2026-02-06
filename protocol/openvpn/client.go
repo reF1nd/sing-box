@@ -129,10 +129,15 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 	if deviceMTU == 0 {
 		deviceMTU = ovpntransport.DefaultMTU
 	}
+	gso := options.System
+	if options.GSO != nil {
+		gso = *options.GSO
+	}
 	clientEndpoint.deviceOptions = &device.Options{
 		Context:         ctx,
 		Logger:          logger,
 		System:          options.System,
+		GSO:             gso,
 		Handler:         clientEndpoint,
 		UDPTimeout:      udpTimeout,
 		ICMPTimeout:     C.ICMPTimeout,
