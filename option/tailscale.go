@@ -26,6 +26,7 @@ type TailscaleEndpointOptions struct {
 	RelayServerStaticEndpoints []netip.AddrPort `json:"relay_server_static_endpoints,omitempty"`
 	SystemInterface            bool             `json:"system_interface,omitempty"`
 	SystemInterfaceName        string           `json:"system_interface_name,omitempty"`
+	SystemInterfaceGSO         *bool            `json:"system_interface_gso,omitempty"`
 	SystemInterfaceMTU         uint32           `json:"system_interface_mtu,omitempty"`
 	UDPTimeout                 UDPTimeoutCompat `json:"udp_timeout,omitempty"`
 }

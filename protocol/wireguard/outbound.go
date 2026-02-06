@@ -40,9 +40,9 @@ type Outbound struct {
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.LegacyWireGuardOutboundOptions) (adapter.Outbound, error) {
 	deprecated.Report(ctx, deprecated.OptionWireGuardOutbound)
-	if options.GSO {
-		deprecated.Report(ctx, deprecated.OptionWireGuardGSO)
-	}
+	//if options.GSO {
+	//	deprecated.Report(ctx, deprecated.OptionWireGuardGSO)
+	//}
 	outbound := &Outbound{
 		Adapter:        outbound.NewAdapterWithDialerOptions(C.TypeWireGuard, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, options.DialerOptions),
 		ctx:            ctx,
@@ -50,7 +50,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:         logger,
 		localAddresses: options.LocalAddress,
 	}
-	if options.Detour != "" && options.GSO {
+	gso := options.SystemInterface
+	if options.GSO != nil {
+		gso = *options.GSO
+	}
+	if options.Detour != "" && gso {
 		return nil, E.New("gso is conflict with detour")
 	}
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
@@ -87,6 +91,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		Context: ctx,
 		Logger:  logger,
 		System:  options.SystemInterface,
+		GSO:     gso,
 		Dialer:  outboundDialer,
 		CreateDialer: func(interfaceName string) N.Dialer {
 			return common.Must1(dialer.NewDefault(ctx, option.DialerOptions{

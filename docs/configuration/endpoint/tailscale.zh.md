@@ -32,6 +32,7 @@ icon: material/new-box
   "relay_server_static_endpoints": [],
   "system_interface": false,
   "system_interface_name": "",
+  "system_interface_gso": false,
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
 
@@ -124,6 +125,16 @@ icon: material/new-box
 !!! question "自 sing-box 1.13.0 起"
 
 自定义 TUN 接口名。默认使用 `tailscale`（macOS 上为 `utun`）。
+
+#### system_interface_gso
+
+!!! quote ""
+
+    仅支持 Linux。
+
+尝试启用通用分段卸载。
+
+当 `system_interface` 为 true 时，默认启用。
 
 #### system_interface_mtu
 
