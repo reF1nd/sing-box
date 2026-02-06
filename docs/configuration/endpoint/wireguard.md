@@ -15,6 +15,7 @@
   
   "system": false,
   "name": "",
+  "gso": false,
   "mtu": 1408,
   "address": [],
   "private_key": "",
@@ -54,6 +55,16 @@ Requires privilege and cannot conflict with exists system interfaces.
 #### name
 
 Custom interface name for system interface.
+
+#### gso
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Try to enable generic segmentation offload.
+
+Enabled by default when `system` is true.
 
 #### mtu
 
