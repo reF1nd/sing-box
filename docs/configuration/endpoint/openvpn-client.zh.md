@@ -102,6 +102,7 @@
   "handshake_window": "",
   "explicit_exit_notify": 0,
   "system": false,
+  "gso": false,
   "name": "",
   "mtu": 1500,
   "on_demand": false,
@@ -662,6 +663,18 @@ Notification 之间间隔一秒。设为 `0` 时禁用。
 需要权限，且不能与现有系统接口冲突。
 
 禁用时，sing-box 使用内部网络栈。
+
+### gso
+
+!!! quote ""
+
+    仅支持 Linux。
+
+尝试为系统接口启用通用分段卸载。
+
+当 `system` 为 `true` 时，默认启用。设为 `false` 可禁用。
+
+当 `system` 为 `false` 时，此选项不生效。
 
 ### name
 
