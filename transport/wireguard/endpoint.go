@@ -99,6 +99,7 @@ func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 		Context:        options.Context,
 		Logger:         options.Logger,
 		System:         options.System,
+		GSO:            options.GSO,
 		Handler:        options.Handler,
 		UDPTimeout:     options.UDPTimeout,
 		CreateDialer:   options.CreateDialer,
