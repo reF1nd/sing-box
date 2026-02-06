@@ -8,6 +8,7 @@
   "tag": "wg-ep",
   
   "system": false,
+  "gso": false,
   "name": "",
   "mtu": 1408,
   "address": [],
@@ -42,6 +43,16 @@
 Use system interface.
 
 Requires privilege and cannot conflict with exists system interfaces.
+
+#### gso
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Try to enable generic segmentation offload.
+
+Only takes effect when `system` is enabled.
 
 #### name
 
