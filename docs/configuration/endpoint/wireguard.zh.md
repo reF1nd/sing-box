@@ -19,6 +19,7 @@
 
   "system": false,
   "name": "",
+  "gso": false,
   "mtu": 1408,
   "address": [],
   "private_key": "",
@@ -59,6 +60,16 @@
 #### name
 
 为系统接口自定义设备名称。
+
+#### gso
+
+!!! quote ""
+
+    仅支持 Linux。
+
+尝试启用通用分段卸载。
+
+当 `system` 为 true 时，默认启用。
 
 #### mtu
 
