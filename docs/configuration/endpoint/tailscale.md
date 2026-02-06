@@ -34,6 +34,7 @@ icon: material/new-box
   "relay_server_static_endpoints": [],
   "system_interface": false,
   "system_interface_name": "",
+  "system_interface_gso": false,
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
 
@@ -135,6 +136,16 @@ Create a system TUN interface for Tailscale.
 !!! question "Since sing-box 1.13.0"
 
 Custom TUN interface name. By default, `tailscale` (or `utun` on macOS) will be used.
+
+#### system_interface_gso
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Try to enable generic segmentation offload.
+
+Enabled by default when `system_interface` is true.
 
 #### system_interface_mtu
 
