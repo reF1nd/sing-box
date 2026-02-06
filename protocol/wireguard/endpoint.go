@@ -65,10 +65,15 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
+	gso := options.System
+	if options.GSO != nil {
+		gso = *options.GSO
+	}
 	wgEndpoint, err := wireguard.NewEndpoint(wireguard.EndpointOptions{
 		Context:    ctx,
 		Logger:     logger,
 		System:     options.System,
+		GSO:        gso,
 		Handler:    ep,
 		UDPTimeout: udpTimeout,
 		Dialer:     outboundDialer,
