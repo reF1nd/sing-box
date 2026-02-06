@@ -26,6 +26,7 @@ type DeviceOptions struct {
 	Context         context.Context
 	Logger          logger.ContextLogger
 	System          bool
+	GSO             bool
 	Handler         tun.Handler
 	UDPTimeout      time.Duration
 	ICMPTimeout     time.Duration
