@@ -106,10 +106,16 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		udpTimeout = time.Duration(options.UDPTimeout)
 	}
 	packetFrontHeadroom, packetRearHeadroom := serverOptions.DataPacketHeadroom()
+	gso := options.System
+	if options.GSO != nil {
+		gso = *options.GSO
+	}
+
 	serverEndpoint.deviceOptions = &device.Options{
 		Context:             ctx,
 		Logger:              logger,
 		System:              options.System,
+		GSO:                 gso,
 		Handler:             serverEndpoint,
 		UDPTimeout:          udpTimeout,
 		ICMPTimeout:         C.ICMPTimeout,

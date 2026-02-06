@@ -54,7 +54,8 @@ func (a *tunDeviceAdapter) File() *os.File {
 }
 
 func (a *tunDeviceAdapter) Read(slab []byte, packets []wgTun.ReadPacket) (int, error) {
-	if a.linuxTUN != nil {
+	// Without GSO, Linux TUN packets lack the virtio header required by BatchRead.
+	if a.linuxTUN != nil && a.linuxTUN.BatchSize() > 1 {
 		stride := wgTun.ReadPacketSpacing + a.mtu
 		batchSize := min(len(packets), (len(slab)-wgTun.ReadPacketSpacing)/stride)
 		if cap(a.readBuffers) < batchSize {
