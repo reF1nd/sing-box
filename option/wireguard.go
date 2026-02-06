@@ -8,6 +8,7 @@ import (
 
 type WireGuardEndpointOptions struct {
 	System     bool                             `json:"system,omitempty"`
+	GSO        *bool                            `json:"gso,omitempty"`
 	Name       string                           `json:"name,omitempty"`
 	MTU        uint32                           `json:"mtu,omitempty"`
 	Address    badoption.Listable[netip.Prefix] `json:"address"`
@@ -32,7 +33,7 @@ type WireGuardPeer struct {
 type LegacyWireGuardOutboundOptions struct {
 	DialerOptions
 	SystemInterface bool                             `json:"system_interface,omitempty"`
-	GSO             bool                             `json:"gso,omitempty"`
+	GSO             *bool                            `json:"gso,omitempty"`
 	InterfaceName   string                           `json:"interface_name,omitempty"`
 	LocalAddress    badoption.Listable[netip.Prefix] `json:"local_address"`
 	PrivateKey      string                           `json:"private_key"`
