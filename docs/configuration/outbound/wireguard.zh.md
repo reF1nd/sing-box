@@ -6,10 +6,6 @@ icon: material/delete-clock
 
     WireGuard 出站已被弃用，且将在 sing-box 1.13.0 中被移除，参阅 [迁移指南](/migration/#migrate-wireguard-outbound-to-endpoint)。
 
-!!! quote "sing-box 1.11.0 中的更改"
-
-    :material-delete-alert: [gso](#gso)
-
 !!! quote "sing-box 1.8.0 中的更改"
 
     :material-plus: [gso](#gso)  
@@ -25,6 +21,7 @@ icon: material/delete-clock
   "server_port": 1080,
   "system_interface": false,
   "interface_name": "wg0",
+  "gso": false,
   "local_address": [
     "10.0.0.1/32"
   ],
@@ -35,10 +32,6 @@ icon: material/delete-clock
   "workers": 4,
   "mtu": 1408,
   "network": "tcp",
-  
-  // 废弃的
-  
-  "gso": false,
 
   ... // 拨号字段
 }
@@ -72,10 +65,6 @@ icon: material/delete-clock
 
 #### gso
 
-!!! failure "已在 sing-box 1.11.0 废弃"
-
-    自 sing-box 1.11.0 起，GSO 将可用时自动启用。
-
 !!! question "自 sing-box 1.8.0 起"
 
 !!! quote ""
@@ -83,6 +72,8 @@ icon: material/delete-clock
     仅支持 Linux。
 
 尝试启用通用分段卸载。
+
+当 `system_interface` 为 true 时，默认启用。
 
 #### local_address
 
