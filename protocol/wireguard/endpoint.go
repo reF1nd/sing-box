@@ -17,7 +17,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing-box/transport/wireguard"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -81,11 +81,16 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
+	gso := options.System
+	if options.GSO != nil {
+		gso = *options.GSO
+	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	wgEndpoint, err := wireguard.NewEndpoint(wireguard.EndpointOptions{
 		Context:         ctx,
 		Logger:          logger,
 		System:          options.System,
+		GSO:             gso,
 		Handler:         ep,
 		UDPTimeout:      udpTimeout,
 		ICMPTimeout:     C.ICMPTimeout,

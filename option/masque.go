@@ -14,6 +14,7 @@ import (
 
 type MASQUEEndpointOptions struct {
 	System       bool           `json:"system,omitempty"`
+	GSO          *bool          `json:"gso,omitempty"`
 	Name         string         `json:"name,omitempty"`
 	MTU          uint32         `json:"mtu,omitempty"`
 	UDPMapping   UDPNATBehavior `json:"udp_mapping,omitempty"`

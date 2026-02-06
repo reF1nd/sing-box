@@ -120,6 +120,7 @@ type Endpoint struct {
 
 	systemInterface     bool
 	systemInterfaceName string
+	systemInterfaceGSO  bool
 	systemInterfaceMTU  uint32
 	keyAuth             bool
 	started             atomic.Bool
@@ -159,6 +160,10 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	if options.AdvertiseExitNode && options.ExitNode != "" {
 		return nil, E.New("cannot advertise an exit node and use an exit node at the same time.")
+	}
+	gso := options.SystemInterface
+	if options.SystemInterfaceGSO != nil {
+		gso = *options.SystemInterfaceGSO
 	}
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
 		Context:          ctx,
@@ -231,6 +236,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		sshServerOptions:           options.SSHServer,
 		taildrop:                   newTaildropManager(ctx, logger, tag, taildropDirectory, platformInterface),
 		systemInterface:            options.SystemInterface,
+		systemInterfaceGSO:         gso,
 		systemInterfaceName:        options.SystemInterfaceName,
 		systemInterfaceMTU:         options.SystemInterfaceMTU,
 		keyAuth:                    options.AuthKey != "",
@@ -290,7 +296,7 @@ func (t *Endpoint) start(scope *adapter.Scope) error {
 		tunOptions := tun.Options{
 			Name:                      tunName,
 			MTU:                       mtu,
-			GSO:                       true,
+			GSO:                       t.systemInterfaceGSO,
 			InterfaceScope:            true,
 			InterfaceMonitor:          t.network.InterfaceMonitor(),
 			InterfaceFinder:           t.network.InterfaceFinder(),

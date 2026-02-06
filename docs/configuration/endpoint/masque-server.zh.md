@@ -25,6 +25,7 @@
   "address": [],
   "advertise_routes": [],
   "system": false,
+  "gso": false,
   "name": "",
   "mtu": 1280,
 
@@ -94,6 +95,18 @@ IP 代理资源的 URI 模板路径，可以包含 `target` 和 `ipproto` 变量
 需要特权且不能与已有系统接口冲突。
 
 如果禁用，sing-box 将使用内部网络栈。
+
+### gso
+
+!!! quote ""
+
+    仅支持 Linux。
+
+尝试为系统接口启用通用分段卸载。
+
+当 `system` 为 `true` 时，默认启用。设为 `false` 可禁用。
+
+当 `system` 为 `false` 时，此选项不生效。
 
 ### name
 

@@ -12,6 +12,7 @@
   ... // Listen Fields
 
   "system": false,
+  "gso": false,
   "name": "",
   "mtu": 1500,
   "mode": "tls",
@@ -112,6 +113,18 @@ Use system interface.
 Requires privilege and cannot conflict with existing system interfaces.
 
 If disabled, sing-box uses the internal network stack.
+
+### gso
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Attempt to enable generic segmentation offload for the system interface.
+
+Enabled by default when `system` is `true`. Set to `false` to disable.
+
+This option has no effect when `system` is `false`.
 
 ### name
 
