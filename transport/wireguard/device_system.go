@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -91,7 +91,7 @@ func (w *systemDevice) Start() error {
 			return it.Addr().Is6()
 		}),
 		MTU:            w.options.MTU,
-		GSO:            true,
+		GSO:            w.options.GSO,
 		InterfaceScope: true,
 		Inet4RouteAddress: common.Filter(w.options.AllowedAddress, func(it netip.Prefix) bool {
 			return it.Addr().Is4()
