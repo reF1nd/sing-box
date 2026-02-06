@@ -8,6 +8,7 @@
   "tag": "wg-ep",
 
   "system": false,
+  "gso": false,
   "name": "",
   "mtu": 1408,
   "address": [],
@@ -42,6 +43,16 @@
 使用系统设备。
 
 需要特权且不能与已有系统接口冲突。
+
+#### gso
+
+!!! quote ""
+
+    仅支持 Linux。
+
+尝试启用通用分段卸载。
+
+仅在 `system` 启用时生效。
 
 #### name
 
