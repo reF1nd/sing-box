@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/logger"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/wireguard-go/device"
@@ -26,6 +26,7 @@ type DeviceOptions struct {
 	Context        context.Context
 	Logger         logger.ContextLogger
 	System         bool
+	GSO            bool
 	Handler        tun.Handler
 	UDPTimeout     time.Duration
 	CreateDialer   func(interfaceName string) N.Dialer
