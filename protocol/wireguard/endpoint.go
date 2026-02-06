@@ -69,6 +69,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		Context:    ctx,
 		Logger:     logger,
 		System:     options.System,
+		GSO:        options.GSO,
 		Handler:    ep,
 		UDPTimeout: udpTimeout,
 		Dialer:     outboundDialer,
