@@ -62,6 +62,8 @@ require (
 	howett.net/plist v1.0.1
 )
 
+replace github.com/sagernet/wireguard-go => github.com/reF1nd/wireguard-go v0.0.2-beta.1.0.20260216103512-c8ed12a79cde
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/ajg/form v1.5.1 // indirect
