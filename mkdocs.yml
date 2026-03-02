@@ -97,6 +97,7 @@ nav:
               - FakeIP: configuration/dns/server/fakeip.md
               - Tailscale: configuration/dns/server/tailscale.md
               - Resolved: configuration/dns/server/resolved.md
+              - Group: configuration/dns/server/group.md
           - DNS Rule: configuration/dns/rule.md
           - DNS Rule Action: configuration/dns/rule_action.md
           - FakeIP: configuration/dns/fakeip.md
