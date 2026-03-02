@@ -42,6 +42,7 @@ The type of the DNS server.
 | `fakeip`        | [Fake IP](./fakeip/)      |
 | `tailscale`     | [Tailscale](./tailscale/) |
 | `resolved`      | [Resolved](./resolved/)   |
+| `group`         | [Group](./group/)         |
 
 #### tag
 
