@@ -2085,6 +2085,28 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "group"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "servers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "x-tag-reference": "dns_server"
+              }
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "h3"
             },
             "tag": {
