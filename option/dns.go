@@ -209,6 +209,10 @@ type RemoteHTTPSDNSServerOptions struct {
 	Headers badoption.HTTPHeader `json:"headers,omitempty"`
 }
 
+type GroupDNSServerOptions struct {
+	Servers []string `json:"servers" reference:"dns_server"`
+}
+
 type FakeIPDNSServerOptions struct {
 	Inet4Range *badoption.Prefix `json:"inet4_range,omitempty" examples:"198.18.0.0/15"`
 	Inet6Range *badoption.Prefix `json:"inet6_range,omitempty" examples:"fc00::/18"`
