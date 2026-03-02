@@ -30,6 +30,7 @@ const (
 	DNSTypeTailscale   = "tailscale"
 	DNSTypeOpenConnect = "openconnect"
 	DNSTypeOpenVPN     = "openvpn"
+	DNSTypeGroup       = "group"
 )
 
 const (
