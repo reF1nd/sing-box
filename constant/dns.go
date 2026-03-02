@@ -28,6 +28,7 @@ const (
 	DNSTypeDHCP      = "dhcp"
 	DNSTypeMDNS      = "mdns"
 	DNSTypeTailscale = "tailscale"
+	DNSTypeGroup     = "group"
 )
 
 const (
