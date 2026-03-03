@@ -359,9 +359,14 @@ func (s *ProviderRemote) loadFromContent(contentRaw []byte) error {
 		s.subscriptionInfo = info
 		content, _ = parser.DecodeBase64URLSafe(others)
 	}
-	if err := s.updateProviderFromContent(content); err != nil {
+	outboundOpts, endpointOpts, err := parser.ParseBoxSubscription(s.ctx, content)
+	if err != nil {
 		return err
 	}
+	s.UpdateOutbounds(s.lastOutOpts, outboundOpts)
+	s.lastOutOpts = outboundOpts
+	s.UpdateEndpoints(s.lastEPOpts, endpointOpts)
+	s.lastEPOpts = endpointOpts
 	return nil
 }
 
@@ -419,7 +424,7 @@ func (s *ProviderRemote) saveCacheFile(hasInfo bool, info adapter.SubscriptionIn
 }
 
 func (s *ProviderRemote) updateProviderFromContent(content string) error {
-	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, content, s.overrideDialer)
+	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, content, s.overrideDialer, s.Tag())
 	if err != nil {
 		return err
 	}
