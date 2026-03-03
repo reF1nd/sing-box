@@ -55,8 +55,10 @@ func NewProviderInline(ctx context.Context, router adapter.Router, logFactory lo
 		ctx:     ctx,
 		logger:  logger,
 	}
+	provider.RewriteDetourForProvider(options.Outbounds)
 	provider.UpdateOutbounds(nil, options.Outbounds)
 	if len(options.Endpoints) > 0 {
+		provider.RewriteDetourForProviderEndpoints(options.Endpoints)
 		provider.UpdateEndpoints(nil, options.Endpoints)
 	}
 	return provider, nil
@@ -127,7 +129,7 @@ func (s *ProviderLocal) reloadFile(path string) error {
 	if err != nil {
 		return err
 	}
-	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, string(content), s.overrideDialer)
+	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, string(content), s.overrideDialer, s.Tag())
 	if err != nil {
 		return err
 	}
