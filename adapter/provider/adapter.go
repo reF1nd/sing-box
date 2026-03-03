@@ -253,6 +253,42 @@ func (a *Adapter) healthcheck(ctx context.Context) (map[string]uint16, error) {
 	return result, nil
 }
 
+func (a *Adapter) RewriteDetourForProvider(opts []option.Outbound) {
+	tagMapping := make(map[string]string)
+	for _, opt := range opts {
+		if opt.Tag != "" {
+			tagMapping[opt.Tag] = F.ToString(a.providerTag, "/", opt.Tag)
+		}
+	}
+	for _, opt := range opts {
+		if dialerWrapper, ok := opt.Options.(option.DialerOptionsWrapper); ok {
+			dialerOptions := dialerWrapper.TakeDialerOptions()
+			if newDetour, found := tagMapping[dialerOptions.Detour]; found {
+				dialerOptions.Detour = newDetour
+				dialerWrapper.ReplaceDialerOptions(dialerOptions)
+			}
+		}
+	}
+}
+
+func (a *Adapter) RewriteDetourForProviderEndpoints(opts []option.Endpoint) {
+	tagMapping := make(map[string]string)
+	for _, opt := range opts {
+		if opt.Tag != "" {
+			tagMapping[opt.Tag] = F.ToString(a.providerTag, "/", opt.Tag)
+		}
+	}
+	for _, opt := range opts {
+		if dialerWrapper, ok := opt.Options.(option.DialerOptionsWrapper); ok {
+			dialerOptions := dialerWrapper.TakeDialerOptions()
+			if newDetour, found := tagMapping[dialerOptions.Detour]; found {
+				dialerOptions.Detour = newDetour
+				dialerWrapper.ReplaceDialerOptions(dialerOptions)
+			}
+		}
+	}
+}
+
 func (a *Adapter) UpdateEndpoints(oldOpts []option.Endpoint, newOpts []option.Endpoint) {
 	a.removeUselessEndpoints(newOpts)
 	var (
