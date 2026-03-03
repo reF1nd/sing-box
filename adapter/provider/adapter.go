@@ -107,9 +107,20 @@ func (a *Adapter) UpdateOutbounds(oldOpts []option.Outbound, newOpts []option.Ou
 		oldOptByTag    = make(map[string]option.Outbound)
 		outbounds      = make([]adapter.Outbound, 0, len(newOpts))
 		outboundsByTag = make(map[string]adapter.Outbound)
+		tagMapping     = make(map[string]string)
 	)
 	for _, opt := range oldOpts {
 		oldOptByTag[opt.Tag] = opt
+	}
+	for i, opt := range newOpts {
+		var newTag string
+		if opt.Tag != "" {
+			newTag = F.ToString(a.providerTag, "/", opt.Tag)
+			tagMapping[opt.Tag] = newTag
+		} else {
+			newTag = F.ToString(a.providerTag, "/", i)
+		}
+		_ = newTag
 	}
 	for i, opt := range newOpts {
 		var tag string
@@ -117,6 +128,13 @@ func (a *Adapter) UpdateOutbounds(oldOpts []option.Outbound, newOpts []option.Ou
 			tag = F.ToString(a.providerTag, "/", opt.Tag)
 		} else {
 			tag = F.ToString(a.providerTag, "/", i)
+		}
+		if dialerWrapper, ok := opt.Options.(option.DialerOptionsWrapper); ok {
+			dialerOptions := dialerWrapper.TakeDialerOptions()
+			if newDetour, found := tagMapping[dialerOptions.Detour]; found {
+				dialerOptions.Detour = newDetour
+				dialerWrapper.ReplaceDialerOptions(dialerOptions)
+			}
 		}
 		outbound, exist := a.outbound.Outbound(tag)
 		if !exist || !reflect.DeepEqual(opt, oldOptByTag[opt.Tag]) {
