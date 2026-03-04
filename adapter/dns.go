@@ -21,6 +21,7 @@ type DNSRouter interface {
 	ClearCache()
 	LookupReverseMapping(ip netip.Addr) (string, bool)
 	LookupECHPublicName(domain string) string
+	Rules() []DNSRule
 	ResetNetwork()
 }
 
