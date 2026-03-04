@@ -21,6 +21,7 @@ type DNSRouter interface {
 	Lookup(ctx context.Context, domain string, options DNSQueryOptions) ([]netip.Addr, error)
 	ClearCache()
 	LookupReverseMapping(ip netip.Addr) (string, bool)
+	Rules() []DNSRule
 	ResetNetwork()
 }
 
