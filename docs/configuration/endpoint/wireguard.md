@@ -35,6 +35,7 @@
   ... // UDP NAT Fields
 
   "workers": 0,
+  "inner_domain_resolver": "", // or {}
  
   ... // Dial Fields
 }
@@ -140,6 +141,14 @@ CPU count is used by default.
 ### UDP NAT Fields
 
 See [UDP NAT Fields](/configuration/shared/udp-nat/) for details.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the WireGuard tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
