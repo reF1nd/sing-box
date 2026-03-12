@@ -23,6 +23,7 @@
   "advertise_routes": [],
   "system": false,
   "gso": false,
+  "inner_domain_resolver": "", // or {}
   "name": "",
   "mtu": 1280,
   "on_demand": false,
@@ -118,6 +119,16 @@ endpoint 会配置接口地址和 MTU，但不会安装操作系统路由或 DNS
 当 `system` 为 `true` 时，默认启用。设为 `false` 可禁用。
 
 当 `system` 为 `false` 时，此选项不生效。
+
+### inner_domain_resolver
+
+指定将此 endpoint 用作出站时，解析目标域名所使用的 DNS 解析器。适用于 TCP 和 UDP。
+
+此选项使用与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 相同的格式。
+
+未设置时，使用现有 DNS 路由规则及默认 DNS。目标为 IP 地址时不进行域名解析。
+
+此选项不影响 MASQUE 服务器地址的解析，后者仍使用拨号字段中的 `domain_resolver`。
 
 ### name
 

@@ -26,6 +26,7 @@
   "advertise_routes": [],
   "system": false,
   "gso": false,
+  "inner_domain_resolver": "", // or {}
   "name": "",
   "mtu": 1280,
 
@@ -110,6 +111,16 @@ Attempt to enable generic segmentation offload for the system interface.
 Enabled by default when `system` is `true`. Set to `false` to disable.
 
 This option has no effect when `system` is `false`.
+
+### inner_domain_resolver
+
+Set the DNS resolver used for destination domain names when this endpoint is selected as an outbound. Applies to TCP and UDP.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When unset, existing DNS routing rules and the default DNS apply. IP destinations do not require domain resolution.
+
+This resolver also resolves domain names in the CONNECT-IP request path's `target`. The resolved addresses remain subject to `advertise_routes`.
 
 ### name
 

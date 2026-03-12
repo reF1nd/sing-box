@@ -47,16 +47,17 @@ var (
 
 type ClientEndpoint struct {
 	endpointBase
-	ctx           context.Context
-	dnsRouter     adapter.DNSRouter
-	client        *masque.Client
-	deviceOptions *device.Options
-	device        device.Device
-	mtu           uint32
-	onDemand      bool
-	stateAccess   sync.Mutex
-	deviceStarted bool
-	state         atomic.Pointer[clientState]
+	ctx                  context.Context
+	dnsRouter            adapter.DNSRouter
+	innerDNSQueryOptions adapter.DNSQueryOptions
+	client               *masque.Client
+	deviceOptions        *device.Options
+	device               device.Device
+	mtu                  uint32
+	onDemand             bool
+	stateAccess          sync.Mutex
+	deviceStarted        bool
+	state                atomic.Pointer[clientState]
 }
 
 type clientState struct {
@@ -66,6 +67,10 @@ type clientState struct {
 }
 
 func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.MASQUEClientEndpointOptions) (adapter.Endpoint, error) {
+	innerDNSQueryOptions, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
+	if err != nil {
+		return nil, E.Cause(err, "inner domain resolver")
+	}
 	if options.MTU == 0 {
 		options.MTU = masque.DefaultMTU
 	}
@@ -126,10 +131,11 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 			router:  router,
 			logger:  logger,
 		},
-		ctx:       ctx,
-		dnsRouter: service.FromContext[adapter.DNSRouter](ctx),
-		mtu:       options.MTU,
-		onDemand:  options.OnDemand,
+		ctx:                  ctx,
+		dnsRouter:            service.FromContext[adapter.DNSRouter](ctx),
+		innerDNSQueryOptions: innerDNSQueryOptions,
+		mtu:                  options.MTU,
+		onDemand:             options.OnDemand,
 	}
 	clientEndpoint.state.Store(&clientState{})
 	clientEndpoint.deviceOptions = newDeviceOptions(ctx, logger, clientEndpoint, options.MASQUEEndpointOptions, time.Duration(options.UDPTimeout), nil)
@@ -304,7 +310,7 @@ func (c *ClientEndpoint) DialContext(ctx context.Context, network string, destin
 		return nil, err
 	}
 	if destination.IsDomain() {
-		destinationAddresses, lookupErr := c.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, lookupErr := c.dnsRouter.Lookup(ctx, destination.Fqdn, c.innerDNSQueryOptions)
 		if lookupErr != nil {
 			return nil, lookupErr
 		}
@@ -323,7 +329,7 @@ func (c *ClientEndpoint) ListenPacketWithDestination(ctx context.Context, destin
 		return nil, netip.Addr{}, err
 	}
 	if destination.IsDomain() {
-		destinationAddresses, lookupErr := c.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, lookupErr := c.dnsRouter.Lookup(ctx, destination.Fqdn, c.innerDNSQueryOptions)
 		if lookupErr != nil {
 			return nil, netip.Addr{}, lookupErr
 		}

@@ -132,6 +132,15 @@ func NewDNSQueryOptions(ctx context.Context, domainResolver *option.DomainResolv
 	return adapter.DNSQueryOptions{}, nil
 }
 
+// NewInnerDNSQueryOptions keeps destination lookups on DNS routing rules unless
+// an inner resolver is explicitly selected, independently of the dialer defaults.
+func NewInnerDNSQueryOptions(ctx context.Context, domainResolver *option.DomainResolveOptions) (adapter.DNSQueryOptions, error) {
+	if domainResolver == nil || domainResolver.Server == "" {
+		return adapter.DNSQueryOptions{}, nil
+	}
+	return NewDNSQueryOptions(ctx, domainResolver, false)
+}
+
 func domainResolveQueryOptions(domainResolver *option.DomainResolveOptions) adapter.DNSQueryOptions {
 	return adapter.DNSQueryOptions{
 		Strategy:               C.DomainStrategy(domainResolver.Strategy),
