@@ -27,6 +27,7 @@
   ],
   "udp_timeout": "",
   "workers": 0,
+  "inner_domain_resolver": "", // or {}
  
   ... // Dial Fields
 }
@@ -134,6 +135,14 @@ UDP NAT expiration time.
 WireGuard worker count.
 
 CPU count is used by default.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the WireGuard tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
