@@ -51,6 +51,7 @@ icon: material/new-box
   "ssh_server": false,
   "taildrop_directory": "",
   "on_demand": false,
+  "inner_domain_resolver": "", // or {}
 
   ... // Dial Fields
 }
@@ -245,6 +246,14 @@ is.
 !!! question "Since sing-box 1.15.0"
 
 Allow the endpoint to be disconnected when necessary.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the Tailscale tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
