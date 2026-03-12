@@ -77,6 +77,10 @@ type DialerOptionsWrapper interface {
 	ReplaceDialerOptions(options DialerOptions)
 }
 
+type InnerDomainResolverOptionsWrapper interface {
+	TakeInnerDomainResolverOptions() *DomainResolveOptions
+}
+
 type DialerOptions struct {
 	Detour string `json:"detour,omitempty" reference:"outbound"`
 	AbstractDialerOptions

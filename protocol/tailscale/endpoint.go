@@ -125,6 +125,8 @@ type Endpoint struct {
 	keyAuth             bool
 	started             atomic.Bool
 	systemDialer        *dialer.DefaultDialer
+
+	innerDNSQueryOptions adapter.DNSQueryOptions
 }
 
 func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TailscaleEndpointOptions) (adapter.Endpoint, error) {
@@ -241,6 +243,13 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		systemInterfaceMTU:         options.SystemInterfaceMTU,
 		keyAuth:                    options.AuthKey != "",
 		onDemand:                   options.OnDemand,
+	}
+	if options.InnerDomainResolver != nil {
+		innerDNSOpts, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
+		if err != nil {
+			return nil, E.Cause(err, "inner domain resolver")
+		}
+		tailscaleEndpoint.innerDNSQueryOptions = innerDNSOpts
 	}
 	tailscaleEndpoint.server.NetstackHandler = tailscaleEndpoint
 	return tailscaleEndpoint, nil
@@ -755,7 +764,7 @@ func (t *Endpoint) DialContext(ctx context.Context, network string, destination 
 		return nil, resumeErr
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, t.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -819,7 +828,7 @@ func (t *Endpoint) listenPacketWithAddress(ctx context.Context, destination M.So
 func (t *Endpoint) ListenPacketWithDestination(ctx context.Context, destination M.Socksaddr) (net.PacketConn, netip.Addr, error) {
 	t.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	if destination.IsDomain() {
-		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, t.innerDNSQueryOptions)
 		if err != nil {
 			return nil, netip.Addr{}, err
 		}

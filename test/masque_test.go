@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
+	"github.com/sagernet/sing/common/json/badjson"
 	"github.com/sagernet/sing/common/json/badoption"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -39,6 +40,11 @@ type masqueEnvironment struct {
 
 func startMASQUE(t *testing.T, serverVersions []int, clientVersion int, disableVersionFallback bool, mtu uint32, serverRoutes []netip.Prefix, clientRoutes []netip.Prefix) masqueEnvironment {
 	t.Helper()
+	return startMASQUEConfigured(t, serverVersions, clientVersion, disableVersionFallback, mtu, serverRoutes, clientRoutes, nil)
+}
+
+func startMASQUEConfigured(t *testing.T, serverVersions []int, clientVersion int, disableVersionFallback bool, mtu uint32, serverRoutes []netip.Prefix, clientRoutes []netip.Prefix, configure func(server, client *option.Options)) masqueEnvironment {
+	t.Helper()
 	environment := masqueEnvironment{
 		serverProxyPort: reserveOpenVPNTCPPort(t),
 		clientProxyPort: reserveOpenVPNTCPPort(t),
@@ -47,7 +53,7 @@ func startMASQUE(t *testing.T, serverVersions []int, clientVersion int, disableV
 	environment.serverPort = masquePort
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
 	users := []auth.User{{Username: "sekai", Password: "password"}}
-	startInstance(t, masqueInstanceOptions(C.TypeMASQUEServer, &option.MASQUEServerEndpointOptions{
+	serverOptions := masqueInstanceOptions(C.TypeMASQUEServer, &option.MASQUEServerEndpointOptions{
 		ListenOptions: option.ListenOptions{
 			Listen:     common.Ptr(badoption.Addr(netip.MustParseAddr("127.0.0.1"))),
 			ListenPort: masquePort,
@@ -65,8 +71,8 @@ func startMASQUE(t *testing.T, serverVersions []int, clientVersion int, disableV
 		},
 		Address:         []netip.Prefix{netip.MustParsePrefix(masqueServerAddress + "/24")},
 		AdvertiseRoutes: serverRoutes,
-	}, environment.serverProxyPort, ""))
-	startInstance(t, masqueInstanceOptions(C.TypeMASQUEClient, &option.MASQUEClientEndpointOptions{
+	}, environment.serverProxyPort, "")
+	clientOptions := masqueInstanceOptions(C.TypeMASQUEClient, &option.MASQUEClientEndpointOptions{
 		ServerOptions: option.ServerOptions{
 			Server:     "127.0.0.1",
 			ServerPort: masquePort,
@@ -84,7 +90,12 @@ func startMASQUE(t *testing.T, serverVersions []int, clientVersion int, disableV
 		Version:                clientVersion,
 		DisableVersionFallback: disableVersionFallback,
 		AdvertiseRoutes:        clientRoutes,
-	}, environment.clientProxyPort, "127.0.0.1"))
+	}, environment.clientProxyPort, "127.0.0.1")
+	if configure != nil {
+		configure(&serverOptions, &clientOptions)
+	}
+	startInstance(t, serverOptions)
+	startInstance(t, clientOptions)
 	waitForOpenVPNClientReady(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
 	return environment
 }
@@ -182,6 +193,45 @@ func TestMASQUEAdvertiseRoutes(t *testing.T) {
 	waitForOpenVPNRemoteReady(t, environment.serverProxyPort, masqueSiteAddress, readinessPort, 30*time.Second)
 	closeEcho()
 	testSuitOpenVPN(t, environment.serverProxyPort, reserveOpenVPNEchoPort(t), masqueSiteAddress)
+}
+
+func TestMASQUEInnerDomainResolver(t *testing.T) {
+	newHosts := func(tag string, entries map[string]string) option.DNSServerOptions {
+		hosts := new(badjson.TypedMap[string, option.HostsDNSPredefinedValue])
+		for domain, address := range entries {
+			hosts.Put(domain, option.HostsDNSPredefinedValue{Addresses: []netip.Addr{netip.MustParseAddr(address)}})
+		}
+		return option.DNSServerOptions{Type: C.DNSTypeHosts, Tag: tag, Options: &option.HostsDNSServerOptions{Predefined: hosts}}
+	}
+	environment := startMASQUEConfigured(t, []int{1}, 1, true, 0, nil,
+		[]netip.Prefix{netip.MustParsePrefix("10.9.0.0/24")}, func(server, client *option.Options) {
+			for _, options := range []*option.Options{server, client} {
+				options.DNS = &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{
+					Servers: []option.DNSServerOptions{
+						newHosts("default", nil),
+						newHosts("outer", map[string]string{"masque.invalid": "127.0.0.1"}),
+						newHosts("inner", map[string]string{
+							"server.invalid": masqueServerAddress,
+							"client.invalid": masqueSiteAddress,
+						}),
+					},
+					Final: "default",
+				}}
+			}
+			server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions).InnerDomainResolver = &option.DomainResolveOptions{Server: "inner"}
+			clientOptions := client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions)
+			clientOptions.InnerDomainResolver = &option.DomainResolveOptions{Server: "inner"}
+			clientOptions.DomainResolver = &option.DomainResolveOptions{Server: "outer"}
+			clientOptions.Server = "masque.invalid"
+		})
+	readinessPort := reserveOpenVPNEchoPort(t)
+	closeEcho := startOpenVPNReadinessEcho(t, readinessPort)
+	waitForOpenVPNRemoteReady(t, environment.serverProxyPort, masqueSiteAddress, readinessPort, 30*time.Second)
+	closeEcho()
+	// Only the selected inner resolver knows these destinations; only the outer
+	// resolver knows the MASQUE server. Both TCP and UDP must traverse the tunnel.
+	testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), "server.invalid")
+	testSuitOpenVPN(t, environment.serverProxyPort, reserveOpenVPNEchoPort(t), "client.invalid")
 }
 
 func TestMASQUENoRoute(t *testing.T) {

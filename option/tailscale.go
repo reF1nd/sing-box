@@ -14,6 +14,7 @@ import (
 
 type TailscaleEndpointOptions struct {
 	DialerOptions
+	InnerDomainResolver        *DomainResolveOptions      `json:"inner_domain_resolver,omitempty"`
 	StateDirectory             string                     `json:"state_directory,omitempty"`
 	AuthKey                    string                     `json:"auth_key,omitempty"`
 	ControlURL                 string                     `json:"control_url,omitempty"`
@@ -36,6 +37,10 @@ type TailscaleEndpointOptions struct {
 	SSHServer                  *TailscaleSSHServerOptions `json:"ssh_server,omitempty"`
 	TaildropDirectory          string                     `json:"taildrop_directory,omitempty"`
 	OnDemand                   bool                       `json:"on_demand,omitempty"`
+}
+
+func (o *TailscaleEndpointOptions) TakeInnerDomainResolverOptions() *DomainResolveOptions {
+	return o.InnerDomainResolver
 }
 
 type _TailscaleSSHServerOptions struct {

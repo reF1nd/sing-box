@@ -7,21 +7,26 @@ import (
 )
 
 type WireGuardEndpointOptions struct {
-	System       bool                             `json:"system,omitempty"`
-	GSO          *bool                            `json:"gso,omitempty"`
-	Name         string                           `json:"name,omitempty"`
-	MTU          uint32                           `json:"mtu,omitempty"`
-	Address      badoption.Listable[netip.Prefix] `json:"address"`
-	PrivateKey   string                           `json:"private_key"`
-	ListenPort   uint16                           `json:"listen_port,omitempty"`
-	Peers        []WireGuardPeer                  `json:"peers,omitempty"`
-	UDPTimeout   badoption.Duration               `json:"udp_timeout,omitempty"`
-	UDPMapping   UDPNATBehavior                   `json:"udp_mapping,omitempty"`
-	UDPFiltering UDPNATBehavior                   `json:"udp_filtering,omitempty"`
-	UDPNATMax    uint32                           `json:"udp_nat_max,omitempty"`
-	Workers      int                              `json:"workers,omitempty"`
-	OnDemand     bool                             `json:"on_demand,omitempty"`
+	System              bool                             `json:"system,omitempty"`
+	GSO                 *bool                            `json:"gso,omitempty"`
+	Name                string                           `json:"name,omitempty"`
+	MTU                 uint32                           `json:"mtu,omitempty"`
+	Address             badoption.Listable[netip.Prefix] `json:"address"`
+	PrivateKey          string                           `json:"private_key"`
+	ListenPort          uint16                           `json:"listen_port,omitempty"`
+	Peers               []WireGuardPeer                  `json:"peers,omitempty"`
+	UDPTimeout          badoption.Duration               `json:"udp_timeout,omitempty"`
+	UDPMapping          UDPNATBehavior                   `json:"udp_mapping,omitempty"`
+	UDPFiltering        UDPNATBehavior                   `json:"udp_filtering,omitempty"`
+	UDPNATMax           uint32                           `json:"udp_nat_max,omitempty"`
+	Workers             int                              `json:"workers,omitempty"`
+	OnDemand            bool                             `json:"on_demand,omitempty"`
+	InnerDomainResolver *DomainResolveOptions            `json:"inner_domain_resolver,omitempty"`
 	DialerOptions
+}
+
+func (o *WireGuardEndpointOptions) TakeInnerDomainResolverOptions() *DomainResolveOptions {
+	return o.InnerDomainResolver
 }
 
 type WireGuardPeer struct {
