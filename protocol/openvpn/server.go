@@ -46,6 +46,8 @@ type ServerEndpoint struct {
 	localAddresses []netip.Prefix
 	started        atomic.Bool
 	readLoopDone   chan struct{}
+
+	innerDNSQueryOptions adapter.DNSQueryOptions
 }
 
 type udpEgressPacketConn struct {
@@ -69,6 +71,10 @@ func (c *udpEgressPacketConn) WriteTo(buffer []byte, destination net.Addr) (int,
 }
 
 func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.OpenVPNServerEndpointOptions) (adapter.Endpoint, error) {
+	innerDNSQueryOptions, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
+	if err != nil {
+		return nil, E.Cause(err, "inner domain resolver")
+	}
 	if options.MTU == 0 {
 		options.MTU = ovpntransport.DefaultMTU
 	}
@@ -86,6 +92,7 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
 		localAddresses: options.Address,
 	}
+	serverEndpoint.innerDNSQueryOptions = innerDNSQueryOptions
 	serverOptions, err := buildServerOptions(options)
 	if err != nil {
 		cancelLoop()
@@ -737,7 +744,7 @@ func (s *ServerEndpoint) DialContext(ctx context.Context, network string, destin
 		return nil, E.New("endpoint is not ready yet")
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := s.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := s.dnsRouter.Lookup(ctx, destination.Fqdn, s.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -755,7 +762,7 @@ func (s *ServerEndpoint) ListenPacketWithDestination(ctx context.Context, destin
 		return nil, netip.Addr{}, E.New("endpoint is not ready yet")
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := s.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := s.dnsRouter.Lookup(ctx, destination.Fqdn, s.innerDNSQueryOptions)
 		if err != nil {
 			return nil, netip.Addr{}, err
 		}

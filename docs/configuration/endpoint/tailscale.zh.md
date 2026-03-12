@@ -46,6 +46,7 @@ icon: material/new-box
   "udp_timeout": "5m",
   "ssh_server": false,
   "taildrop_directory": "",
+  "inner_domain_resolver": "", // 或 {}
 
   ... // 拨号字段
 }
@@ -232,6 +233,14 @@ UDP NAT 过期时间。
 相对路径基于工作目录解析，与 [state_directory](#state_directory) 相同。
 
 默认使用 `Taildrop`。
+
+#### inner_domain_resolver
+
+设置用于解析通过 Tailscale 隊道的连接的域名解析器。
+
+此选项与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 格式相同。
+
+未设置时使用默认DNS。
 
 ### 拨号字段
 

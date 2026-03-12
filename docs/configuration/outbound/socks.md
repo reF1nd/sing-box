@@ -13,7 +13,8 @@
   "username": "sekai",
   "password": "admin",
   "network": "udp",
-  "udp_over_tcp": false | {},
+  "udp_over_tcp": false,
+  "inner_domain_resolver": "", // or {}
 
   ... // Dial Fields
 }
@@ -60,6 +61,18 @@ Both is enabled by default.
 UDP over TCP protocol settings.
 
 See [UDP Over TCP](/configuration/shared/udp-over-tcp/) for details.
+
+#### inner_domain_resolver
+
+!!! note ""
+
+    Only effective when `version` is `4`. SOCKS4 does not support domain name transmission, so the domain must be resolved locally before connecting.
+
+Set domain resolver for resolving domain names of connections forwarded through SOCKS4.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
