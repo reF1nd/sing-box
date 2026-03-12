@@ -27,6 +27,7 @@
   ],
   "udp_timeout": "",
   "workers": 0,
+  "inner_domain_resolver": "", // 或 {}
 
   ... // 拨号字段
 }
@@ -136,6 +137,14 @@ UDP NAT 过期时间。
 WireGuard worker 数量。
 
 默认使用 CPU 数量。
+
+#### inner_domain_resolver
+
+设置用于解析通过 WireGuard 隊道的连接的域名解析器。
+
+此选项与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 格式相同。
+
+未设置时使用默认DNS。
 
 ### 拨号字段
 

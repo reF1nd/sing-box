@@ -37,6 +37,7 @@ icon: material/new-box
   "system_interface_gso": false,
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
+  "inner_domain_resolver": "", // or {}
 
   ... // Dial Fields
 }
@@ -158,6 +159,14 @@ Override the TUN MTU. By default, Tailscale's own MTU is used.
 UDP NAT expiration time.
 
 `5m` will be used by default.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the Tailscale tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
