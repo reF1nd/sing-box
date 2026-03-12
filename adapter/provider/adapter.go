@@ -101,8 +101,32 @@ func (a *Adapter) Outbound(tag string) (adapter.Outbound, bool) {
 	return detour, ok
 }
 
+func (a *Adapter) resolveOutboundTags(newOpts []option.Outbound) []string {
+	tags := make([]string, len(newOpts))
+	seen := make(map[string]bool)
+	for i, opt := range newOpts {
+		var baseTag string
+		if opt.Tag != "" {
+			baseTag = F.ToString(a.providerTag, "/", opt.Tag)
+		} else {
+			baseTag = F.ToString(a.providerTag, "/", i)
+		}
+		tag := baseTag
+		for n := 2; seen[tag]; n++ {
+			tag = F.ToString(baseTag, " (", n, ")")
+		}
+		if tag != baseTag {
+			a.logger.Warn("duplicate outbound tag ", baseTag, " in provider, renamed to ", tag)
+		}
+		seen[tag] = true
+		tags[i] = tag
+	}
+	return tags
+}
+
 func (a *Adapter) UpdateOutbounds(oldOpts []option.Outbound, newOpts []option.Outbound) {
-	a.removeUseless(newOpts)
+	newTags := a.resolveOutboundTags(newOpts)
+	a.removeUseless(newTags)
 	var (
 		oldOptByTag    = make(map[string]option.Outbound)
 		outbounds      = make([]adapter.Outbound, 0, len(newOpts))
@@ -112,12 +136,7 @@ func (a *Adapter) UpdateOutbounds(oldOpts []option.Outbound, newOpts []option.Ou
 		oldOptByTag[opt.Tag] = opt
 	}
 	for i, opt := range newOpts {
-		var tag string
-		if opt.Tag != "" {
-			tag = F.ToString(a.providerTag, "/", opt.Tag)
-		} else {
-			tag = F.ToString(a.providerTag, "/", i)
-		}
+		tag := newTags[i]
 		outbound, exist := a.outbound.Outbound(tag)
 		if !exist || !reflect.DeepEqual(opt, oldOptByTag[opt.Tag]) {
 			err := a.outbound.Create(
@@ -261,18 +280,12 @@ func (a *Adapter) RewriteDetourForProvider(opts []option.Outbound) {
 	}
 }
 
-func (a *Adapter) removeUseless(newOpts []option.Outbound) {
+func (a *Adapter) removeUseless(newTags []string) {
 	if len(a.outbounds) == 0 {
 		return
 	}
 	exists := make(map[string]bool)
-	for i, opt := range newOpts {
-		var tag string
-		if opt.Tag != "" {
-			tag = F.ToString(a.providerTag, "/", opt.Tag)
-		} else {
-			tag = F.ToString(a.providerTag, "/", i)
-		}
+	for _, tag := range newTags {
 		exists[tag] = true
 	}
 	for _, opt := range a.outbounds {
