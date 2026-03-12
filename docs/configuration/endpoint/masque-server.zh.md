@@ -26,6 +26,7 @@
   "advertise_routes": [],
   "system": false,
   "gso": false,
+  "inner_domain_resolver": "", // or {}
   "name": "",
   "mtu": 1280,
 
@@ -107,6 +108,16 @@ IP 代理资源的 URI 模板路径，可以包含 `target` 和 `ipproto` 变量
 当 `system` 为 `true` 时，默认启用。设为 `false` 可禁用。
 
 当 `system` 为 `false` 时，此选项不生效。
+
+### inner_domain_resolver
+
+指定将此 endpoint 用作出站时，解析目标域名所使用的 DNS 解析器。适用于 TCP 和 UDP。
+
+此选项使用与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 相同的格式。
+
+未设置时，使用现有 DNS 路由规则及默认 DNS。目标为 IP 地址时不进行域名解析。
+
+此解析器也用于解析 CONNECT-IP 请求路径中 `target` 指定的域名；解析结果仍受 `advertise_routes` 限制。
 
 ### name
 

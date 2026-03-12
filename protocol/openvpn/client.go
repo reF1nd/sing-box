@@ -45,23 +45,24 @@ var (
 
 type ClientEndpoint struct {
 	endpointBase
-	ctx            context.Context
-	loopContext    context.Context
-	cancelLoop     context.CancelFunc
-	dnsRouter      adapter.DNSRouter
-	outboundDialer N.Dialer
-	queryOptions   adapter.DNSQueryOptions
-	client         *ovpn.Client
-	deviceOptions  *device.Options
-	device         device.Device
-	onDemand       bool
-	stateAccess    sync.Mutex
-	state          atomic.Pointer[clientState]
-	dnsTransport   *DNSTransport
-	deviceStarted  bool
-	statusAccess   sync.Mutex
-	statusUpdated  chan struct{}
-	terminalError  string
+	ctx                  context.Context
+	loopContext          context.Context
+	cancelLoop           context.CancelFunc
+	dnsRouter            adapter.DNSRouter
+	outboundDialer       N.Dialer
+	queryOptions         adapter.DNSQueryOptions
+	client               *ovpn.Client
+	deviceOptions        *device.Options
+	device               device.Device
+	onDemand             bool
+	stateAccess          sync.Mutex
+	state                atomic.Pointer[clientState]
+	dnsTransport         *DNSTransport
+	deviceStarted        bool
+	statusAccess         sync.Mutex
+	statusUpdated        chan struct{}
+	terminalError        string
+	innerDNSQueryOptions adapter.DNSQueryOptions
 }
 
 type clientState struct {
@@ -76,6 +77,10 @@ type clientState struct {
 }
 
 func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.OpenVPNClientEndpointOptions) (adapter.Endpoint, error) {
+	innerDNSQueryOptions, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
+	if err != nil {
+		return nil, E.Cause(err, "inner domain resolver")
+	}
 	loopContext, cancelLoop := context.WithCancel(ctx)
 	clientEndpoint := &ClientEndpoint{
 		endpointBase: endpointBase{
@@ -90,6 +95,7 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		statusUpdated: make(chan struct{}),
 		onDemand:      options.OnDemand,
 	}
+	clientEndpoint.innerDNSQueryOptions = innerDNSQueryOptions
 	success := false
 	defer func() {
 		if success {
@@ -851,7 +857,7 @@ func (c *ClientEndpoint) DialContext(ctx context.Context, network string, destin
 		return nil, readyErr
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, c.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -870,7 +876,7 @@ func (c *ClientEndpoint) ListenPacketWithDestination(ctx context.Context, destin
 		return nil, netip.Addr{}, readyErr
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, c.innerDNSQueryOptions)
 		if err != nil {
 			return nil, netip.Addr{}, err
 		}
