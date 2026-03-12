@@ -113,6 +113,8 @@ type Endpoint struct {
 	systemTun           tun.Tun
 	systemDialer        *dialer.DefaultDialer
 	fallbackTCPCloser   func()
+
+	innerDNSQueryOptions adapter.DNSQueryOptions
 }
 
 func (t *Endpoint) registerNetstackHandlers() {
@@ -249,7 +251,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		DNS:        &dnsConfigurtor{},
 		HTTPClient: controlHTTPClient,
 	}
-	return &Endpoint{
+	ep := &Endpoint{
 		Adapter:                    endpoint.NewAdapter(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
 		ctx:                        ctx,
 		router:                     router,
@@ -271,7 +273,15 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		systemInterfaceGSO:         gso,
 		systemInterfaceName:        options.SystemInterfaceName,
 		systemInterfaceMTU:         options.SystemInterfaceMTU,
-	}, nil
+	}
+	if options.InnerDomainResolver != nil {
+		innerDNSOpts, err := adapter.DNSQueryOptionsFrom(ctx, options.InnerDomainResolver)
+		if err != nil {
+			return nil, E.Cause(err, "inner domain resolver")
+		}
+		ep.innerDNSQueryOptions = *innerDNSOpts
+	}
+	return ep, nil
 }
 
 func (t *Endpoint) Start(stage adapter.StartStage) error {
@@ -517,7 +527,7 @@ func (t *Endpoint) DialContext(ctx context.Context, network string, destination 
 		t.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, t.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -603,7 +613,7 @@ func (t *Endpoint) listenPacketWithAddress(ctx context.Context, destination M.So
 func (t *Endpoint) ListenPacketWithDestination(ctx context.Context, destination M.Socksaddr) (net.PacketConn, netip.Addr, error) {
 	t.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	if destination.IsDomain() {
-		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, t.innerDNSQueryOptions)
 		if err != nil {
 			return nil, netip.Addr{}, err
 		}
