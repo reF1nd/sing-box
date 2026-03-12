@@ -40,6 +40,7 @@
 
   "workers": 0,
   "on_demand": false,
+  "inner_domain_resolver": "", // 或 {}
 
   ... // 拨号字段
 }
@@ -149,6 +150,14 @@ WireGuard worker 数量。
 !!! question "自 sing-box 1.15.0 起"
 
 允许该 endpoint 在需要时断开连接。
+
+#### inner_domain_resolver
+
+设置用于解析通过 WireGuard 隧道的连接的域名解析器。
+
+此选项与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 格式相同。
+
+未设置时使用默认 DNS。
 
 ### UDP NAT 字段
 
