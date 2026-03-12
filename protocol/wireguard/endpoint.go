@@ -36,13 +36,14 @@ func RegisterEndpoint(registry *endpoint.Registry) {
 
 type Endpoint struct {
 	endpoint.Adapter
-	ctx            context.Context
-	router         adapter.Router
-	dnsRouter      adapter.DNSRouter
-	logger         logger.ContextLogger
-	localAddresses []netip.Prefix
-	endpoint       *wireguard.Endpoint
-	started        atomic.Bool
+	ctx                  context.Context
+	router               adapter.Router
+	dnsRouter            adapter.DNSRouter
+	logger               logger.ContextLogger
+	localAddresses       []netip.Prefix
+	endpoint             *wireguard.Endpoint
+	started              atomic.Bool
+	innerDNSQueryOptions adapter.DNSQueryOptions
 }
 
 func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.WireGuardEndpointOptions) (adapter.Endpoint, error) {
@@ -119,6 +120,13 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	ep.endpoint = wgEndpoint
+	if options.InnerDomainResolver != nil {
+		innerDNSOpts, err := adapter.DNSQueryOptionsFrom(ctx, options.InnerDomainResolver)
+		if err != nil {
+			return nil, E.Cause(err, "inner domain resolver")
+		}
+		ep.innerDNSQueryOptions = *innerDNSOpts
+	}
 	return ep, nil
 }
 
@@ -229,7 +237,7 @@ func (w *Endpoint) DialContext(ctx context.Context, network string, destination 
 		return nil, E.New("WireGuard is not ready yet")
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := w.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := w.dnsRouter.Lookup(ctx, destination.Fqdn, w.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +254,7 @@ func (w *Endpoint) ListenPacketWithDestination(ctx context.Context, destination 
 		return nil, netip.Addr{}, E.New("WireGuard is not ready yet")
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := w.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := w.dnsRouter.Lookup(ctx, destination.Fqdn, w.innerDNSQueryOptions)
 		if err != nil {
 			return nil, netip.Addr{}, err
 		}
