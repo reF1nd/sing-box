@@ -28,11 +28,12 @@ var _ adapter.Outbound = (*Outbound)(nil)
 
 type Outbound struct {
 	outbound.Adapter
-	dnsRouter adapter.DNSRouter
-	logger    logger.ContextLogger
-	client    *socks.Client
-	resolve   bool
-	uotClient *uot.Client
+	dnsRouter            adapter.DNSRouter
+	logger               logger.ContextLogger
+	client               *socks.Client
+	resolve              bool
+	innerDNSQueryOptions adapter.DNSQueryOptions
+	uotClient            *uot.Client
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SOCKSOutboundOptions) (adapter.Outbound, error) {
@@ -56,6 +57,13 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:    logger,
 		client:    socks.NewClient(outboundDialer, options.ServerOptions.Build(), version, options.Username, options.Password),
 		resolve:   version == socks.Version4,
+	}
+	if version == socks.Version4 && options.InnerDomainResolver != nil {
+		innerDNSOpts, err := adapter.DNSQueryOptionsFrom(ctx, options.InnerDomainResolver)
+		if err != nil {
+			return nil, E.Cause(err, "inner domain resolver")
+		}
+		outbound.innerDNSQueryOptions = *innerDNSOpts
 	}
 	uotOptions := common.PtrValueOrDefault(options.UDPOverTCP)
 	if uotOptions.Enabled {
@@ -84,7 +92,7 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
 	if h.resolve && destination.IsFqdn() {
-		destinationAddresses, err := h.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := h.dnsRouter.Lookup(ctx, destination.Fqdn, h.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +110,7 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return h.uotClient.ListenPacket(ctx, destination)
 	}
 	if h.resolve && destination.IsFqdn() {
-		destinationAddresses, err := h.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := h.dnsRouter.Lookup(ctx, destination.Fqdn, h.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}

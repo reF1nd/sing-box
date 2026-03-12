@@ -12,6 +12,7 @@ import (
 
 type TailscaleEndpointOptions struct {
 	DialerOptions
+	InnerDomainResolver        *DomainResolveOptions      `json:"inner_domain_resolver,omitempty"`
 	StateDirectory             string                     `json:"state_directory,omitempty"`
 	AuthKey                    string                     `json:"auth_key,omitempty"`
 	ControlURL                 string                     `json:"control_url,omitempty"`
