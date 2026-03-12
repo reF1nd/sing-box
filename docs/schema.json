@@ -3503,6 +3503,9 @@
             "tag": {
               "type": "string"
             },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
+            },
             "detour": {
               "type": "string",
               "x-tag-reference": "outbound"
@@ -3890,6 +3893,9 @@
               "minimum": 0,
               "maximum": 65535
             },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
+            },
             "system": {
               "type": "boolean"
             },
@@ -4273,6 +4279,9 @@
             "proxy_protocol_accept_no_header": {
               "type": "boolean"
             },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
+            },
             "system": {
               "type": "boolean"
             },
@@ -4582,6 +4591,9 @@
             "fallback_delay": {
               "$ref": "#/$defs/Duration"
             },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
+            },
             "state_directory": {
               "type": "string"
             },
@@ -4773,6 +4785,9 @@
             },
             "workers": {
               "type": "integer"
+            },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
             },
             "detour": {
               "type": "string",
@@ -12995,6 +13010,9 @@
                   "additionalProperties": false
                 }
               ]
+            },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
             }
           },
           "required": [

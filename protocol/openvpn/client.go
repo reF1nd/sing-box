@@ -57,6 +57,8 @@ type ClientEndpoint struct {
 	statusAccess   sync.Mutex
 	statusUpdated  chan struct{}
 	terminalError  string
+
+	innerDNSQueryOptions adapter.DNSQueryOptions
 }
 
 type clientState struct {
@@ -71,6 +73,10 @@ type clientState struct {
 }
 
 func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.OpenVPNClientEndpointOptions) (adapter.Endpoint, error) {
+	innerDNSQueryOptions, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
+	if err != nil {
+		return nil, E.Cause(err, "inner domain resolver")
+	}
 	loopContext, cancelLoop := context.WithCancel(ctx)
 	clientEndpoint := &ClientEndpoint{
 		endpointBase: endpointBase{
@@ -84,6 +90,7 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		dnsRouter:     service.FromContext[adapter.DNSRouter](ctx),
 		statusUpdated: make(chan struct{}),
 	}
+	clientEndpoint.innerDNSQueryOptions = innerDNSQueryOptions
 	success := false
 	defer func() {
 		if success {
@@ -778,7 +785,7 @@ func (c *ClientEndpoint) DialContext(ctx context.Context, network string, destin
 		return nil, E.New("endpoint is not ready yet")
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, c.innerDNSQueryOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -796,7 +803,7 @@ func (c *ClientEndpoint) ListenPacketWithDestination(ctx context.Context, destin
 		return nil, netip.Addr{}, E.New("endpoint is not ready yet")
 	}
 	if destination.IsDomain() {
-		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
+		destinationAddresses, err := c.dnsRouter.Lookup(ctx, destination.Fqdn, c.innerDNSQueryOptions)
 		if err != nil {
 			return nil, netip.Addr{}, err
 		}

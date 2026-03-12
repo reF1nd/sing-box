@@ -22,11 +22,19 @@ type HTTPMixedInboundOptions struct {
 type SOCKSOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	Version    string             `json:"version,omitempty" enum:"4,4a,5"`
-	Username   string             `json:"username,omitempty"`
-	Password   string             `json:"password,omitempty"`
-	Network    NetworkList        `json:"network,omitempty"`
-	UDPOverTCP *UDPOverTCPOptions `json:"udp_over_tcp,omitempty"`
+	Version             string                `json:"version,omitempty" enum:"4,4a,5"`
+	Username            string                `json:"username,omitempty"`
+	Password            string                `json:"password,omitempty"`
+	Network             NetworkList           `json:"network,omitempty"`
+	UDPOverTCP          *UDPOverTCPOptions    `json:"udp_over_tcp,omitempty"`
+	InnerDomainResolver *DomainResolveOptions `json:"inner_domain_resolver,omitempty"`
+}
+
+func (o *SOCKSOutboundOptions) TakeInnerDomainResolverOptions() *DomainResolveOptions {
+	if o.Version != "4" {
+		return nil
+	}
+	return o.InnerDomainResolver
 }
 
 type HTTPOutboundOptions struct {

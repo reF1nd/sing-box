@@ -9,11 +9,17 @@ import (
 	"github.com/sagernet/sing-box/experimental/clashmode"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/service"
 )
 
 var _ adapter.LifecycleService = (*ReferenceManager)(nil)
+
+type domainResolverKey struct {
+	tag      string
+	endpoint bool
+}
 
 type ReferenceManager struct {
 	ctx                    context.Context
@@ -22,7 +28,7 @@ type ReferenceManager struct {
 	dnsRules               []option.DNSRule
 	staticOutbounds        []string
 	staticTransports       []string
-	domainResolvers        map[string]string
+	domainResolvers        map[domainResolverKey][]string
 	subscriber             *observable.Subscriber[struct{}]
 	keepIdle               map[any]bool
 	unreferencedTransports map[string]bool
@@ -37,17 +43,23 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 		staticOutbounds = append(staticOutbounds, options.NTP.Detour)
 		staticTransports = append(staticTransports, domainResolverServer(options.NTP.DialerOptions))
 	}
-	domainResolvers := make(map[string]string)
-	for _, outboundOptions := range options.Outbounds {
-		dialerOptionsWrapper, isDialerOptionsWrapper := outboundOptions.Options.(option.DialerOptionsWrapper)
-		if isDialerOptionsWrapper {
-			domainResolvers[outboundOptions.Tag] = domainResolverServer(dialerOptionsWrapper.TakeDialerOptions())
+	domainResolvers := make(map[domainResolverKey][]string)
+	for i, outboundOptions := range options.Outbounds {
+		if resolvers := appendDomainResolver(nil, outboundOptions.Options); len(resolvers) > 0 {
+			tag := outboundOptions.Tag
+			if tag == "" {
+				tag = F.ToString(i)
+			}
+			domainResolvers[domainResolverKey{tag: tag}] = resolvers
 		}
 	}
-	for _, endpointOptions := range options.Endpoints {
-		dialerOptionsWrapper, isDialerOptionsWrapper := endpointOptions.Options.(option.DialerOptionsWrapper)
-		if isDialerOptionsWrapper {
-			domainResolvers[endpointOptions.Tag] = domainResolverServer(dialerOptionsWrapper.TakeDialerOptions())
+	for i, endpointOptions := range options.Endpoints {
+		if resolvers := appendDomainResolver(nil, endpointOptions.Options); len(resolvers) > 0 {
+			tag := endpointOptions.Tag
+			if tag == "" {
+				tag = F.ToString(i)
+			}
+			domainResolvers[domainResolverKey{tag: tag, endpoint: true}] = resolvers
 		}
 	}
 	var (
@@ -76,6 +88,24 @@ func domainResolverServer(dialerOptions option.DialerOptions) string {
 		return ""
 	}
 	return dialerOptions.DomainResolver.Server
+}
+
+func appendDomainResolver(transports []string, rawOptions any) []string {
+	dialerOptionsWrapper, isDialerOptionsWrapper := rawOptions.(option.DialerOptionsWrapper)
+	if isDialerOptionsWrapper {
+		domainResolver := dialerOptionsWrapper.TakeDialerOptions().DomainResolver
+		if domainResolver != nil && domainResolver.Server != "" {
+			transports = append(transports, domainResolver.Server)
+		}
+	}
+	innerDomainResolverOptionsWrapper, isInnerDomainResolverOptionsWrapper := rawOptions.(option.InnerDomainResolverOptionsWrapper)
+	if isInnerDomainResolverOptionsWrapper {
+		innerDomainResolver := innerDomainResolverOptionsWrapper.TakeInnerDomainResolverOptions()
+		if innerDomainResolver != nil && innerDomainResolver.Server != "" {
+			transports = append(transports, innerDomainResolver.Server)
+		}
+	}
+	return transports
 }
 
 func (m *ReferenceManager) Name() string {
@@ -198,7 +228,8 @@ func (m *ReferenceManager) update() {
 			continue
 		}
 		referencedOutbounds[tag] = true
-		transportQueue = append(transportQueue, m.domainResolvers[tag])
+		_, isEndpoint := outbound.(adapter.Endpoint)
+		transportQueue = append(transportQueue, m.domainResolvers[domainResolverKey{tag: tag, endpoint: isEndpoint}]...)
 		outboundReferrer, isOutboundReferrer := outbound.(adapter.Referrer)
 		if isOutboundReferrer {
 			outbounds, dnsServers := outboundReferrer.References()
