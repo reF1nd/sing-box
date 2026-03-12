@@ -103,8 +103,32 @@ func (a *Adapter) Outbound(tag string) (adapter.Outbound, bool) {
 	return detour, ok
 }
 
+func (a *Adapter) resolveOutboundTags(newOpts []option.Outbound) []string {
+	tags := make([]string, len(newOpts))
+	seen := make(map[string]bool)
+	for i, opt := range newOpts {
+		var baseTag string
+		if opt.Tag != "" {
+			baseTag = F.ToString(a.providerTag, "/", opt.Tag)
+		} else {
+			baseTag = F.ToString(a.providerTag, "/", i)
+		}
+		tag := baseTag
+		for n := 2; seen[tag]; n++ {
+			tag = F.ToString(baseTag, " (", n, ")")
+		}
+		if tag != baseTag {
+			a.logger.Warn("duplicate outbound tag ", baseTag, " in provider, renamed to ", tag)
+		}
+		seen[tag] = true
+		tags[i] = tag
+	}
+	return tags
+}
+
 func (a *Adapter) UpdateOutbounds(oldOpts []option.Outbound, newOpts []option.Outbound) {
-	a.removeUseless(newOpts)
+	newTags := a.resolveOutboundTags(newOpts)
+	a.removeUseless(newTags)
 	var (
 		oldOptByTag    = make(map[string]option.Outbound)
 		outbounds      = make([]adapter.Outbound, 0, len(newOpts))
@@ -114,12 +138,7 @@ func (a *Adapter) UpdateOutbounds(oldOpts []option.Outbound, newOpts []option.Ou
 		oldOptByTag[opt.Tag] = opt
 	}
 	for i, opt := range newOpts {
-		var tag string
-		if opt.Tag != "" {
-			tag = F.ToString(a.providerTag, "/", opt.Tag)
-		} else {
-			tag = F.ToString(a.providerTag, "/", i)
-		}
+		tag := newTags[i]
 		outbound, exist := a.outbound.Outbound(tag)
 		if !exist || !reflect.DeepEqual(opt, oldOptByTag[opt.Tag]) {
 			err := a.outbound.Create(
@@ -289,8 +308,32 @@ func (a *Adapter) RewriteDetourForProviderEndpoints(opts []option.Endpoint) {
 	}
 }
 
+func (a *Adapter) resolveEndpointTags(newOpts []option.Endpoint) []string {
+	tags := make([]string, len(newOpts))
+	seen := make(map[string]bool)
+	for i, opt := range newOpts {
+		var baseTag string
+		if opt.Tag != "" {
+			baseTag = F.ToString(a.providerTag, "/", opt.Tag)
+		} else {
+			baseTag = F.ToString(a.providerTag, "/endpoint-", i)
+		}
+		tag := baseTag
+		for n := 2; seen[tag]; n++ {
+			tag = F.ToString(baseTag, " (", n, ")")
+		}
+		if tag != baseTag {
+			a.logger.Warn("duplicate endpoint tag ", baseTag, " in provider, renamed to ", tag)
+		}
+		seen[tag] = true
+		tags[i] = tag
+	}
+	return tags
+}
+
 func (a *Adapter) UpdateEndpoints(oldOpts []option.Endpoint, newOpts []option.Endpoint) {
-	a.removeUselessEndpoints(newOpts)
+	newTags := a.resolveEndpointTags(newOpts)
+	a.removeUselessEndpoints(newTags)
 	var (
 		oldOptByTag = make(map[string]option.Endpoint)
 		endpoints   []adapter.Outbound
@@ -299,12 +342,7 @@ func (a *Adapter) UpdateEndpoints(oldOpts []option.Endpoint, newOpts []option.En
 		oldOptByTag[opt.Tag] = opt
 	}
 	for i, opt := range newOpts {
-		var tag string
-		if opt.Tag != "" {
-			tag = F.ToString(a.providerTag, "/", opt.Tag)
-		} else {
-			tag = F.ToString(a.providerTag, "/", i)
-		}
+		tag := newTags[i]
 		ep, exist := a.endpoint.Get(tag)
 		if !exist || !reflect.DeepEqual(opt, oldOptByTag[opt.Tag]) {
 			err := a.endpoint.Create(
@@ -334,15 +372,9 @@ func (a *Adapter) UpdateEndpoints(oldOpts []option.Endpoint, newOpts []option.En
 	}
 }
 
-func (a *Adapter) removeUselessEndpoints(newOpts []option.Endpoint) {
+func (a *Adapter) removeUselessEndpoints(newTags []string) {
 	exists := make(map[string]bool)
-	for i, opt := range newOpts {
-		var tag string
-		if opt.Tag != "" {
-			tag = F.ToString(a.providerTag, "/", opt.Tag)
-		} else {
-			tag = F.ToString(a.providerTag, "/", i)
-		}
+	for _, tag := range newTags {
 		exists[tag] = true
 	}
 	var remaining []adapter.Outbound
@@ -359,18 +391,12 @@ func (a *Adapter) removeUselessEndpoints(newOpts []option.Endpoint) {
 	a.outbounds = remaining
 }
 
-func (a *Adapter) removeUseless(newOpts []option.Outbound) {
+func (a *Adapter) removeUseless(newTags []string) {
 	if len(a.outbounds) == 0 {
 		return
 	}
 	exists := make(map[string]bool)
-	for i, opt := range newOpts {
-		var tag string
-		if opt.Tag != "" {
-			tag = F.ToString(a.providerTag, "/", opt.Tag)
-		} else {
-			tag = F.ToString(a.providerTag, "/", i)
-		}
+	for _, tag := range newTags {
 		exists[tag] = true
 	}
 	for _, opt := range a.outbounds {
