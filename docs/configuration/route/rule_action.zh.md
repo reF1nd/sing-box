@@ -267,6 +267,7 @@ UDP 连接超时时间。
   "action": "resolve",
   "server": "",
   "strategy": "",
+  "match_only": true,
   "disable_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
@@ -284,6 +285,11 @@ UDP 连接超时时间。
 DNS 解析策略，可用值有：`prefer_ipv4`、`prefer_ipv6`、`ipv4_only`、`ipv6_only`。
 
 默认使用 `dns.strategy`。
+
+#### match_only
+匹配 IP 类规则，不影响出站传递域名。
+
+可以用最小配置实现国内外的分流，配合 fakeip 的情况下不影响向代理服务器发送域名。
 
 #### disable_cache
 

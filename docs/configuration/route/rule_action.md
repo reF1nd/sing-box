@@ -278,6 +278,7 @@ Timeout for sniffing.
   "action": "resolve",
   "server": "",
   "strategy": "",
+  "match_only": true,
   "disable_cache": false,
   "rewrite_ttl": null,
   "client_subnet": null
@@ -295,6 +296,11 @@ Specifies DNS server tag to use instead of selecting through DNS routing.
 DNS resolution strategy, available values are: `prefer_ipv4`, `prefer_ipv6`, `ipv4_only`, `ipv6_only`.
 
 `dns.strategy` will be used by default.
+
+#### match_only
+Matching IP-related rules does not affect outbound domain name transmission.
+
+It allows for domestic and international traffic splitting with minimal configuration, and when used with fakeip, it does not affect the sending of domain names to proxy servers.
 
 #### disable_cache
 
