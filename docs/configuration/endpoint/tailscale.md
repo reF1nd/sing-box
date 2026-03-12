@@ -42,6 +42,7 @@ icon: material/new-box
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
   "ssh_server": false,
+  "inner_domain_resolver": "", // or {}
 
   ... // Dial Fields
 }
@@ -211,6 +212,14 @@ Refuse the SFTP subsystem.
 #### ssh_server.disable_forwarding
 
 Refuse local and remote TCP and Unix-socket forwarding, including SSH agent forwarding.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the Tailscale tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
