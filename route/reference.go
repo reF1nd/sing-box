@@ -62,15 +62,33 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 }
 
 func appendDomainResolver(transports []string, rawOptions any) []string {
-	dialerOptionsWrapper, isDialerOptionsWrapper := rawOptions.(option.DialerOptionsWrapper)
-	if !isDialerOptionsWrapper {
-		return transports
+	if wrapper, ok := rawOptions.(option.DialerOptionsWrapper); ok {
+		resolver := wrapper.TakeDialerOptions().DomainResolver
+		if resolver != nil && resolver.Server != "" {
+			transports = append(transports, resolver.Server)
+		}
 	}
-	dialerOptions := dialerOptionsWrapper.TakeDialerOptions()
-	if dialerOptions.DomainResolver == nil || dialerOptions.DomainResolver.Server == "" {
-		return transports
+	var innerResolver *option.DomainResolveOptions
+	switch options := rawOptions.(type) {
+	case *option.SOCKSOutboundOptions:
+		if options.Version == "4" {
+			innerResolver = options.InnerDomainResolver
+		}
+	case *option.WireGuardEndpointOptions:
+		innerResolver = options.InnerDomainResolver
+	case *option.TailscaleEndpointOptions:
+		innerResolver = options.InnerDomainResolver
+	case *option.OpenConnectEndpointOptions:
+		innerResolver = options.InnerDomainResolver
+	case *option.OpenVPNClientEndpointOptions:
+		innerResolver = options.InnerDomainResolver
+	case *option.OpenVPNServerEndpointOptions:
+		innerResolver = options.InnerDomainResolver
 	}
-	return append(transports, dialerOptions.DomainResolver.Server)
+	if innerResolver != nil && innerResolver.Server != "" {
+		transports = append(transports, innerResolver.Server)
+	}
+	return transports
 }
 
 func (m *ReferenceManager) Name() string {
