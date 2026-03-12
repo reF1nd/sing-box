@@ -38,6 +38,7 @@
 | `urltest`      | [URLTest](./urltest/)           |
 | `naive`        | [NaiveProxy](./naive/)          |
 | `loadbalance`  | [LoadBalance](./loadbalance/)   |
+| `fallback`     | [FallBack](./fallback/)         |
 
 #### tag
 

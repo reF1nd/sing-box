@@ -13,14 +13,16 @@
     "cache_file": {},
     "clash_api": {},
     "v2ray_api": {}
-  }
+  },
+  "urltest_unified_delay": true
 }
 ```
 
 ### Fields
 
-| Key          | Format                     |
-|--------------|----------------------------|
-| `cache_file` | [Cache File](./cache-file/) |
-| `clash_api`  | [Clash API](./clash-api/)   |
-| `v2ray_api`  | [V2Ray API](./v2ray-api/)   |
+| Key                     | Format                               |
+|-------------------------|--------------------------------------|
+| `cache_file`            | [缓存文件](./cache-file/)            |
+| `clash_api`             | [Clash API](./clash-api/)            |
+| `v2ray_api`             | [V2Ray API](./v2ray-api/)            |
+| `urltest_unified_delay` | [统一延迟](./urltest_unified_delay/) |
