@@ -43,6 +43,7 @@ icon: material/new-box
   "system_interface_gso": false,
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
+  "inner_domain_resolver": "", // 或 {}
 
   ... // 拨号字段
 }
@@ -171,6 +172,14 @@ UDP NAT 过期时间。
 用于连接 Tailscale 控制平面的 HTTP 客户端。
 
 参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/) 了解详情。
+
+#### inner_domain_resolver
+
+设置用于解析通过 Tailscale 隊道的连接的域名解析器。
+
+此选项与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 格式相同。
+
+未设置时使用默认DNS。
 
 ### 拨号字段
 
