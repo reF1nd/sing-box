@@ -43,6 +43,7 @@ icon: material/new-box
   "system_interface_gso": false,
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
+  "inner_domain_resolver": "", // or {}
 
   ... // Dial Fields
 }
@@ -172,6 +173,14 @@ UDP NAT expiration time.
 HTTP Client for connecting to the Tailscale control plane.
 
 See [HTTP Client Fields](/configuration/shared/http-client/) for details.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the Tailscale tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
