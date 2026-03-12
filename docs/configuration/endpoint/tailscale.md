@@ -21,6 +21,7 @@ icon: material/new-box
   "advertise_routes": [],
   "advertise_exit_node": false,
   "udp_timeout": "5m",
+  "inner_domain_resolver": "", // or {}
   
   ... // Dial Fields
 }
@@ -94,6 +95,14 @@ Indicates whether the node should advertise itself as an exit node.
 UDP NAT expiration time.
 
 `5m` will be used by default.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the Tailscale tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
