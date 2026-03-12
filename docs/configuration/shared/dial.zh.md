@@ -35,6 +35,8 @@ icon: material/new-box
   "network_type": [],
   "fallback_network_type": [],
   "fallback_delay": "",
+
+  "resolve_on_detour": false,
   
   // 废弃的
 
@@ -193,6 +195,10 @@ icon: material/new-box
 仅当 `domain_strategy` 或 `network_strategy` 已设置时生效。
 
 默认使用 `300ms`。
+
+#### resolve_on_detour
+
+当设置了 `detour` 时，在将连接交给 detour 之前，也通过 `domain_resolver` 解析服务器地址的域名。
 
 #### domain_strategy
 

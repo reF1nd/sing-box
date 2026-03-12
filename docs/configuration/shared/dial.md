@@ -37,6 +37,8 @@ icon: material/new-box
   "fallback_network_type": [],
   "fallback_delay": "",
 
+  "resolve_on_detour": false,
+
   // Deprecated
   
   "domain_strategy": ""
@@ -203,6 +205,10 @@ For `network_strategy`, is the amount of time to wait for connection to succeed 
 back to other interfaces.
 
 Only take effect when `domain_strategy` or `network_strategy` is set.
+
+#### resolve_on_detour
+
+When `detour` is set, also resolve the domain name of the server address using `domain_resolver` before handing off to the detour.
 
 `300ms` is used by default.
 
