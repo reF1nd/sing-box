@@ -40,6 +40,7 @@
 
   "workers": 0,
   "on_demand": false,
+  "inner_domain_resolver": "", // or {}
  
   ... // Dial Fields
 }
@@ -147,6 +148,14 @@ CPU count is used by default.
 !!! question "Since sing-box 1.15.0"
 
 Allow the endpoint to be disconnected when necessary.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the WireGuard tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### UDP NAT Fields
 

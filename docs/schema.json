@@ -4588,6 +4588,9 @@
             "fallback_delay": {
               "$ref": "#/$defs/Duration"
             },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
+            },
             "state_directory": {
               "type": "string"
             },
@@ -4785,6 +4788,9 @@
             },
             "on_demand": {
               "type": "boolean"
+            },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
             },
             "detour": {
               "type": "string",
@@ -13016,6 +13022,9 @@
                   "additionalProperties": false
                 }
               ]
+            },
+            "inner_domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
             }
           },
           "required": [

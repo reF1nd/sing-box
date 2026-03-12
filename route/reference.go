@@ -71,14 +71,20 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 
 func appendDomainResolver(transports []string, rawOptions any) []string {
 	dialerOptionsWrapper, isDialerOptionsWrapper := rawOptions.(option.DialerOptionsWrapper)
-	if !isDialerOptionsWrapper {
-		return transports
+	if isDialerOptionsWrapper {
+		domainResolver := dialerOptionsWrapper.TakeDialerOptions().DomainResolver
+		if domainResolver != nil && domainResolver.Server != "" {
+			transports = append(transports, domainResolver.Server)
+		}
 	}
-	dialerOptions := dialerOptionsWrapper.TakeDialerOptions()
-	if dialerOptions.DomainResolver == nil || dialerOptions.DomainResolver.Server == "" {
-		return transports
+	innerDomainResolverOptionsWrapper, isInnerDomainResolverOptionsWrapper := rawOptions.(option.InnerDomainResolverOptionsWrapper)
+	if isInnerDomainResolverOptionsWrapper {
+		innerDomainResolver := innerDomainResolverOptionsWrapper.TakeInnerDomainResolverOptions()
+		if innerDomainResolver != nil && innerDomainResolver.Server != "" {
+			transports = append(transports, innerDomainResolver.Server)
+		}
 	}
-	return append(transports, dialerOptions.DomainResolver.Server)
+	return transports
 }
 
 func (m *ReferenceManager) Name() string {
