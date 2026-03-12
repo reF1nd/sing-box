@@ -46,6 +46,7 @@ icon: material/new-box
   "udp_timeout": "5m",
   "ssh_server": false,
   "taildrop_directory": "",
+  "inner_domain_resolver": "", // or {}
 
   ... // Dial Fields
 }
@@ -234,6 +235,14 @@ Relative paths are resolved against the working directory, as [state_directory](
 is.
 
 `Taildrop` is used by default.
+
+#### inner_domain_resolver
+
+Set domain resolver for resolving domain names of connections passing through the Tailscale tunnel.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.
 
 ### Dial Fields
 
