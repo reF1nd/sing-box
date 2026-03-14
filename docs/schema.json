@@ -15133,6 +15133,12 @@
                 "$ref": "#/$defs/Outbound"
               }
             },
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Endpoint"
+              }
+            },
             "health_check": {
               "$ref": "#/$defs/ProviderHealthCheckOptions"
             }
