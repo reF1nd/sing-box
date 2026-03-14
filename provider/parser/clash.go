@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"encoding/base64"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -75,6 +76,9 @@ func (c *ClashProxy) UnmarshalYAML(value *yaml.Node) error {
 	case "anytls":
 		c.SingType = C.TypeAnyTLS
 		options = &AnyTLSOption{}
+	case "wireguard":
+		c.SingType = C.TypeWireGuard
+		options = &ClashWireGuardOption{}
 	default:
 		return nil
 	}
@@ -97,19 +101,39 @@ func (c *ClashProxy) Build() option.Outbound {
 	return outbound
 }
 
-func ParseClashSubscription(_ context.Context, content string) ([]option.Outbound, error) {
+func (c *ClashProxy) BuildEndpoint() option.Endpoint {
+	endpoint := option.Endpoint{
+		Tag:  c.Name,
+		Type: c.SingType,
+	}
+	if c.Options != nil {
+		endpoint.Options = c.Options.Build()
+	}
+	return endpoint
+}
+
+func ParseClashSubscription(_ context.Context, content string) ([]option.Outbound, []option.Endpoint, error) {
 	config := &ClashConfig{}
 	err := yaml.Unmarshal([]byte(content), &config)
 	if err != nil {
-		return nil, E.Cause(err, "parse clash config")
+		return nil, nil, E.Cause(err, "parse clash config")
 	}
 	outbounds := common.FilterIsInstance(config.Proxies, func(proxy ClashProxy) (option.Outbound, bool) {
-		if proxy.SingType == "" {
+		if proxy.SingType == "" || proxy.SingType == C.TypeWireGuard {
 			return option.Outbound{}, false
 		}
 		return proxy.Build(), true
 	})
-	return outbounds, nil
+	endpoints := common.FilterIsInstance(config.Proxies, func(proxy ClashProxy) (option.Endpoint, bool) {
+		if proxy.SingType != C.TypeWireGuard {
+			return option.Endpoint{}, false
+		}
+		if wgOpt, ok := proxy.Options.(*ClashWireGuardOption); ok && wgOpt.AmneziaWGOption != nil {
+			return option.Endpoint{}, false
+		}
+		return proxy.BuildEndpoint(), true
+	})
+	return outbounds, endpoints, nil
 }
 
 type ShadowSocksOption struct {
@@ -463,6 +487,103 @@ func (a *AnyTLSOption) Build() any {
 		IdleSessionCheckInterval:    badoption.Duration(a.IdleSessionCheckInterval),
 		IdleSessionTimeout:          badoption.Duration(a.IdleSessionTimeout),
 		MinIdleSession:              a.MinIdleSession,
+	}
+}
+
+type ClashWireGuardReserved []uint8
+
+func (r *ClashWireGuardReserved) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind == yaml.ScalarNode {
+		decoded, err := base64.StdEncoding.DecodeString(value.Value)
+		if err != nil {
+			return E.Cause(err, "decode reserved")
+		}
+		*r = decoded
+		return nil
+	}
+	var reserved []uint8
+	if err := value.Decode(&reserved); err != nil {
+		return err
+	}
+	*r = reserved
+	return nil
+}
+
+type ClashWireGuardPeerOption struct {
+	Server       string                 `yaml:"server"`
+	Port         int                    `yaml:"port"`
+	PublicKey    string                 `yaml:"public-key,omitempty"`
+	PreSharedKey string                 `yaml:"pre-shared-key,omitempty"`
+	Reserved     ClashWireGuardReserved `yaml:"reserved,omitempty"`
+	AllowedIPs   []string               `yaml:"allowed-ips,omitempty"`
+}
+
+type ClashWireGuardOption struct {
+	DialerOptions            `yaml:",inline"`
+	ClashWireGuardPeerOption `yaml:",inline"`
+	Ip                       string                     `yaml:"ip,omitempty"`
+	Ipv6                     string                     `yaml:"ipv6,omitempty"`
+	PrivateKey               string                     `yaml:"private-key"`
+	MTU                      int                        `yaml:"mtu,omitempty"`
+	Workers                  int                        `yaml:"workers,omitempty"`
+	PersistentKeepalive      int                        `yaml:"persistent-keepalive,omitempty"`
+	Peers                    []ClashWireGuardPeerOption `yaml:"peers,omitempty"`
+	AmneziaWGOption          map[string]any             `yaml:"amnezia-wg-option,omitempty"`
+}
+
+func (w *ClashWireGuardOption) Build() any {
+	var address badoption.Listable[netip.Prefix]
+	if w.Ip != "" {
+		ip := w.Ip
+		if !strings.Contains(ip, "/") {
+			ip += "/32"
+		}
+		if prefix, err := netip.ParsePrefix(ip); err == nil {
+			address = append(address, prefix)
+		}
+	}
+	if w.Ipv6 != "" {
+		ipv6 := w.Ipv6
+		if !strings.Contains(ipv6, "/") {
+			ipv6 += "/128"
+		}
+		if prefix, err := netip.ParsePrefix(ipv6); err == nil {
+			address = append(address, prefix)
+		}
+	}
+	var peers []option.WireGuardPeer
+	if len(w.Peers) > 0 {
+		for _, peer := range w.Peers {
+			peers = append(peers, clashWireGuardPeer(peer, w.PersistentKeepalive))
+		}
+	} else {
+		peers = append(peers, clashWireGuardPeer(w.ClashWireGuardPeerOption, w.PersistentKeepalive))
+	}
+	return &option.WireGuardEndpointOptions{
+		Address:       address,
+		PrivateKey:    w.PrivateKey,
+		MTU:           uint32(w.MTU),
+		Workers:       w.Workers,
+		Peers:         peers,
+		DialerOptions: w.DialerOptions.Build(),
+	}
+}
+
+func clashWireGuardPeer(peer ClashWireGuardPeerOption, persistentKeepalive int) option.WireGuardPeer {
+	var allowedIPs badoption.Listable[netip.Prefix]
+	for _, ip := range peer.AllowedIPs {
+		if prefix, err := netip.ParsePrefix(ip); err == nil {
+			allowedIPs = append(allowedIPs, prefix)
+		}
+	}
+	return option.WireGuardPeer{
+		Address:                     peer.Server,
+		Port:                        uint16(peer.Port),
+		PublicKey:                   peer.PublicKey,
+		PreSharedKey:                peer.PreSharedKey,
+		AllowedIPs:                  allowedIPs,
+		PersistentKeepaliveInterval: uint16(persistentKeepalive),
+		Reserved:                    []uint8(peer.Reserved),
 	}
 }
 
