@@ -97,11 +97,11 @@ func (c *ClashProxy) Build() option.Outbound {
 	return outbound
 }
 
-func ParseClashSubscription(_ context.Context, content string) ([]option.Outbound, error) {
+func ParseClashSubscription(_ context.Context, content string) ([]option.Outbound, []option.Endpoint, error) {
 	config := &ClashConfig{}
 	err := yaml.Unmarshal([]byte(content), &config)
 	if err != nil {
-		return nil, E.Cause(err, "parse clash config")
+		return nil, nil, E.Cause(err, "parse clash config")
 	}
 	outbounds := common.FilterIsInstance(config.Proxies, func(proxy ClashProxy) (option.Outbound, bool) {
 		if proxy.SingType == "" {
@@ -109,7 +109,7 @@ func ParseClashSubscription(_ context.Context, content string) ([]option.Outboun
 		}
 		return proxy.Build(), true
 	})
-	return outbounds, nil
+	return outbounds, nil, nil
 }
 
 type ShadowSocksOption struct {
