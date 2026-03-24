@@ -99,13 +99,13 @@ jobs:
           fi
           echo "ref=$ref"
           echo "ref=$ref" >> $GITHUB_OUTPUT
-          if [[ $ref == *"-"* ]]; then
-            latest=latest-beta
-          else
-            latest=latest
-          fi
-          echo "latest=$latest"
-          echo "latest=$latest" >> $GITHUB_OUTPUT
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+          fetch-depth: 0
+      - name: Detect track
+        run: bash .github/detect_track.sh
       - name: Download digests
         uses: actions/download-artifact@v5
         with:
@@ -124,10 +124,10 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            -t "${{ env.REGISTRY_IMAGE }}:${{ steps.ref.outputs.latest }}" \
+            -t "${{ env.REGISTRY_IMAGE }}:${{ env.DOCKER_TAG }}" \
             -t "${{ env.REGISTRY_IMAGE }}:${{ steps.ref.outputs.ref }}" \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.ref.outputs.latest }}
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.DOCKER_TAG }}
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.ref.outputs.ref }}
