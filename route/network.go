@@ -56,6 +56,8 @@ type NetworkManager struct {
 	wifiState              adapter.WIFIState
 	wifiStateMutex         sync.RWMutex
 	myInterfaceAddresses   []netip.Prefix
+	resetCallbackAccess    sync.Mutex
+	resetCallbacks         []func()
 	started                bool
 }
 
@@ -485,6 +487,19 @@ func (r *NetworkManager) ResetNetwork() {
 			listener.InterfaceUpdated()
 		}
 	}
+
+	r.resetCallbackAccess.Lock()
+	callbacks := r.resetCallbacks
+	r.resetCallbackAccess.Unlock()
+	for _, callback := range callbacks {
+		callback()
+	}
+}
+
+func (r *NetworkManager) RegisterNetworkResetCallback(callback func()) {
+	r.resetCallbackAccess.Lock()
+	defer r.resetCallbackAccess.Unlock()
+	r.resetCallbacks = append(r.resetCallbacks, callback)
 }
 
 func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
