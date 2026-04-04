@@ -35,6 +35,7 @@ type NetworkManager interface {
 	WIFIState() WIFIState
 	UpdateWIFIState()
 	ResetNetwork()
+	RegisterNetworkResetCallback(callback func())
 }
 
 type NetworkOptions struct {
