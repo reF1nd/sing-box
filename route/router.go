@@ -130,6 +130,7 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			cacheContext.Close()
 		}
 		r.network.Initialize(r.ruleSets)
+		r.network.RegisterNetworkResetCallback(r.dns.ResetNetwork)
 		needFindProcess := r.needFindProcess
 		needFindNeighbor := r.needFindNeighbor
 		for _, ruleSet := range r.ruleSets {
@@ -289,7 +290,6 @@ func (r *Router) NeighborResolver() adapter.NeighborResolver {
 
 func (r *Router) ResetNetwork() {
 	r.network.ResetNetwork()
-	r.dns.ResetNetwork()
 }
 
 func (r *Router) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
