@@ -4,7 +4,7 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 )
 
@@ -27,6 +27,7 @@ type NetworkManager interface {
 	WIFIState() WIFIState
 	ResetNetwork()
 	UpdateWIFIState()
+	RegisterNetworkResetCallback(callback func())
 }
 
 type NetworkOptions struct {
