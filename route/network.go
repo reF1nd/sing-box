@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/libbox/platform"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -51,6 +52,8 @@ type NetworkManager struct {
 	inbound                adapter.InboundManager
 	outbound               adapter.OutboundManager
 	wifiState              adapter.WIFIState
+	resetCallbackAccess    sync.Mutex
+	resetCallbacks         []func()
 	started                bool
 }
 
@@ -415,6 +418,19 @@ func (r *NetworkManager) ResetNetwork() {
 			listener.InterfaceUpdated()
 		}
 	}
+
+	r.resetCallbackAccess.Lock()
+	callbacks := r.resetCallbacks
+	r.resetCallbackAccess.Unlock()
+	for _, callback := range callbacks {
+		callback()
+	}
+}
+
+func (r *NetworkManager) RegisterNetworkResetCallback(callback func()) {
+	r.resetCallbackAccess.Lock()
+	defer r.resetCallbackAccess.Unlock()
+	r.resetCallbacks = append(r.resetCallbacks, callback)
 }
 
 func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
