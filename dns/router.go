@@ -29,24 +29,26 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-var _ adapter.DNSRouter = (*Router)(nil)
-var _ adapter.DNSRuleSetUpdateValidator = (*Router)(nil)
+var (
+	_ adapter.DNSRouter                 = (*Router)(nil)
+	_ adapter.DNSRuleSetUpdateValidator = (*Router)(nil)
+)
 
 type Router struct {
-	ctx                             context.Context
-	logger                          logger.ContextLogger
-	transport                       adapter.DNSTransportManager
-	outbound                        adapter.OutboundManager
-	client                          adapter.DNSClient
-	rawRules                        []option.DNSRule
-	rules                           []adapter.DNSRule
-	defaultDomainStrategy           C.DomainStrategy
-	dnsReverseMapping               freelru.Cache[netip.Addr, string]
-	platformInterface               adapter.PlatformInterface
-	legacyDNSMode                   bool
-	rulesAccess                     sync.RWMutex
-	started                         bool
-	closing                         bool
+	ctx                   context.Context
+	logger                logger.ContextLogger
+	transport             adapter.DNSTransportManager
+	outbound              adapter.OutboundManager
+	client                adapter.DNSClient
+	rawRules              []option.DNSRule
+	rules                 []adapter.DNSRule
+	defaultDomainStrategy C.DomainStrategy
+	dnsReverseMapping     freelru.Cache[netip.Addr, string]
+	platformInterface     adapter.PlatformInterface
+	legacyDNSMode         bool
+	rulesAccess           sync.RWMutex
+	started               bool
+	closing               bool
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) *Router {

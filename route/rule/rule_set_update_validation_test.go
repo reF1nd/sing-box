@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
+
 	"github.com/stretchr/testify/require"
 )
 
