@@ -3,6 +3,10 @@ package interrupt
 import (
 	"net"
 
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
 )
 
@@ -55,6 +59,26 @@ type PacketConn struct {
 	c.element.Value.internal = true
 }*/
 
+func (c *PacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
+	if packetReader, ok := c.PacketConn.(N.PacketReader); ok {
+		return packetReader.ReadPacket(buffer)
+	}
+	_, addr, err := buffer.ReadPacketFrom(c.PacketConn)
+	if err != nil {
+		return M.Socksaddr{}, err
+	}
+	return M.SocksaddrFromNet(addr).Unwrap(), err
+}
+
+func (c *PacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
+	if packetWriter, ok := c.PacketConn.(N.PacketWriter); ok {
+		return packetWriter.WritePacket(buffer, destination)
+	}
+	defer buffer.Release()
+	_, err := c.PacketConn.WriteTo(buffer.Bytes(), destination.UDPAddr())
+	return err
+}
+
 func (c *PacketConn) Close() error {
 	c.group.access.Lock()
 	defer c.group.access.Unlock()
@@ -71,5 +95,5 @@ func (c *PacketConn) WriterReplaceable() bool {
 }
 
 func (c *PacketConn) Upstream() any {
-	return c.PacketConn
+	return bufio.NewPacketConn(c.PacketConn)
 }
