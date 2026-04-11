@@ -424,6 +424,26 @@ type trackedPacketConn struct {
 	element *list.Element[io.Closer]
 }
 
+func (c *trackedPacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
+	if packetReader, ok := c.PacketConn.(N.PacketReader); ok {
+		return packetReader.ReadPacket(buffer)
+	}
+	_, addr, err := buffer.ReadPacketFrom(c.PacketConn)
+	if err != nil {
+		return M.Socksaddr{}, err
+	}
+	return M.SocksaddrFromNet(addr).Unwrap(), err
+}
+
+func (c *trackedPacketConn) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
+	if packetWriter, ok := c.PacketConn.(N.PacketWriter); ok {
+		return packetWriter.WritePacket(buffer, destination)
+	}
+	defer buffer.Release()
+	_, err := c.PacketConn.WriteTo(buffer.Bytes(), destination.UDPAddr())
+	return err
+}
+
 func (c *trackedPacketConn) Close() error {
 	c.manager.access.Lock()
 	c.manager.connections.Remove(c.element)
