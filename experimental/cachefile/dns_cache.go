@@ -111,6 +111,14 @@ func (c *CacheFile) flushPendingDNSCacheWith(saveKey saveCacheKey, logger logger
 		err := save(entry)
 		if err != nil {
 			logger.Warn("save DNS cache: ", err)
+			c.saveDNSCacheAccess.Lock()
+			currentEntry, loaded := c.saveDNSCache[saveKey]
+			if loaded && currentEntry.sequence == entry.sequence {
+				currentEntry.saving = false
+				c.saveDNSCache[saveKey] = currentEntry
+			}
+			c.saveDNSCacheAccess.Unlock()
+			return
 		}
 		c.saveDNSCacheAccess.Lock()
 		currentEntry, loaded := c.saveDNSCache[saveKey]

@@ -330,6 +330,9 @@ func (c *Client) storeCache(transport adapter.DNSTransport, question dns.Questio
 		return
 	}
 	if c.dnsCache != nil {
+		if transport.Type() == C.DNSTypeFakeIP {
+			return
+		}
 		packed, err := message.Pack()
 		if err == nil {
 			expireAt := time.Now().Add(time.Second * time.Duration(timeToLive))
@@ -442,6 +445,9 @@ func (c *Client) loadPersistentResponse(question dns.Question, transport adapter
 	response := new(dns.Msg)
 	err := response.Unpack(rawMessage)
 	if err != nil {
+		if c.logger != nil {
+			c.logger.Warn("load persistent DNS cache for ", question.Name, ": unpack failed: ", err)
+		}
 		return nil, 0, false
 	}
 	if c.disableExpire {
