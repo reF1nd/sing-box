@@ -594,6 +594,10 @@ func (c *Client) loadPersistentResponse(key dnsCacheKey) (*dns.Msg, int, bool) {
 	response := new(dns.Msg)
 	err := response.Unpack(rawMessage)
 	if err != nil {
+		if c.logger != nil {
+			c.logger.Warn("load persistent DNS cache for ", key.Name, ": unpack failed: ", err)
+		}
+		c.dnsCache.DeleteDNSCache(key.persistentName(), key.Name, key.Qtype, rawMessage)
 		return nil, 0, false
 	}
 	if c.disableExpire {
