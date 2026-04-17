@@ -684,9 +684,8 @@
         "external_ui_download_url": {
           "type": "string"
         },
-        "external_ui_download_detour": {
-          "type": "string",
-          "x-tag-reference": "outbound"
+        "external_ui_http_client": {
+          "$ref": "#/$defs/HTTPClientReference"
         },
         "external_ui_update_interval": {
           "$ref": "#/$defs/Duration"
