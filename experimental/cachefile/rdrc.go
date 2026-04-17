@@ -21,10 +21,10 @@ func (c *CacheFile) RDRCTimeout() time.Duration {
 
 func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (rejected bool) {
 	c.saveRDRCAccess.RLock()
-	rejected, cached := c.saveRDRC[saveCacheKey{transportName, qName, qType}]
+	expireAt, cached := c.saveRDRC[saveCacheKey{transportName, qName, qType}]
 	c.saveRDRCAccess.RUnlock()
 	if cached {
-		return
+		return time.Now().Before(expireAt)
 	}
 	key := buf.Get(2 + len(qName))
 	binary.BigEndian.PutUint16(key, qType)
@@ -72,10 +72,14 @@ func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (
 }
 
 func (c *CacheFile) SaveRDRC(transportName string, qName string, qType uint16) error {
+	return c.saveRDRCUntil(transportName, qName, qType, time.Now().Add(c.rdrcTimeout))
+}
+
+func (c *CacheFile) saveRDRCUntil(transportName string, qName string, qType uint16, expireAt time.Time) error {
 	expiresAt := buf.Get(8)
 	defer buf.Put(expiresAt)
-	binary.BigEndian.PutUint64(expiresAt, uint64(time.Now().Add(c.rdrcTimeout).Unix()))
-	return c.batch(func(tx *bbolt.Tx) error {
+	binary.BigEndian.PutUint64(expiresAt, uint64(expireAt.Unix()))
+	return c.update(func(tx *bbolt.Tx) error {
 		bucket, err := c.createBucket(tx, bucketRDRC)
 		if err != nil {
 			return err
@@ -95,15 +99,7 @@ func (c *CacheFile) SaveRDRC(transportName string, qName string, qType uint16) e
 func (c *CacheFile) SaveRDRCAsync(transportName string, qName string, qType uint16, logger logger.Logger) {
 	saveKey := saveCacheKey{transportName, qName, qType}
 	c.saveRDRCAccess.Lock()
-	c.saveRDRC[saveKey] = true
+	c.saveRDRC[saveKey] = time.Now().Add(c.rdrcTimeout)
 	c.saveRDRCAccess.Unlock()
-	go func() {
-		err := c.SaveRDRC(transportName, qName, qType)
-		if err != nil {
-			logger.Warn("save RDRC: ", err)
-		}
-		c.saveRDRCAccess.Lock()
-		delete(c.saveRDRC, saveKey)
-		c.saveRDRCAccess.Unlock()
-	}()
+	c.wakeCacheWriter()
 }
