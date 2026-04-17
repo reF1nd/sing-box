@@ -21,6 +21,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/clashmode"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -59,6 +60,7 @@ type Server struct {
 	externalUI                string
 	externalUIDownloadURL     string
 	externalUIDownloadURLHash [32]byte
+	externalUIHTTPClient      *option.HTTPClientOptions
 	externalUIDownloadDetour  string
 	externalUIUpdateInterval  time.Duration
 	cacheFile                 adapter.CacheFile
@@ -110,9 +112,12 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		externalController:        options.ExternalController != "",
 		externalUIDownloadURL:     downloadURL,
 		externalUIDownloadURLHash: sha256.Sum256([]byte(downloadURL)),
-		externalUIDownloadDetour:  options.ExternalUIDownloadDetour,
+		externalUIHTTPClient:      options.ExternalUIHTTPClient,
 		externalUIUpdateInterval:  updateInterval,
 		cacheFile:                 service.FromContext[adapter.CacheFile](ctx),
+
+		//nolint:staticcheck
+		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
 	}
 	//goland:noinspection GoDeprecation
 	//nolint:staticcheck
@@ -169,10 +174,15 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStarted {
-		return nil
-	}
-	if s.externalController {
+	switch stage {
+	case adapter.StartStateStart:
+		if s.externalUIDownloadDetour != "" && (s.externalUIHTTPClient == nil || s.externalUIHTTPClient.IsEmpty()) {
+			deprecated.Report(s.ctx, deprecated.OptionLegacyClashAPIExternalUIDownloadDetour)
+		}
+	case adapter.StartStateStarted:
+		if !s.externalController {
+			break
+		}
 		s.ctx, s.updateCancel = context.WithCancel(s.ctx)
 		var forceUpdate bool
 		if s.externalUI != "" && s.cacheFile != nil {
