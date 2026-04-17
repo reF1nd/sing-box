@@ -1,3 +1,8 @@
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [external_ui_http_client](#external_ui_http_client)  
+    :material-delete-clock: [external_ui_download_detour](#external_ui_download_detour)
+
 !!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
@@ -20,14 +25,15 @@
       "external_controller": "127.0.0.1:9090",
       "external_ui": "",
       "external_ui_download_url": "",
-      "external_ui_download_detour": "",
+      "external_ui_http_client": "", // or {}
       "secret": "",
       "default_mode": "",
       "access_control_allow_origin": [],
       "access_control_allow_private_network": false,
       
       // Deprecated
-      
+
+      "external_ui_download_detour": "",
       "store_mode": false,
       "store_selected": false,
       "store_fakeip": false,
@@ -59,7 +65,7 @@
     {
       "external_controller": "0.0.0.0:9090",
       "external_ui": "dashboard"
-      // "external_ui_download_detour": "direct"
+      // "external_ui_http_client": "my-http-client"
     }
     ```
 
@@ -85,11 +91,23 @@ ZIP download URL for the external UI, will be used if the specified `external_ui
 
 `https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip` will be used if empty.
 
+#### external_ui_http_client
+
+!!! question "Since sing-box 1.14.0"
+
+HTTP Client for downloading external UI.
+
+See [HTTP Client Fields](/configuration/shared/http-client/) for details.
+
+Default transport will be used if empty.
+
 #### external_ui_download_detour
 
-The tag of the outbound to download the external UI.
+!!! failure "Deprecated in sing-box 1.14.0"
 
-Default outbound will be used if empty.
+    `external_ui_download_detour` is deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0, use `external_ui_http_client` instead.
+
+The tag of the outbound to download the external UI.
 
 #### secret
 

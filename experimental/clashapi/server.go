@@ -59,6 +59,7 @@ type Server struct {
 	externalController       bool
 	externalUI               string
 	externalUIDownloadURL    string
+	externalUIHTTPClient     *option.HTTPClientOptions
 	externalUIDownloadDetour string
 	externalUIUpdateInterval time.Duration
 	cacheFile                adapter.CacheFile
@@ -93,6 +94,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		modeList:                 options.ModeList,
 		externalController:       options.ExternalController != "",
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
+		externalUIHTTPClient:     options.ExternalUIHTTPClient,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
 		externalUIUpdateInterval: updateInterval,
 		cacheFile:                service.FromContext[adapter.CacheFile](ctx),
