@@ -45,8 +45,11 @@ func (c *CacheFile) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) error {
 }
 
 func (c *CacheFile) FakeIPReserve(metadata *adapter.FakeIPMetadata, current netip.Addr, reservedEnd netip.Addr) error {
-	c.queueFakeIPMetadata(metadata)
 	return c.flush(func(tx *bbolt.Tx) error {
+		err := putFakeIPMetadata(tx, metadata)
+		if err != nil {
+			return err
+		}
 		return deleteFakeIPRange(tx, current, reservedEnd)
 	})
 }
@@ -240,6 +243,21 @@ func (c *CacheFile) FakeIPLoadDomain(domain string, isIPv6 bool) (netip.Addr, bo
 func (c *CacheFile) FakeIPReset() error {
 	c.flushAccess.Lock()
 	defer c.flushAccess.Unlock()
+	err := c.batch(func(tx *bbolt.Tx) error {
+		for _, bucketName := range [][]byte{bucketFakeIP, bucketFakeIPDomain4, bucketFakeIPDomain6} {
+			if tx.Bucket(bucketName) == nil {
+				continue
+			}
+			err := tx.DeleteBucket(bucketName)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 	c.pendingAccess.Lock()
 	for _, domain := range c.pending.fakeIPDomain {
 		c.pending.count--
@@ -253,16 +271,5 @@ func (c *CacheFile) FakeIPReset() error {
 		c.pending.count--
 	}
 	c.pendingAccess.Unlock()
-	return c.batch(func(tx *bbolt.Tx) error {
-		for _, bucketName := range [][]byte{bucketFakeIP, bucketFakeIPDomain4, bucketFakeIPDomain6} {
-			if tx.Bucket(bucketName) == nil {
-				continue
-			}
-			err := tx.DeleteBucket(bucketName)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	return nil
 }
