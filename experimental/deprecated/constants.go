@@ -154,6 +154,14 @@ var OptionStoreRDRC = Note{
 	MigrationLink:     "https://sing-box.sagernet.org/migration/#migrate-store-rdrc",
 }
 
+var OptionLegacyClashAPIExternalUIDownloadDetour = Note{
+	Name:              "legacy-clash-api-external-ui-download-detour",
+	Description:       "legacy `external_ui_download_detour` Clash API option",
+	DeprecatedVersion: "1.14.0",
+	ScheduledVersion:  "1.16.0",
+	EnvName:           "LEGACY_CLASH_API_EXTERNAL_UI_DOWNLOAD_DETOUR",
+}
+
 var OptionImplicitDefaultHTTPClient = Note{
 	Name:              "implicit-default-http-client",
 	Description:       "implicit default HTTP client using default outbound for remote rule-sets",
@@ -174,5 +182,6 @@ var Options = []Note{
 	OptionLegacyDNSRuleStrategy,
 	OptionIndependentDNSCache,
 	OptionStoreRDRC,
+	OptionLegacyClashAPIExternalUIDownloadDetour,
 	OptionImplicitDefaultHTTPClient,
 }

@@ -23,7 +23,7 @@ type ClashAPIOptions struct {
 	ExternalController               string                     `json:"external_controller,omitempty"`
 	ExternalUI                       string                     `json:"external_ui,omitempty"`
 	ExternalUIDownloadURL            string                     `json:"external_ui_download_url,omitempty"`
-	ExternalUIDownloadDetour         string                     `json:"external_ui_download_detour,omitempty"`
+	ExternalUIHTTPClient             *HTTPClientOptions         `json:"external_ui_http_client,omitempty"`
 	ExternalUIUpdateInterval         badoption.Duration         `json:"external_ui_update_interval,omitempty"`
 	Secret                           string                     `json:"secret,omitempty"`
 	DefaultMode                      string                     `json:"default_mode,omitempty"`
@@ -41,6 +41,8 @@ type ClashAPIOptions struct {
 	StoreSelected bool `json:"store_selected,omitempty"`
 	// Deprecated: migrated to global cache file
 	StoreFakeIP bool `json:"store_fakeip,omitempty"`
+	// Deprecated: use external_ui_http_client instead
+	ExternalUIDownloadDetour string `json:"external_ui_download_detour,omitempty"`
 }
 
 type V2RayAPIOptions struct {
