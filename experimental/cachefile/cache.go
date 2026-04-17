@@ -41,30 +41,37 @@ var (
 var _ adapter.CacheFile = (*CacheFile)(nil)
 
 type CacheFile struct {
-	ctx                context.Context
-	logger             logger.Logger
-	path               string
-	cacheID            []byte
-	cacheIDText        string
-	storeFakeIP        bool
-	storeRDRC          bool
-	storeDNS           bool
-	disableExpire      bool
-	rdrcTimeout        time.Duration
-	optimisticTimeout  time.Duration
-	DB                 *bbolt.DB
-	dbAccess           sync.RWMutex
-	saveMetadataAccess sync.Mutex
-	saveMetadata       *adapter.FakeIPMetadata
-	saveMetadataTimer  *time.Timer
-	saveFakeIPAccess   sync.RWMutex
-	saveDomain         map[netip.Addr]string
-	saveAddress4       map[string]netip.Addr
-	saveAddress6       map[string]netip.Addr
-	saveRDRCAccess     sync.RWMutex
-	saveRDRC           map[saveCacheKey]bool
-	saveDNSCacheAccess sync.RWMutex
-	saveDNSCache       map[saveCacheKey]saveDNSCacheEntry
+	ctx                     context.Context
+	logger                  logger.Logger
+	path                    string
+	cacheID                 []byte
+	cacheIDText             string
+	storeFakeIP             bool
+	storeRDRC               bool
+	storeDNS                bool
+	disableExpire           bool
+	rdrcTimeout             time.Duration
+	optimisticTimeout       time.Duration
+	DB                      *bbolt.DB
+	dbAccess                sync.RWMutex
+	saveMetadataAccess      sync.Mutex
+	saveMetadata            *adapter.FakeIPMetadata
+	saveMetadataDue         time.Time
+	saveFakeIPAccess        sync.RWMutex
+	saveDomain              map[netip.Addr]string
+	saveAddress4            map[string]netip.Addr
+	saveAddress6            map[string]netip.Addr
+	saveRDRCAccess          sync.RWMutex
+	saveRDRC                map[saveCacheKey]time.Time
+	saveDNSCacheAccess      sync.RWMutex
+	saveDNSCacheFlushAccess sync.RWMutex
+	saveDNSCache            map[saveCacheKey]saveDNSCacheEntry
+	cacheWriteAccess        sync.Mutex
+	writerAccess            sync.Mutex
+	writerWake              chan struct{}
+	writerStop              chan struct{}
+	writerDone              chan struct{}
+	writerClosed            bool
 }
 
 type saveCacheKey struct {
@@ -115,7 +122,7 @@ func New(ctx context.Context, logger logger.Logger, options option.CacheFileOpti
 		saveDomain:   make(map[netip.Addr]string),
 		saveAddress4: make(map[string]netip.Addr),
 		saveAddress6: make(map[string]netip.Addr),
-		saveRDRC:     make(map[saveCacheKey]bool),
+		saveRDRC:     make(map[saveCacheKey]time.Time),
 		saveDNSCache: make(map[saveCacheKey]saveDNSCacheEntry),
 	}
 }
@@ -148,6 +155,7 @@ func (c *CacheFile) Start(stage adapter.StartStage, scope *adapter.Scope) error 
 			return err
 		}
 		scope.Add(func() error {
+			c.stopCacheWriter()
 			return c.database().Close()
 		})
 	case adapter.StartStateStart:
