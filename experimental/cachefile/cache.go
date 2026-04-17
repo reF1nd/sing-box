@@ -41,30 +41,31 @@ var (
 var _ adapter.CacheFile = (*CacheFile)(nil)
 
 type CacheFile struct {
-	ctx                context.Context
-	logger             logger.Logger
-	path               string
-	cacheID            []byte
-	cacheIDText        string
-	storeFakeIP        bool
-	storeRDRC          bool
-	storeDNS           bool
-	disableExpire      bool
-	rdrcTimeout        time.Duration
-	optimisticTimeout  time.Duration
-	DB                 *bbolt.DB
-	dbAccess           sync.RWMutex
-	saveMetadataAccess sync.Mutex
-	saveMetadata       *adapter.FakeIPMetadata
-	saveMetadataTimer  *time.Timer
-	saveFakeIPAccess   sync.RWMutex
-	saveDomain         map[netip.Addr]string
-	saveAddress4       map[string]netip.Addr
-	saveAddress6       map[string]netip.Addr
-	saveRDRCAccess     sync.RWMutex
-	saveRDRC           map[saveCacheKey]bool
-	saveDNSCacheAccess sync.RWMutex
-	saveDNSCache       map[saveCacheKey]saveDNSCacheEntry
+	ctx                     context.Context
+	logger                  logger.Logger
+	path                    string
+	cacheID                 []byte
+	cacheIDText             string
+	storeFakeIP             bool
+	storeRDRC               bool
+	storeDNS                bool
+	disableExpire           bool
+	rdrcTimeout             time.Duration
+	optimisticTimeout       time.Duration
+	DB                      *bbolt.DB
+	dbAccess                sync.RWMutex
+	saveMetadataAccess      sync.Mutex
+	saveMetadata            *adapter.FakeIPMetadata
+	saveMetadataTimer       *time.Timer
+	saveFakeIPAccess        sync.RWMutex
+	saveDomain              map[netip.Addr]string
+	saveAddress4            map[string]netip.Addr
+	saveAddress6            map[string]netip.Addr
+	saveRDRCAccess          sync.RWMutex
+	saveRDRC                map[saveCacheKey]bool
+	saveDNSCacheAccess      sync.RWMutex
+	saveDNSCacheFlushAccess sync.RWMutex
+	saveDNSCache            map[saveCacheKey]saveDNSCacheEntry
 }
 
 type saveCacheKey struct {
