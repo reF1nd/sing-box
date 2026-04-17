@@ -72,6 +72,7 @@ type DNSCacheStore interface {
 	LoadDNSCache(transportName string, qName string, qType uint16) (rawMessage []byte, expireAt time.Time, loaded bool)
 	SaveDNSCache(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time) error
 	SaveDNSCacheAsync(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time, logger logger.Logger)
+	DeleteDNSCache(transportName string, qName string, qType uint16)
 	ClearDNSCache() error
 }
 
