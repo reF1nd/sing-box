@@ -80,8 +80,54 @@ func (c *CacheFile) Flush() {
 		c.logger.Warn("save cache: ", err)
 	}
 	c.pendingAccess.Lock()
+	if err != nil {
+		c.restorePendingLocked(writing)
+	}
 	c.writing = nil
 	c.pendingAccess.Unlock()
+}
+
+func (c *CacheFile) restorePendingLocked(writing *pendingWrites) {
+	wasEmpty := c.pending.count == 0
+	for key, entry := range writing.dnsCache {
+		if _, loaded := c.pending.dnsCache[key]; loaded {
+			continue
+		}
+		c.pending.dnsCache[key] = entry
+		c.pending.count++
+		c.pending.size += len(key.QuestionName) + len(entry.value)
+	}
+	for key := range writing.rdrc {
+		if _, loaded := c.pending.rdrc[key]; loaded {
+			continue
+		}
+		c.pending.rdrc[key] = struct{}{}
+		c.pending.count++
+		c.pending.size += len(key.QuestionName)
+	}
+	for address, domain := range writing.fakeIPDomain {
+		if _, loaded := c.pending.fakeIPDomain[address]; loaded {
+			continue
+		}
+		if _, loaded := c.pending.fakeIPAddress(domain, address.Is6()); loaded {
+			continue
+		}
+		c.pending.fakeIPDomain[address] = domain
+		if address.Is4() {
+			c.pending.fakeIPAddress4[domain] = address
+		} else {
+			c.pending.fakeIPAddress6[domain] = address
+		}
+		c.pending.count++
+		c.pending.size += len(domain)
+	}
+	if c.pending.fakeIPMetadata == nil && writing.fakeIPMetadata != nil {
+		c.pending.fakeIPMetadata = writing.fakeIPMetadata
+		c.pending.count++
+	}
+	if wasEmpty && c.pending.count > 0 && c.flushInterval > 0 {
+		c.flushTimer.Reset(c.flushInterval)
+	}
 }
 
 func (c *CacheFile) writePending(tx *bbolt.Tx, pending *pendingWrites) error {
