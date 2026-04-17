@@ -58,6 +58,8 @@ type Server struct {
 	externalUI                string
 	externalUIDownloadURL     string
 	externalUIDownloadURLHash [32]byte
+	externalUIHTTPClient      *option.HTTPClientOptions
+	externalUITransport       adapter.HTTPTransport
 	externalUIDownloadDetour  string
 	externalUIUpdateInterval  time.Duration
 	cacheFile                 adapter.CacheFile
@@ -109,9 +111,12 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		externalController:        options.ExternalController != "",
 		externalUIDownloadURL:     downloadURL,
 		externalUIDownloadURLHash: sha256.Sum256([]byte(downloadURL)),
-		externalUIDownloadDetour:  options.ExternalUIDownloadDetour,
+		externalUIHTTPClient:      options.ExternalUIHTTPClient,
 		externalUIUpdateInterval:  updateInterval,
 		cacheFile:                 service.FromContext[adapter.CacheFile](ctx),
+
+		//nolint:staticcheck
+		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
 	}
 	//goland:noinspection GoDeprecation
 	//nolint:staticcheck
@@ -168,10 +173,19 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(stage adapter.StartStage, scope *adapter.Scope) error {
-	if stage != adapter.StartStateStarted {
-		return nil
-	}
-	if s.externalController {
+	switch stage {
+	case adapter.StartStateStart:
+		if s.externalController && s.externalUI != "" {
+			transport, err := s.resolveExternalUITransport()
+			if err != nil {
+				return E.Cause(err, "create external UI http client")
+			}
+			s.externalUITransport = transport
+		}
+	case adapter.StartStateStarted:
+		if !s.externalController {
+			break
+		}
 		s.ctx, s.updateCancel = context.WithCancel(s.ctx)
 		scope.Add(s.closeUpdate)
 		var forceUpdate bool
