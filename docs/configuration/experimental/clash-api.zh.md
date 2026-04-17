@@ -2,6 +2,11 @@
 
     :material-plus: [external_ui_update_interval](#external_ui_update_interval)
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [external_ui_http_client](#external_ui_http_client)
+    :material-delete-clock: [external_ui_download_detour](#external_ui_download_detour)
+
 !!! quote "sing-box 1.10.0 中的更改"
 
     :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
@@ -24,7 +29,7 @@
       "external_controller": "127.0.0.1:9090",
       "external_ui": "",
       "external_ui_download_url": "",
-      "external_ui_download_detour": "",
+      "external_ui_http_client": "", // or {}
       "external_ui_update_interval": "",
       "secret": "",
       "default_mode": "",
@@ -32,7 +37,8 @@
       "access_control_allow_private_network": false,
       
       // Deprecated
-      
+
+      "external_ui_download_detour": "",
       "store_mode": false,
       "store_selected": false,
       "store_fakeip": false,
@@ -64,7 +70,7 @@
     {
       "external_controller": "0.0.0.0:9090",
       "external_ui": "dashboard"
-      // "external_ui_download_detour": "direct"
+      // "external_ui_http_client": "my-http-client"
     }
     ```
 
@@ -88,11 +94,32 @@ RESTful web API 监听地址。如果为空，则禁用 Clash API。
 
 默认使用 `https://github.com/MetaCubeX/Yacd-meta/archive/gh-pages.zip`。
 
+#### external_ui_http_client
+
+!!! question "自 sing-box 1.14.0 起"
+
+用于下载静态网页资源的 HTTP 客户端。
+
+参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/) 了解详情。
+
+留空时使用默认 HTTP 客户端：即由 [`route.default_http_client`](/zh/configuration/route/#default_http_client)
+指定的客户端，或未指定默认标签时使用顶层 `http_clients` 的第一项。
+
+启用面板下载时，即使已有面板文件，也会在启动时校验客户端配置。
+此字段不能与 `external_ui_download_detour` 同时配置。
+
+!!! failure "隐式默认已在 sing-box 1.14.0 废弃"
+
+    如果既未配置客户端，也未配置旧下载 detour，将回退到通过默认出站连接的隐式 HTTP 客户端。
+    此回退已在 sing-box 1.14.0 废弃，将在 sing-box 1.16.0 移除。请定义 `http_clients` 或显式配置此字段。
+
 #### external_ui_download_detour
 
-用于下载静态网页资源的出站的标签。
+!!! failure "已在 sing-box 1.14.0 废弃"
 
-如果为空，将使用默认出站。
+    `external_ui_download_detour` 已在 sing-box 1.14.0 废弃且将在 sing-box 1.16.0 中被移除，请使用 `external_ui_http_client` 代替。
+
+用于下载静态网页资源的出站的标签。
 
 #### external_ui_update_interval
 
