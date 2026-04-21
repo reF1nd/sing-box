@@ -17,7 +17,7 @@ import (
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -55,6 +55,7 @@ type NetworkManager struct {
 	wifiMonitor            settings.WIFIMonitor
 	wifiState              adapter.WIFIState
 	wifiStateMutex         sync.RWMutex
+	myInterfaceAddresses   []netip.Prefix
 	started                bool
 }
 
@@ -262,6 +263,14 @@ func (r *NetworkManager) Close() error {
 
 func (r *NetworkManager) InterfaceFinder() control.InterfaceFinder {
 	return r.interfaceFinder
+}
+
+func (r *NetworkManager) RegisterMyInterfaceAddresses(prefixes []netip.Prefix) {
+	r.myInterfaceAddresses = prefixes
+}
+
+func (r *NetworkManager) MyInterfaceAddresses() []netip.Prefix {
+	return r.myInterfaceAddresses
 }
 
 func (r *NetworkManager) UpdateInterfaces() error {
