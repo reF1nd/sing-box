@@ -2,6 +2,16 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.9
+
+* Fixes and improvements
+
+#### 1.13.8
+
+* Update naiveproxy to v147.0.7727.49-1
+* Fix fake-ip DNS server should return SUCCESS when address type is not configured
+* Fixes and improvements
+
 #### 1.13.7
 
 * Fixes and improvements

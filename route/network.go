@@ -426,6 +426,7 @@ func (r *NetworkManager) WIFIState() adapter.WIFIState {
 }
 
 func (r *NetworkManager) onWIFIStateChanged(state adapter.WIFIState) {
+	state.BSSID = adapter.NormalizeWIFIBSSID(state.BSSID)
 	r.wifiStateMutex.Lock()
 	if state != r.wifiState {
 		r.wifiState = state

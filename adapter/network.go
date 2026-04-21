@@ -1,6 +1,9 @@
 package adapter
 
 import (
+	"encoding/hex"
+	"net"
+	"strings"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -50,6 +53,24 @@ type InterfaceUpdateListener interface {
 type WIFIState struct {
 	SSID  string
 	BSSID string
+}
+
+func NormalizeWIFIBSSID(bssid string) string {
+	bssid = strings.TrimSpace(bssid)
+	if bssid == "" {
+		return ""
+	}
+	parsed, err := net.ParseMAC(bssid)
+	if err == nil && len(parsed) == 6 {
+		return parsed.String()
+	}
+	if len(bssid) == 12 {
+		decoded, err := hex.DecodeString(bssid)
+		if err == nil {
+			return net.HardwareAddr(decoded).String()
+		}
+	}
+	return bssid
 }
 
 type NetworkInterface struct {

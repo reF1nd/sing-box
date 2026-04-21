@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
 )
 
 var _ adapter.ServiceManager = (*Manager)(nil)
@@ -52,7 +51,7 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return E.Cause(err, stage, " ", name)
 		}
-		m.logger.Trace(stage, " ", name, " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
+		adapter.LogElapsed(m.logger, startTime, stage, " ", name)
 	}
 	return nil
 }
@@ -77,7 +76,7 @@ func (m *Manager) Close() error {
 			return E.Cause(err, "close ", name)
 		})
 		monitor.Finish()
-		m.logger.Trace("close ", name, " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
+		adapter.LogElapsed(m.logger, startTime, "close ", name)
 	}
 	return nil
 }
@@ -134,7 +133,7 @@ func (m *Manager) Create(ctx context.Context, logger log.ContextLogger, tag stri
 			if err != nil {
 				return E.Cause(err, stage, " ", name)
 			}
-			m.logger.Trace(stage, " ", name, " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
+			adapter.LogElapsed(m.logger, startTime, stage, " ", name)
 		}
 	}
 	if existsService, loaded := m.serviceByTag[tag]; loaded {

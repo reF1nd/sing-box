@@ -2,6 +2,18 @@
 
 set -e -o pipefail
 
+prepare_apk_root() {
+  # apk mkpkg resolves owner/group names through --root/etc/{passwd,group}.
+  APK_ROOT_DIR=$(mktemp -d)
+  mkdir -p "$APK_ROOT_DIR/etc"
+  cat > "$APK_ROOT_DIR/etc/passwd" <<EOF
+root:x:$(id -u):$(id -g):root:/root:/sbin/nologin
+EOF
+  cat > "$APK_ROOT_DIR/etc/group" <<EOF
+root:x:$(id -g):root
+EOF
+}
+
 ARCHITECTURE="$1"
 VERSION="$2"
 BINARY_PATH="$3"
@@ -22,7 +34,8 @@ APK_VERSION=$(echo "$VERSION" | sed -E 's/-([a-z]+)\.([0-9]+)/_\1\2/')
 APK_VERSION="${APK_VERSION}-r0"
 
 ROOT_DIR=$(mktemp -d)
-trap 'rm -rf "$ROOT_DIR"' EXIT
+prepare_apk_root
+trap 'rm -rf "$ROOT_DIR" "$APK_ROOT_DIR"' EXIT
 
 # Binary
 install -Dm755 "$BINARY_PATH" "$ROOT_DIR/usr/bin/sing-box"
@@ -68,7 +81,7 @@ done < "$PACKAGES_DIR/.conffiles" > "$PACKAGES_DIR/.conffiles_static"
   | sort > "$PACKAGES_DIR/.list"
 
 # Build APK
-apk mkpkg \
+apk --root "$APK_ROOT_DIR" mkpkg \
   --info "name:sing-box" \
   --info "version:${APK_VERSION}" \
   --info "description:The universal proxy platform." \

@@ -18,7 +18,7 @@ type WIFIBSSIDItem struct {
 func NewWIFIBSSIDItem(networkManager adapter.NetworkManager, bssidList []string) *WIFIBSSIDItem {
 	bssidMap := make(map[string]bool)
 	for _, bssid := range bssidList {
-		bssidMap[bssid] = true
+		bssidMap[adapter.NormalizeWIFIBSSID(bssid)] = true
 	}
 	return &WIFIBSSIDItem{
 		bssidList,

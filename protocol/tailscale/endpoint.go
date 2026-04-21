@@ -111,6 +111,7 @@ type Endpoint struct {
 	systemInterfaceName string
 	systemInterfaceGSO  bool
 	systemInterfaceMTU  uint32
+	serverStarted       bool
 	systemTun           tun.Tun
 	systemDialer        *dialer.DefaultDialer
 	fallbackTCPCloser   func()
@@ -381,6 +382,7 @@ func (t *Endpoint) postStart() error {
 		}
 		return err
 	}
+	t.serverStarted = true
 	if t.fallbackTCPCloser == nil {
 		t.fallbackTCPCloser = t.server.RegisterFallbackTCPHandler(func(src, dst netip.AddrPort) (handler func(net.Conn), intercept bool) {
 			return func(conn net.Conn) {
@@ -498,7 +500,11 @@ func (t *Endpoint) watchState() {
 }
 
 func (t *Endpoint) Close() error {
-	err := common.Close(common.PtrOrNil(t.server))
+	var err error
+	if t.serverStarted {
+		err = common.Close(common.PtrOrNil(t.server))
+		t.serverStarted = false
+	}
 	netmon.RegisterInterfaceGetter(nil)
 	netns.SetControlFunc(nil)
 	if t.fallbackTCPCloser != nil {

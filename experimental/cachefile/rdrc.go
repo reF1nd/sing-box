@@ -72,6 +72,9 @@ func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (
 }
 
 func (c *CacheFile) SaveRDRC(transportName string, qName string, qType uint16) error {
+	expiresAt := buf.Get(8)
+	defer buf.Put(expiresAt)
+	binary.BigEndian.PutUint64(expiresAt, uint64(time.Now().Add(c.rdrcTimeout).Unix()))
 	return c.batch(func(tx *bbolt.Tx) error {
 		bucket, err := c.createBucket(tx, bucketRDRC)
 		if err != nil {
@@ -85,9 +88,6 @@ func (c *CacheFile) SaveRDRC(transportName string, qName string, qType uint16) e
 		binary.BigEndian.PutUint16(key, qType)
 		copy(key[2:], qName)
 		defer buf.Put(key)
-		expiresAt := buf.Get(8)
-		defer buf.Put(expiresAt)
-		binary.BigEndian.PutUint64(expiresAt, uint64(time.Now().Add(c.rdrcTimeout).Unix()))
 		return bucket.Put(key, expiresAt)
 	})
 }

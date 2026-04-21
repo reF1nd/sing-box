@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-VERSION="1.25.8"
+VERSION="1.25.9"
 PATCH_COMMITS=(
   "466f6c7a29bc098b0d4c987b803c779222894a11"
   "1bdabae205052afe1dadb2ad6f1ba612cdbc532a"

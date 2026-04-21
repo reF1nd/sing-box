@@ -11,12 +11,6 @@ the project maintainer via [GitHub Sponsors](https://github.com/sponsors/nekohas
 
 ![](https://nekohasekai.github.io/sponsor-images/sponsors.svg)
 
-## Commercial Sponsors
-
-> [Warp](https://go.warp.dev/sing-box), Built for coding with multiple AI agents.
-
-[![](https://github.com/warpdotdev/brand-assets/raw/refs/heads/main/Github/Sponsor/Warp-Github-LG-02.png)](https://go.warp.dev/sing-box)
-
 ## Special Sponsors
 
 > Viral Tech, Inc.

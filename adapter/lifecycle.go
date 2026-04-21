@@ -83,7 +83,7 @@ func Start(logger log.ContextLogger, stage StartStage, services ...Lifecycle) er
 		if err != nil {
 			return err
 		}
-		logger.Trace(stage, " ", name, " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
+		LogElapsed(logger, startTime, stage, " ", name)
 	}
 	return nil
 }
@@ -96,7 +96,14 @@ func StartNamed(logger log.ContextLogger, stage StartStage, services []Lifecycle
 		if err != nil {
 			return E.Cause(err, stage.String(), " ", service.Name())
 		}
-		logger.Trace(stage, " ", service.Name(), " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
+		LogElapsed(logger, startTime, stage, " ", service.Name())
 	}
 	return nil
+}
+
+func LogElapsed(logger log.ContextLogger, startTime time.Time, description ...any) {
+	duration := time.Since(startTime)
+	if duration > time.Second {
+		logger.Trace(append(description, " completed (", F.Seconds(duration.Seconds()), "s)")...)
+	}
 }

@@ -69,7 +69,7 @@ type OverrideOptions struct {
 }
 
 func (s *StartedService) newInstance(profileContent string, overrideOptions *OverrideOptions) (*Instance, error) {
-	ctx := s.ctx
+	ctx := service.ExtendContext(s.ctx)
 	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
 	ctx, cancel := context.WithCancel(include.Context(ctx))
 	options, err := parseConfig(ctx, profileContent)

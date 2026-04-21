@@ -23,16 +23,25 @@ var _ adapter.FakeIPTransport = (*Transport)(nil)
 
 type Transport struct {
 	dns.TransportAdapter
-	logger logger.ContextLogger
-	store  adapter.FakeIPStore
+	logger       logger.ContextLogger
+	store        adapter.FakeIPStore
+	inet4Enabled bool
+	inet6Enabled bool
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.FakeIPDNSServerOptions) (adapter.DNSTransport, error) {
-	store := NewStore(ctx, logger, options.Inet4Range.Build(netip.Prefix{}), options.Inet6Range.Build(netip.Prefix{}))
+	inet4Range := options.Inet4Range.Build(netip.Prefix{})
+	inet6Range := options.Inet6Range.Build(netip.Prefix{})
+	if !inet4Range.IsValid() && !inet6Range.IsValid() {
+		return nil, E.New("at least one of inet4_range or inet6_range must be set")
+	}
+	store := NewStore(ctx, logger, inet4Range, inet6Range)
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapter(C.DNSTypeFakeIP, tag, nil),
 		logger:           logger,
 		store:            store,
+		inet4Enabled:     inet4Range.IsValid(),
+		inet6Enabled:     inet6Range.IsValid(),
 	}, nil
 }
 
@@ -54,6 +63,9 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	question := message.Question[0]
 	if question.Qtype != mDNS.TypeA && question.Qtype != mDNS.TypeAAAA {
 		return nil, E.New("only IP queries are supported by fakeip")
+	}
+	if question.Qtype == mDNS.TypeA && !t.inet4Enabled || question.Qtype == mDNS.TypeAAAA && !t.inet6Enabled {
+		return dns.FixedResponseStatus(message, mDNS.RcodeSuccess), nil
 	}
 	address, err := t.store.Create(dns.FqdnToDomain(question.Name), question.Qtype == mDNS.TypeAAAA)
 	if err != nil {
