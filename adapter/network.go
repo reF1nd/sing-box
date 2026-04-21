@@ -3,11 +3,12 @@ package adapter
 import (
 	"encoding/hex"
 	"net"
+	"net/netip"
 	"strings"
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 )
 
@@ -16,6 +17,8 @@ type NetworkManager interface {
 	Initialize(ruleSets []RuleSet)
 	InterfaceFinder() control.InterfaceFinder
 	UpdateInterfaces() error
+	RegisterMyInterfaceAddresses(prefixes []netip.Prefix)
+	MyInterfaceAddresses() []netip.Prefix
 	DefaultNetworkInterface() *NetworkInterface
 	NetworkInterfaces() []NetworkInterface
 	AutoDetectInterface() bool

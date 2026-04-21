@@ -365,6 +365,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return E.Cause(err, "configure tun interface")
 		}
+		t.networkManager.RegisterMyInterfaceAddresses(append(t.tunOptions.Inet4Address, t.tunOptions.Inet6Address...))
 		t.logger.Trace("creating stack")
 		t.tunIf = tunInterface
 		var (

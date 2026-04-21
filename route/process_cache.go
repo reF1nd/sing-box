@@ -88,5 +88,10 @@ func (r *Router) isLocalSource(source netip.Addr) bool {
 			}
 		}
 	}
+	for _, prefix := range r.network.MyInterfaceAddresses() {
+		if prefix.Addr().Unmap() == source {
+			return true
+		}
+	}
 	return false
 }
