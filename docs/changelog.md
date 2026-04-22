@@ -4,8 +4,12 @@ icon: material/alert-decagram
 
 #### 1.14.0-alpha.16
 
-* Add ACME profile support for IP address certificates
+* Add ACME profile support for IP address certificates **1**
 * Fixes and improvements
+
+**1**:
+
+See [ACME Certificate Provider](/configuration/shared/certificate-provider/acme/#profile).
 
 #### 1.13.10
 
