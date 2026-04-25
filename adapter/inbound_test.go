@@ -1,9 +1,12 @@
 package adapter
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"testing"
+
+	"github.com/sagernet/sing-box/common/interrupt"
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
@@ -42,4 +45,14 @@ func TestDNSResponseAddressesUnmapsHTTPSIPv4Hints(t *testing.T) {
 	addresses := DNSResponseAddresses(response)
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("1.1.1.1")}, addresses)
 	require.True(t, addresses[0].Is4())
+}
+
+func TestContextForMultiplexSessionClearsInterruptMarks(t *testing.T) {
+	t.Parallel()
+
+	ctx := interrupt.ContextWithIsExternalConnection(context.Background(), true)
+	ctx = interrupt.ContextWithIsResourceDownload(ctx, true)
+	ctx = ContextForMultiplexSession(ctx)
+	require.False(t, interrupt.IsExternalConnectionFromContext(ctx))
+	require.False(t, interrupt.IsResourceDownloadFromContext(ctx))
 }
