@@ -15,6 +15,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/hash"
+	"github.com/sagernet/sing-box/common/interrupt"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
@@ -151,6 +152,7 @@ func (s *RemoteRuleSet) Update(ctx context.Context) error {
 }
 
 func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
+	ctx = interrupt.ContextWithIsResourceDownload(ctx)
 	if s.updating.Swap(true) {
 		return E.New("rule-set is updating")
 	}
