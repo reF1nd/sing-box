@@ -46,8 +46,8 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 			tag:             tag,
 			detour:          options.Detour,
 			defaultOutbound: options.DefaultOutbound,
-			factory: func() (innerTransport, error) {
-				return newAppleTransport(ctx, logger, rawDialer, options)
+			factory: func(resourceDownload bool) (innerTransport, error) {
+				return newAppleTransport(ctx, logger, resourceDownloadDialer(rawDialer, resourceDownload), options)
 			},
 		}, nil
 	case "", C.TLSEngineGo:
@@ -78,8 +78,8 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 		tag:             tag,
 		detour:          options.Detour,
 		defaultOutbound: options.DefaultOutbound,
-		factory: func() (innerTransport, error) {
-			return newTransport(rawDialer, baseTLSConfig, options)
+		factory: func(resourceDownload bool) (innerTransport, error) {
+			return newTransport(resourceDownloadDialer(rawDialer, resourceDownload), baseTLSConfig, options)
 		},
 	}
 	managedTransport.epoch.Store(&transportEpoch{transport: inner})
