@@ -183,7 +183,6 @@ func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter
 	startContext.Register(transport)
 	s.httpClient = &http.Client{Transport: transport}
 	if !loadedFromCache && !loadedFromInitialPath {
-		ctx = interrupt.ContextWithIsProviderConnection(ctx)
 		err = s.fetch(ctx, true)
 		if err != nil {
 			return E.Cause(err, "initial outbound provider: ", s.Tag())
@@ -198,8 +197,7 @@ func (s *ProviderRemote) Update() error {
 	if s.ticker != nil {
 		s.ticker.Reset(s.updateInterval)
 	}
-	ctx := interrupt.ContextWithIsProviderConnection(s.ctx)
-	return s.fetch(ctx, false)
+	return s.fetch(s.ctx, false)
 }
 
 func (s *ProviderRemote) UpdatedAt() time.Time {
@@ -247,13 +245,13 @@ func (s *ProviderRemote) resolveTransport() (adapter.HTTPTransport, error) {
 }
 
 func (s *ProviderRemote) updateOnce() {
-	ctx := interrupt.ContextWithIsProviderConnection(s.ctx)
-	if err := s.fetch(ctx, false); err != nil {
+	if err := s.fetch(s.ctx, false); err != nil {
 		s.logger.Error("update outbound provider: ", err)
 	}
 }
 
 func (s *ProviderRemote) fetch(ctx context.Context, isStart bool) error {
+	ctx = interrupt.ContextWithIsResourceDownload(ctx)
 	if s.updating.Swap(true) {
 		return E.New("provider is updating")
 	}
