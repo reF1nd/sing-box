@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -209,7 +210,7 @@ func (s *Selector) DialContext(ctx context.Context, network string, destination 
 	if err != nil {
 		return nil, err
 	}
-	return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsProviderConnectionFromContext(ctx)), nil
+	return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsResourceDownloadFromContext(ctx)), nil
 }
 
 func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -217,13 +218,15 @@ func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	if err != nil {
 		return nil, err
 	}
-	return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsProviderConnectionFromContext(ctx)), nil
+	return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsResourceDownloadFromContext(ctx)), nil
 }
 
 func (s *Selector) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
 	selected := s.selected.Load()
 	if outboundHandler, isHandler := selected.(adapter.ConnectionHandler); isHandler {
+		// Handler delegation bypasses DialContext, so track the incoming connection instead.
+		conn = s.interruptGroup.NewConn(conn, true, interrupt.IsResourceDownloadFromContext(ctx))
 		outboundHandler.NewConnection(ctx, conn, metadata, onClose)
 	} else {
 		s.connection.NewConnection(ctx, s, conn, metadata, onClose)
@@ -234,6 +237,8 @@ func (s *Selector) NewPacketConnection(ctx context.Context, conn N.PacketConn, m
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
 	selected := s.selected.Load()
 	if outboundHandler, isHandler := selected.(adapter.PacketConnectionHandler); isHandler {
+		// Handler delegation bypasses ListenPacket, so track the incoming connection instead.
+		conn = bufio.NewPacketConn(s.interruptGroup.NewPacketConn(bufio.NewNetPacketConn(conn), true, interrupt.IsResourceDownloadFromContext(ctx)))
 		outboundHandler.NewPacketConnection(ctx, conn, metadata, onClose)
 	} else {
 		s.connection.NewPacketConnection(ctx, s, conn, metadata, onClose)
