@@ -204,6 +204,7 @@ func ContextForMultiplexSession(ctx context.Context) context.Context {
 	}
 	ctx = ContextWithDNSTransportTag(ctx, "")
 	ctx = interrupt.ContextWithIsExternalConnection(ctx, false)
+	ctx = interrupt.ContextWithIsResourceDownload(ctx, false)
 	return WithContext(ctx, &sessionContext)
 }
 
