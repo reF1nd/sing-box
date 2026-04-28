@@ -247,7 +247,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		HTTPClient: controlHTTPClient,
 	}
 	return &Endpoint{
-		Adapter:                    endpoint.NewAdapter(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
+		Adapter:                    endpoint.NewAdapterWithDialerOptions(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, controlHTTPClientOptions.DialerOptions),
 		ctx:                        ctx,
 		router:                     router,
 		logger:                     logger,
