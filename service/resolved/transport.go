@@ -32,7 +32,10 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 	dns.RegisterTransport[option.ResolvedDNSServerOptions](registry, C.TypeResolved, NewTransport)
 }
 
-var _ adapter.DNSTransport = (*Transport)(nil)
+var (
+	_ adapter.DNSTransport                    = (*Transport)(nil)
+	_ adapter.DNSTransportWithPreferredDomain = (*Transport)(nil)
+)
 
 type Transport struct {
 	dns.TransportAdapter
@@ -189,6 +192,22 @@ func (t *Transport) deleteTransport(link *TransportLink) {
 		server.Close()
 	}
 	delete(t.linkServers, link)
+}
+
+func (t *Transport) PreferredDomain(domain string) bool {
+	t.service.linkAccess.RLock()
+	defer t.service.linkAccess.RUnlock()
+	for _, link := range t.service.links {
+		for _, linkDomain := range link.domain {
+			if linkDomain.Domain == "." {
+				continue
+			}
+			if strings.HasSuffix(domain, linkDomain.Domain) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
