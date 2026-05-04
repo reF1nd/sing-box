@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
+	"net"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -13,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -71,6 +74,7 @@ func (t *TCPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		return nil, E.Cause(err, "dial TCP connection")
 	}
 	defer conn.Close()
+	defer setConnDeadline(ctx, conn, deadline.NeedAdditionalReadDeadline(conn))()
 	err = WriteMessage(conn, 0, message)
 	if err != nil {
 		return nil, E.Cause(err, "write request")
@@ -80,6 +84,20 @@ func (t *TCPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		return nil, E.Cause(err, "read response")
 	}
 	return response, nil
+}
+
+func setConnDeadline(ctx context.Context, conn net.Conn, needClose bool) func() {
+	if needClose {
+		stop := context.AfterFunc(ctx, func() {
+			conn.Close()
+		})
+		return func() { stop() }
+	}
+	if d, ok := ctx.Deadline(); ok {
+		conn.SetDeadline(d)
+		return func() { conn.SetDeadline(time.Time{}) }
+	}
+	return func() {}
 }
 
 func ReadMessage(reader io.Reader) (*mDNS.Msg, error) {

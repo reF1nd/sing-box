@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -130,6 +131,7 @@ func (t *UDPTransport) exchangeTCP(ctx context.Context, message *mDNS.Msg) (*mDN
 		return nil, E.Cause(err, "dial TCP connection")
 	}
 	defer conn.Close()
+	defer setConnDeadline(ctx, conn, deadline.NeedAdditionalReadDeadline(conn))()
 	err = WriteMessage(conn, message.Id, message)
 	if err != nil {
 		return nil, E.Cause(err, "write request")
