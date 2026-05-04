@@ -2,7 +2,6 @@ package transport
 
 import (
 	"context"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -12,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -38,7 +38,8 @@ type TLSTransport struct {
 
 type tlsDNSConn struct {
 	tls.Conn
-	queryId uint16
+	queryId           uint16
+	needDeadlineClose bool
 }
 
 func NewTLS(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteTLSDNSServerOptions) (adapter.DNSTransport, error) {
@@ -104,7 +105,10 @@ func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 			if err != nil {
 				return nil, E.Cause(err, "dial TLS connection")
 			}
-			return &tlsDNSConn{Conn: tlsConn}, nil
+			return &tlsDNSConn{
+				Conn:              tlsConn,
+				needDeadlineClose: deadline.NeedAdditionalReadDeadline(tlsConn.NetConn()),
+			}, nil
 		})
 		if err != nil {
 			return nil, err
@@ -125,9 +129,7 @@ func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 }
 
 func (t *TLSTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *tlsDNSConn) (*mDNS.Msg, error) {
-	if deadline, ok := ctx.Deadline(); ok {
-		conn.SetDeadline(deadline)
-	}
+	defer setConnDeadline(ctx, conn, conn.needDeadlineClose)()
 	conn.queryId++
 	err := WriteMessage(conn, conn.queryId, message)
 	if err != nil {
@@ -137,6 +139,5 @@ func (t *TLSTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *tl
 	if err != nil {
 		return nil, E.Cause(err, "read response")
 	}
-	conn.SetDeadline(time.Time{})
 	return response, nil
 }
