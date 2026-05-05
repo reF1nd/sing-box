@@ -55,6 +55,8 @@ hosts 文件路径列表。
 
 预定义的 hosts。
 
+每条记录将一个域名映射到一个或多个 IP 地址，或另一个域名（别名）。
+
 示例：
 
 ```json
@@ -64,7 +66,8 @@ hosts 文件路径列表。
     "localhost": [
       "127.0.0.1",
       "::1"
-    ]
+    ],
+    "alias.example.com": "www.real-target.com"
   }
 }
 ```

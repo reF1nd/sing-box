@@ -754,6 +754,31 @@ func MessageToAddresses(response *dns.Msg) []netip.Addr {
 	return adapter.DNSResponseAddresses(response)
 }
 
+type aliasChainContextKey struct{}
+
+func ContextWithAliasResolution(ctx context.Context, source, target string) (context.Context, bool) {
+	source = dns.CanonicalName(source)
+	target = dns.CanonicalName(target)
+	if source == target {
+		return ctx, true
+	}
+	var chain map[string]struct{}
+	if existing, ok := ctx.Value(aliasChainContextKey{}).(map[string]struct{}); ok {
+		if _, found := existing[target]; found {
+			return ctx, true
+		}
+		chain = make(map[string]struct{}, len(existing)+2)
+		for k := range existing {
+			chain[k] = struct{}{}
+		}
+	} else {
+		chain = make(map[string]struct{}, 2)
+	}
+	chain[source] = struct{}{}
+	chain[target] = struct{}{}
+	return context.WithValue(ctx, aliasChainContextKey{}, chain), false
+}
+
 func FixedResponseStatus(message *dns.Msg, rcode int) *dns.Msg {
 	return &dns.Msg{
 		MsgHdr: dns.MsgHdr{
