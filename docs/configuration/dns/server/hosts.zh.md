@@ -2,11 +2,11 @@
 icon: material/new-box
 ---
 
-!!! question "Since sing-box 1.12.0"
+!!! question "自 sing-box 1.12.0 起"
 
 # Hosts
 
-### Structure
+### 结构
 
 ```json
 {
@@ -26,24 +26,24 @@ icon: material/new-box
 
 !!! note ""
 
-    You can ignore the JSON Array [] tag when the content is only one item
+    当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
-### Fields
+### 字段
 
 #### path
 
-List of paths to hosts files.
+hosts 文件路径列表。
 
-`/etc/hosts` is used by default.
+默认使用 `/etc/hosts`。
 
-`C:\Windows\System32\Drivers\etc\hosts` is used by default on Windows.
+在 Windows 上默认使用 `C:\Windows\System32\Drivers\etc\hosts`。
 
-Example:
+示例：
 
 ```json
 {
   // "path": "/etc/hosts"
-  
+
   "path": [
     "/etc/hosts",
     "$HOME/.hosts"
@@ -53,11 +53,11 @@ Example:
 
 #### predefined
 
-Predefined hosts.
+预定义的 hosts。
 
-Each entry maps a domain name to either one or more IP addresses, or another domain name (alias).
+每条记录将一个域名映射到一个或多个 IP 地址，或另一个域名（别名）。
 
-Example:
+示例：
 
 ```json
 {
@@ -72,9 +72,9 @@ Example:
 }
 ```
 
-### Examples
+### 示例
 
-=== "Use hosts if available"
+=== "如果可用则使用 hosts"
 
     ```json
     {
