@@ -178,8 +178,8 @@ func TestOpenConnectDockerInterop(t *testing.T) {
 }
 
 func openConnectInstanceOptions(server string, certificateAuthorityPath string, username string, password string) option.Options {
-	hosts := new(badjson.TypedMap[string, badoption.Listable[netip.Addr]])
-	hosts.Put("localhost", []netip.Addr{netip.MustParseAddr("127.0.0.1")})
+	hosts := new(badjson.TypedMap[string, option.HostsDNSPredefinedValue])
+	hosts.Put("localhost", option.HostsDNSPredefinedValue{Addresses: []netip.Addr{netip.MustParseAddr("127.0.0.1")}})
 	endpointOptions := option.OpenConnectEndpointOptions{
 		Server:       server,
 		Flavor:       "anyconnect",
