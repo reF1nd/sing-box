@@ -209,6 +209,78 @@ func (r *Router) matchDNS(ctx context.Context, allowFakeIP bool, ruleIndex int, 
 	return transport, nil, -1
 }
 
+func (r *Router) exchangeLoop(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) (*mDNS.Msg, adapter.DNSTransport, error) {
+	metadata := adapter.ContextFrom(ctx)
+	var (
+		response  *mDNS.Msg
+		transport adapter.DNSTransport
+		err       error
+		rule      adapter.DNSRule
+		ruleIndex = -1
+	)
+	for {
+		dnsCtx := adapter.OverrideContext(ctx)
+		dnsOptions := options
+		transport, rule, ruleIndex = r.matchDNS(ctx, allowFakeIP, ruleIndex, isAddressQuery(message), &dnsOptions)
+		if rule != nil {
+			switch action := rule.Action().(type) {
+			case *R.RuleActionReject:
+				switch action.Method {
+				case C.RuleActionRejectMethodDefault:
+					var rcode int
+					if action.Rcode == -1 {
+						if r.defaultRejectRcode == -1 {
+							rcode = mDNS.RcodeRefused
+						} else {
+							rcode = r.defaultRejectRcode
+						}
+					} else {
+						rcode = action.Rcode
+					}
+					return &mDNS.Msg{
+						MsgHdr: mDNS.MsgHdr{
+							Id:       message.Id,
+							Rcode:    rcode,
+							Response: true,
+						},
+						Question: []mDNS.Question{message.Question[0]},
+					}, nil, nil
+				case C.RuleActionRejectMethodDrop:
+					return nil, nil, tun.ErrDrop
+				}
+			case *R.RuleActionPredefined:
+				resp := action.Response(message)
+				resp = r.followPredefinedCNAME(ctx, message, resp, dnsOptions)
+				return resp, nil, nil
+			}
+		}
+		responseCheck := addressLimitResponseCheck(rule, metadata)
+		if dnsOptions.Strategy == C.DomainStrategyAsIS {
+			dnsOptions.Strategy = r.defaultDomainStrategy
+		}
+		response, err = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
+		var rejected bool
+		if err != nil {
+			if errors.Is(err, ErrResponseRejectedCached) {
+				rejected = true
+				r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())), " (cached)")
+			} else if errors.Is(err, ErrResponseRejected) {
+				rejected = true
+				r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())))
+			} else if len(message.Question) > 0 {
+				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
+			} else {
+				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
+			}
+		}
+		if responseCheck != nil && rejected {
+			continue
+		}
+		break
+	}
+	return response, transport, err
+}
+
 func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, error) {
 	if len(message.Question) != 1 {
 		r.logger.WarnContext(ctx, "bad question size: ", len(message.Question))
@@ -254,69 +326,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		}
 		response, err = r.client.Exchange(ctx, transport, message, options, nil)
 	} else {
-		var (
-			rule      adapter.DNSRule
-			ruleIndex int
-		)
-		ruleIndex = -1
-		for {
-			dnsCtx := adapter.OverrideContext(ctx)
-			dnsOptions := options
-			transport, rule, ruleIndex = r.matchDNS(ctx, true, ruleIndex, isAddressQuery(message), &dnsOptions)
-			if rule != nil {
-				switch action := rule.Action().(type) {
-				case *R.RuleActionReject:
-					switch action.Method {
-					case C.RuleActionRejectMethodDefault:
-						var rcode int
-						if action.Rcode == -1 {
-							if r.defaultRejectRcode == -1 {
-								rcode = mDNS.RcodeRefused
-							} else {
-								rcode = r.defaultRejectRcode
-							}
-						} else {
-							rcode = action.Rcode
-						}
-						return &mDNS.Msg{
-							MsgHdr: mDNS.MsgHdr{
-								Id:       message.Id,
-								Rcode:    rcode,
-								Response: true,
-							},
-							Question: []mDNS.Question{message.Question[0]},
-						}, nil
-					case C.RuleActionRejectMethodDrop:
-						return nil, tun.ErrDrop
-					}
-				case *R.RuleActionPredefined:
-					return action.Response(message), nil
-				}
-			}
-			responseCheck := addressLimitResponseCheck(rule, metadata)
-			if dnsOptions.Strategy == C.DomainStrategyAsIS {
-				dnsOptions.Strategy = r.defaultDomainStrategy
-			}
-			response, err = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
-			var rejected bool
-			if err != nil {
-				if errors.Is(err, ErrResponseRejectedCached) {
-					rejected = true
-					r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())), " (cached)")
-				} else if errors.Is(err, ErrResponseRejected) {
-					rejected = true
-					r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())))
-				} else if len(message.Question) > 0 {
-					r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
-				} else {
-					r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
-				}
-			}
-			if responseCheck != nil && rejected {
-				continue
-			}
-			break
-		}
+		response, transport, err = r.exchangeLoop(ctx, message, options, true)
 	}
 	if err != nil {
 		return nil, err
@@ -397,12 +407,27 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 						err = RcodeError(action.Rcode)
 					} else {
 						err = nil
-						for _, answer := range action.Answer {
+						fakeMsg := &mDNS.Msg{
+							Question: []mDNS.Question{{Name: mDNS.Fqdn(domain), Qtype: mDNS.TypeNone, Qclass: mDNS.ClassINET}},
+						}
+						predefinedResp := action.Response(fakeMsg)
+						for _, answer := range predefinedResp.Answer {
 							switch record := answer.(type) {
 							case *mDNS.A:
 								responseAddrs = append(responseAddrs, M.AddrFromIP(record.A))
 							case *mDNS.AAAA:
 								responseAddrs = append(responseAddrs, M.AddrFromIP(record.AAAA))
+							}
+						}
+						if len(responseAddrs) == 0 {
+							if cnameTarget := findLastCNAMETarget(mDNS.Fqdn(domain), predefinedResp.Answer); cnameTarget != "" {
+								cnameOptions := options
+								aliasCtx, loopDetected := ContextWithAliasResolution(adapter.OverrideContext(ctx), mDNS.Fqdn(domain), cnameTarget)
+								if loopDetected {
+									r.logger.WarnContext(ctx, "predefined CNAME alias loop detected: ", domain, " -> ", FqdnToDomain(cnameTarget))
+								} else {
+									responseAddrs, err = r.Lookup(aliasCtx, FqdnToDomain(cnameTarget), cnameOptions)
+								}
 							}
 						}
 					}
@@ -451,6 +476,89 @@ func addressLimitResponseCheck(rule adapter.DNSRule, metadata *adapter.InboundCo
 
 func (r *Router) Rules() []adapter.DNSRule {
 	return r.rules
+}
+
+func findLastCNAMETarget(name string, records []mDNS.RR) string {
+	current := name
+	visited := map[string]struct{}{current: {}}
+	for {
+		found := false
+		for _, rr := range records {
+			if cname, ok := rr.(*mDNS.CNAME); ok && cname.Hdr.Name == current {
+				if _, seen := visited[cname.Target]; seen {
+					return ""
+				}
+				current = cname.Target
+				visited[current] = struct{}{}
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+	}
+	if current == name {
+		return ""
+	}
+	for _, rr := range records {
+		switch rec := rr.(type) {
+		case *mDNS.A:
+			if rec.Hdr.Name == current {
+				return ""
+			}
+		case *mDNS.AAAA:
+			if rec.Hdr.Name == current {
+				return ""
+			}
+		}
+	}
+	return current
+}
+
+func (r *Router) followPredefinedCNAME(ctx context.Context, message *mDNS.Msg, response *mDNS.Msg, options adapter.DNSQueryOptions) *mDNS.Msg {
+	if len(message.Question) == 0 || response == nil {
+		return response
+	}
+	qtype := message.Question[0].Qtype
+	if qtype != mDNS.TypeA && qtype != mDNS.TypeAAAA {
+		return response
+	}
+	cnameTarget := findLastCNAMETarget(message.Question[0].Name, response.Answer)
+	if cnameTarget == "" {
+		return response
+	}
+	overCtx := adapter.OverrideContext(ctx)
+	aliasCtx, loopDetected := ContextWithAliasResolution(overCtx, message.Question[0].Name, cnameTarget)
+	if loopDetected {
+		r.logger.WarnContext(ctx, "predefined CNAME alias loop detected: ", FqdnToDomain(message.Question[0].Name), " -> ", FqdnToDomain(cnameTarget))
+		return response
+	}
+	followMsg := &mDNS.Msg{
+		MsgHdr:   mDNS.MsgHdr{RecursionDesired: true},
+		Question: []mDNS.Question{{Name: cnameTarget, Qtype: qtype, Qclass: mDNS.ClassINET}},
+	}
+	followCtx, followMeta := adapter.ExtendContext(aliasCtx)
+	followMeta.QueryType = qtype
+	followMeta.Domain = FqdnToDomain(cnameTarget)
+	followMeta.Destination = M.Socksaddr{}
+	switch qtype {
+	case mDNS.TypeA:
+		followMeta.IPVersion = 4
+	case mDNS.TypeAAAA:
+		followMeta.IPVersion = 6
+	}
+	followResp, _, _ := r.exchangeLoop(followCtx, followMsg, options, false)
+	if followResp == nil || followResp.Rcode != mDNS.RcodeSuccess || len(followResp.Answer) == 0 {
+		return response
+	}
+	merged := response.Copy()
+	for _, rr := range followResp.Answer {
+		if rr.Header().Rrtype == qtype || rr.Header().Rrtype == mDNS.TypeCNAME {
+			merged.Answer = append(merged.Answer, rr)
+		}
+	}
+	return merged
 }
 
 func (r *Router) ClearCache() {
