@@ -2288,7 +2288,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/IPAddress"
+                    "type": "string"
                   },
                   {
                     "type": "array",
