@@ -768,8 +768,10 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 			if len(state.armedRules) > 0 {
 				return exchangeWithRulesResult{}, &dnsWalkSuspension{drain: true}
 			}
+			resp := action.Response(message)
+			resp = r.followPredefinedCNAME(ctx, message, resp, state.effectiveOptions)
 			return exchangeWithRulesResult{
-				response: action.Response(message),
+				response: resp,
 			}, nil
 		}
 	}
@@ -903,8 +905,10 @@ func (r *Router) sweepArmedDNSRules(ctx context.Context, message *mDNS.Msg, stat
 				}, nil, true
 			}
 		case *R.RuleActionPredefined:
+			response := action.Response(message)
+			response = r.followPredefinedCNAME(ctx, message, response, armed.options)
 			return exchangeWithRulesResult{
-				response: action.Response(message),
+				response: response,
 			}, nil, true
 		}
 	}
@@ -1154,7 +1158,8 @@ func (r *Router) exchangeLegacy(ctx context.Context, exchangeCtx *dnsExchangeCon
 					return nil, nil, R.ErrDrop
 				}
 			case *R.RuleActionPredefined:
-				return action.Response(message), nil, nil
+				response := action.Response(message)
+				return r.followPredefinedCNAME(ctx, message, response, dnsOptions), nil, nil
 			}
 		}
 		responseCheck := addressLimitResponseCheck(rule, exchangeCtx.metadata)
@@ -1309,12 +1314,28 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 						err = RcodeError(action.Rcode)
 					} else {
 						err = nil
-						for _, answer := range action.Answer {
+						fakeMsg := &mDNS.Msg{
+							Question: []mDNS.Question{{Name: mDNS.Fqdn(domain), Qtype: mDNS.TypeA, Qclass: mDNS.ClassINET}},
+						}
+						predefinedResp := action.Response(fakeMsg)
+						for _, answer := range predefinedResp.Answer {
 							switch record := answer.(type) {
 							case *mDNS.A:
 								responseAddrs = append(responseAddrs, M.AddrFromIP(record.A))
 							case *mDNS.AAAA:
 								responseAddrs = append(responseAddrs, M.AddrFromIP(record.AAAA))
+							}
+						}
+						if len(responseAddrs) == 0 {
+							if cnameTarget := findLastCNAMETarget(mDNS.Fqdn(domain), predefinedResp.Answer, 0); cnameTarget != "" {
+								cnameOptions := options
+								cnameOptions.DisableOptimisticCache = true
+								aliasCtx, loopDetected := ContextWithAliasResolution(adapter.OverrideContext(ctx), mDNS.Fqdn(domain), cnameTarget)
+								if loopDetected {
+									r.logger.WarnContext(ctx, "predefined CNAME alias loop detected: ", domain, " -> ", FqdnToDomain(cnameTarget))
+								} else {
+									responseAddrs, err = r.Lookup(aliasCtx, FqdnToDomain(cnameTarget), cnameOptions)
+								}
 							}
 						}
 					}
@@ -1362,6 +1383,117 @@ func addressLimitResponseCheck(rule adapter.DNSRule, metadata *adapter.InboundCo
 
 func (r *Router) Rules() []adapter.DNSRule {
 	return r.rules
+}
+
+func findLastCNAMETarget(name string, records []mDNS.RR, qType uint16) string {
+	current := mDNS.CanonicalName(name)
+	visited := map[string]struct{}{current: {}}
+	for {
+		found := false
+		for _, rr := range records {
+			if cname, ok := rr.(*mDNS.CNAME); ok && mDNS.CanonicalName(cname.Hdr.Name) == current {
+				target := mDNS.CanonicalName(cname.Target)
+				if _, seen := visited[target]; seen {
+					return ""
+				}
+				current = target
+				visited[current] = struct{}{}
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+	}
+	if current == mDNS.CanonicalName(name) {
+		return ""
+	}
+	for _, rr := range records {
+		if mDNS.CanonicalName(rr.Header().Name) != current {
+			continue
+		}
+		switch rr.(type) {
+		case *mDNS.A:
+			if qType == 0 || qType == mDNS.TypeA {
+				return ""
+			}
+		case *mDNS.AAAA:
+			if qType == 0 || qType == mDNS.TypeAAAA {
+				return ""
+			}
+		}
+	}
+	return current
+}
+
+func (r *Router) followPredefinedCNAME(ctx context.Context, message *mDNS.Msg, response *mDNS.Msg, options adapter.DNSQueryOptions) *mDNS.Msg {
+	if len(message.Question) == 0 || response == nil {
+		return response
+	}
+	qtype := message.Question[0].Qtype
+	if qtype != mDNS.TypeA && qtype != mDNS.TypeAAAA {
+		return response
+	}
+	cnameTarget := findLastCNAMETarget(message.Question[0].Name, response.Answer, qtype)
+	if cnameTarget == "" {
+		return response
+	}
+	r.rulesAccess.RLock()
+	if r.closing {
+		r.rulesAccess.RUnlock()
+		return response
+	}
+	rules := r.rules
+	legacyDNSMode := r.legacyDNSMode
+	r.rulesAccess.RUnlock()
+	followMsg := &mDNS.Msg{
+		MsgHdr: mDNS.MsgHdr{RecursionDesired: true},
+		Question: []mDNS.Question{{
+			Name:   cnameTarget,
+			Qtype:  qtype,
+			Qclass: mDNS.ClassINET,
+		}},
+	}
+	followOptions := options
+	followOptions.DisableOptimisticCache = true
+	overCtx := adapter.OverrideContext(ctx)
+	aliasCtx, loopDetected := ContextWithAliasResolution(overCtx, message.Question[0].Name, cnameTarget)
+	if loopDetected {
+		r.logger.WarnContext(ctx, "predefined CNAME alias loop detected: ", FqdnToDomain(message.Question[0].Name), " -> ", FqdnToDomain(cnameTarget))
+		return response
+	}
+	followCtx := withLookupQueryMetadata(aliasCtx, qtype)
+	adapter.ContextFrom(followCtx).Domain = FqdnToDomain(cnameTarget)
+	var (
+		followResponse *mDNS.Msg
+		followErr      error
+	)
+	if legacyDNSMode {
+		followExchangeCtx := &dnsExchangeContext{
+			ctx:           followCtx,
+			rules:         rules,
+			legacyDNSMode: true,
+			metadata:      adapter.ContextFrom(followCtx),
+		}
+		followResponse, _, followErr = r.exchangeLegacy(followCtx, followExchangeCtx, followMsg, followOptions)
+	} else {
+		followResult := r.exchangeWithRules(followCtx, rules, followMsg, followOptions, false)
+		followResponse, followErr = followResult.response, followResult.err
+	}
+	if followErr != nil || followResponse == nil {
+		return response
+	}
+	if followResponse.Rcode != mDNS.RcodeSuccess || len(followResponse.Answer) == 0 {
+		return response
+	}
+	merged := response.Copy()
+	for _, rr := range followResponse.Answer {
+		if rr.Header().Rrtype == qtype || rr.Header().Rrtype == mDNS.TypeCNAME {
+			merged.Answer = append(merged.Answer, rr)
+		}
+	}
+	return merged
 }
 
 func (r *Router) ClearCache() {
