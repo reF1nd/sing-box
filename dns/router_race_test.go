@@ -610,3 +610,71 @@ func TestDNSLogicalRace(t *testing.T) {
 	require.Equal(t, netip.MustParseAddr("192.0.2.3"), responseAddress(t, result.response))
 	require.GreaterOrEqual(t, time.Since(startTime), 240*time.Millisecond)
 }
+
+func TestDNSRacePredefinedFollowsCNAME(t *testing.T) {
+	t.Parallel()
+
+	const target = "target.example.org."
+	transportX := &fakeDNSTransport{
+		tag:     "x",
+		delay:   20 * time.Millisecond,
+		rcode:   mDNS.RcodeSuccess,
+		address: netip.MustParseAddr("192.0.2.1"),
+	}
+	transportFinal := &fakeDNSTransport{
+		tag:     "final",
+		rcode:   mDNS.RcodeSuccess,
+		address: netip.MustParseAddr("192.0.2.9"),
+	}
+	router := raceTestRouter(t, transportX, transportFinal)
+	predefinedRule := option.DNSRule{
+		Type: "",
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				Domain:        []string{"race.example.org"},
+				MatchResponse: &option.DNSRuleMatchResponse{Enabled: true, Tag: "x"},
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action: C.RuleActionTypePredefined,
+				Race:   true,
+				PredefinedOptions: option.DNSRouteActionPredefined{
+					Answer: []option.DNSRecordOptions{{
+						RR: &mDNS.CNAME{
+							Hdr: mDNS.RR_Header{
+								Name:   "race.example.org.",
+								Rrtype: mDNS.TypeCNAME,
+								Class:  mDNS.ClassINET,
+								Ttl:    300,
+							},
+							Target: target,
+						},
+					}},
+				},
+			},
+		},
+	}
+	evaluateSourceRule := evaluateRule("x", "x", false)
+	evaluateSourceRule.DefaultOptions.Domain = []string{"race.example.org"}
+	rules := raceTestRules(t, []option.DNSRule{
+		evaluateSourceRule,
+		predefinedRule,
+		routeRule("final", false),
+	})
+	router.rules = rules
+
+	result := raceTestExchange(router, rules)
+
+	require.NoError(t, result.err)
+	require.NotNil(t, result.response)
+	require.Len(t, result.response.Answer, 2)
+	cname, isCNAME := result.response.Answer[0].(*mDNS.CNAME)
+	require.True(t, isCNAME)
+	require.Equal(t, target, cname.Target)
+	address, isA := result.response.Answer[1].(*mDNS.A)
+	require.True(t, isA)
+	actualAddress, addressLoaded := netip.AddrFromSlice(address.A)
+	require.True(t, addressLoaded)
+	require.Equal(t, netip.MustParseAddr("192.0.2.9"), actualAddress.Unmap())
+	require.Equal(t, int32(1), transportX.queryCount.Load())
+	require.Equal(t, int32(1), transportFinal.queryCount.Load())
+}
