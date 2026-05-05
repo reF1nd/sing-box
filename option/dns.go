@@ -177,9 +177,55 @@ func (o *DNSServerAddressOptions) ReplaceServerOptions(options ServerOptions) {
 	*o = DNSServerAddressOptions(options)
 }
 
+type HostsDNSPredefinedValue struct {
+	Addresses []netip.Addr
+	Domain    string
+}
+
+func (v HostsDNSPredefinedValue) MarshalJSON() ([]byte, error) {
+	if v.Domain != "" {
+		return json.Marshal(v.Domain)
+	}
+	switch len(v.Addresses) {
+	case 0:
+		return json.Marshal(nil)
+	case 1:
+		return json.Marshal(v.Addresses[0])
+	default:
+		return json.Marshal(v.Addresses)
+	}
+}
+
+func (v *HostsDNSPredefinedValue) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		addr, parseErr := netip.ParseAddr(s)
+		if parseErr == nil {
+			*v = HostsDNSPredefinedValue{Addresses: []netip.Addr{addr}}
+		} else {
+			*v = HostsDNSPredefinedValue{Domain: s}
+		}
+		return nil
+	}
+	var addrs []netip.Addr
+	if err := json.Unmarshal(data, &addrs); err == nil {
+		*v = HostsDNSPredefinedValue{Addresses: addrs}
+		return nil
+	}
+	return E.New("invalid predefined value: expected IP address(es) or domain name")
+}
+
+func (v HostsDNSPredefinedValue) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	addresses, err := builder.Describe(reflect.TypeFor[[]netip.Addr]())
+	if err != nil {
+		return nil, err
+	}
+	return schema.AnyOf(schema.StringNode(), addresses), nil
+}
+
 type HostsDNSServerOptions struct {
-	Path       badoption.Listable[string]                                `json:"path,omitempty"`
-	Predefined *badjson.TypedMap[string, badoption.Listable[netip.Addr]] `json:"predefined,omitempty"`
+	Path       badoption.Listable[string]                         `json:"path,omitempty"`
+	Predefined *badjson.TypedMap[string, HostsDNSPredefinedValue] `json:"predefined,omitempty"`
 }
 
 type RawLocalDNSServerOptions struct {
