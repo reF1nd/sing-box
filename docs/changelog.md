@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.22
+
+* Fixes and improvements
+
 #### 1.14.0-alpha.21
 
 * Allow customizing TUN DNS mode and hijack interface DNS by default **1**
@@ -10,7 +14,7 @@ icon: material/alert-decagram
 * Add neighbor-based hostname resolution for the local DNS server **4**
 * Update NaiveProxy to 148.0.7778.96-1
 * Add more TLS spoof methods and route rule action support **5**
-** Fixes and improvements
+* Fixes and improvements
 
 **1**:
 
