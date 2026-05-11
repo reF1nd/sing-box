@@ -4,7 +4,21 @@ icon: material/alert-decagram
 
 #### 1.14.0-alpha.22
 
+* Add Hysteria Realm service and Hysteria2 NAT traversal support **1**
 * Fixes and improvements
+
+**1**:
+
+The new [Hysteria Realm service](/configuration/service/hysteria-realm/)
+is a rendezvous service for Hysteria2 NAT traversal. A Hysteria2 server
+behind NAT registers its STUN-discovered public addresses on a stable
+realm endpoint via the new
+[`realm`](/configuration/inbound/hysteria2/#realm) inbound field;
+clients query the realm via the new
+[`realm`](/configuration/outbound/hysteria2/#realm) outbound field to
+learn the server's current addresses and perform UDP hole-punching to
+establish a direct QUIC connection. Once hole-punching succeeds, all
+proxy traffic flows directly between client and server.
 
 #### 1.14.0-alpha.21
 
