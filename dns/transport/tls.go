@@ -22,6 +22,8 @@ import (
 
 var _ adapter.DNSTransport = (*TLSTransport)(nil)
 
+const tlsDNSMaxInflight = 8
+
 func RegisterTLS(registry *dns.TransportRegistry) {
 	dns.RegisterTransport[option.RemoteTLSDNSServerOptions](registry, C.DNSTypeTLS, NewTLS)
 }
@@ -71,7 +73,8 @@ func NewTLSRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 		serverAddr:       serverAddr,
 		tlsConfig:        tlsConfig,
 		connections: NewConnPool(ConnPoolOptions[*tlsDNSConn]{
-			Mode: ConnPoolOrdered,
+			Mode:        ConnPoolOrdered,
+			MaxInflight: tlsDNSMaxInflight,
 			IsAlive: func(conn *tlsDNSConn) bool {
 				return conn != nil
 			},
