@@ -248,8 +248,8 @@ github.com/sagernet/sing-cloudflared v0.1.0 h1:to+2fcCx8zu4X/DirRw9Ihc+FrEZ7oEyI
 github.com/sagernet/sing-cloudflared v0.1.0/go.mod h1:bH2NKX+NpDTY1Zkxfboxw6MXB/ZywaNLmrDJYgKMJ2Y=
 github.com/sagernet/sing-mux v0.3.4 h1:ZQplKl8MNXutjzbMVtWvWG31fohhgOfCuUZR4dVQ8+s=
 github.com/sagernet/sing-mux v0.3.4/go.mod h1:QvlKMyNBNrQoyX4x+gq028uPbLM2XeRpWtDsWBJbFSk=
-github.com/sagernet/sing-quic v0.6.2-0.20260510042401-4055a2bb2381 h1:bwja5I7Sgr4Z1nyCLlN6T5eBhhSE/ilYZmkEFIoPAhQ=
-github.com/sagernet/sing-quic v0.6.2-0.20260510042401-4055a2bb2381/go.mod h1:+oqD54aHel4ALKkp1hVXWCgLU/EjLojvm6AUzDfvj0I=
+github.com/sagernet/sing-quic v0.6.2-0.20260511084842-9deddf006024 h1:P1iab6udg2I2igIrn+mNKpPZNcuejSqno3jwJ/94upw=
+github.com/sagernet/sing-quic v0.6.2-0.20260511084842-9deddf006024/go.mod h1:+oqD54aHel4ALKkp1hVXWCgLU/EjLojvm6AUzDfvj0I=
 github.com/sagernet/sing-shadowsocks v0.2.8 h1:PURj5PRoAkqeHh2ZW205RWzN9E9RtKCVCzByXruQWfE=
 github.com/sagernet/sing-shadowsocks v0.2.8/go.mod h1:lo7TWEMDcN5/h5B8S0ew+r78ZODn6SwVaFhvB6H+PTI=
 github.com/sagernet/sing-shadowsocks2 v0.2.1 h1:dWV9OXCeFPuYGHb6IRqlSptVnSzOelnqqs2gQ2/Qioo=
