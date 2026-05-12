@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.23
+
+* Fixes and improvements
+
 #### 1.14.0-alpha.22
 
 * Add Hysteria Realm service and Hysteria2 NAT traversal support **1**
