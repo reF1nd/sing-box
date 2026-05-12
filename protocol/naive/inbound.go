@@ -140,7 +140,7 @@ func (n *Inbound) Start(stage adapter.StartStage) error {
 
 func (n *Inbound) Close() error {
 	return common.Close(
-		&n.listener,
+		n.listener,
 		common.PtrOrNil(n.httpServer),
 		n.h3Server,
 		n.tlsConfig,
