@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.25"
+  go: "1.24"
   build-tags:
     - with_gvisor
     - with_quic
@@ -17,30 +17,29 @@ run:
 linters:
   default: none
   enable:
-    - govet
     - ineffassign
     - paralleltest
     - staticcheck
+    - unused
+    - modernize
   settings:
+    modernize:
+      disable:
+        - omitzero # nested struct omitempty -> omitzero changes JSON output semantics
     staticcheck:
       checks:
         - all
-        - -S1000
-        - -S1008
-        - -S1017
-        - -ST1003
-        - -QF1001
-        - -QF1003
-        - -QF1008
+        - -QF1008 # could remove embedded field "<interface>" from selector
+        - -ST1003 # should not use ALL_CAPS in Go names; use CamelCase instead
+        - -QF1001 # could apply De Morgan's law
   exclusions:
     generated: lax
     presets:
       - comments
       - common-false-positives
-      - legacy
-      - std-error-handling
     paths:
       - transport/simple-obfs
+      - \.pb\.go$
       - third_party$
       - builtin$
       - examples$
@@ -55,10 +54,3 @@ formatters:
         - prefix(github.com/sagernet/)
         - default
       custom-order: true
-  exclusions:
-    generated: lax
-    paths:
-      - transport/simple-obfs
-      - third_party$
-      - builtin$
-      - examples$

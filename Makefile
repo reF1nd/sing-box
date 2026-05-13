@@ -36,16 +36,10 @@ install:
 	go build -o $(PREFIX)/bin/$(NAME) $(MAIN_PARAMS) $(MAIN)
 
 fmt:
-	@gofumpt -l -w .
-	@gofmt -s -w .
-	@gci write --custom-order -s standard -s "prefix(github.com/sagernet/)" -s "default" .
+	@golangci-lint fmt
 
 fmt_docs:
 	go run ./cmd/internal/format_docs
-
-fmt_install:
-	go install -v mvdan.cc/gofumpt@latest
-	go install -v github.com/daixiang0/gci@latest
 
 lint:
 	GOOS=linux golangci-lint run ./...
