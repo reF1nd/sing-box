@@ -11,7 +11,7 @@ const utunControlName = "com.apple.net.utun_control"
 func GetTunnelFileDescriptor() int32 {
 	ctlInfo := &unix.CtlInfo{}
 	copy(ctlInfo.Name[:], utunControlName)
-	for fd := 0; fd < 1024; fd++ {
+	for fd := range 1024 {
 		addr, err := unix.Getpeername(fd)
 		if err != nil {
 			continue

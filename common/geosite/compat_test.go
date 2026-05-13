@@ -19,11 +19,6 @@ func oldWriteString(writer varbin.Writer, value string) error {
 	return varbin.Write(writer, binary.BigEndian, value)
 }
 
-func oldWriteItem(writer varbin.Writer, item Item) error {
-	//nolint:staticcheck
-	return varbin.Write(writer, binary.BigEndian, item)
-}
-
 func oldReadString(reader varbin.Reader) (string, error) {
 	//nolint:staticcheck
 	return varbin.ReadValue[string](reader, binary.BigEndian)
@@ -224,7 +219,7 @@ func TestGeositeWriteReadCompat(t *testing.T) {
 
 func generateLargeItems(count int) map[string][]Item {
 	items := make([]Item, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		items[i] = Item{
 			Type:  ItemType(i % 4),
 			Value: strings.Repeat("x", i%200) + ".com",

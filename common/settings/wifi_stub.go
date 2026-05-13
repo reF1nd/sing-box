@@ -1,5 +1,6 @@
 //go:build !linux && !windows
 
+//nolint:unused
 package settings
 
 import (

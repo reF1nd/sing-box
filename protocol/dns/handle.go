@@ -82,7 +82,7 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 		}
 		break
 	}
-	fastClose, cancel := common.ContextWithCancelCause(ctx)
+	fastClose, cancel := context.WithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
 	group.Append0(func(_ context.Context) error {
@@ -150,7 +150,7 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 }
 
 func newDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn N.PacketConn, readWaiter N.PacketReadWaiter, readCounters []N.CountFunc, cached []*N.PacketBuffer, metadata adapter.InboundContext) error {
-	fastClose, cancel := common.ContextWithCancelCause(ctx)
+	fastClose, cancel := context.WithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
 	group.Append0(func(_ context.Context) error {

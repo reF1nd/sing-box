@@ -100,7 +100,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 		err      error
 		response *mDNS.Msg
 	)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		conn, _, err = t.connection.Acquire(ctx, func(ctx context.Context) (*quic.Conn, error) {
 			rawConn, err := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
 			if err != nil {

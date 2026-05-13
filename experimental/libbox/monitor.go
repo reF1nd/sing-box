@@ -16,7 +16,6 @@ var (
 type platformDefaultInterfaceMonitor struct {
 	*platformInterfaceWrapper
 	logger      logger.Logger
-	element     *list.Element[tun.NetworkUpdateCallback]
 	callbacks   list.List[tun.DefaultInterfaceUpdateCallback]
 	myInterface string
 }

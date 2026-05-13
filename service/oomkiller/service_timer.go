@@ -55,17 +55,13 @@ func newAdaptiveTimer(logger log.ContextLogger, router adapter.Router, config ti
 	}
 }
 
-func (t *adaptiveTimer) start(_ uint64) {
-	t.access.Lock()
-	defer t.access.Unlock()
-	t.startLocked()
-}
-
-func (t *adaptiveTimer) startNow() {
+func (t *adaptiveTimer) start(immediate bool) {
 	t.access.Lock()
 	t.startLocked()
 	t.access.Unlock()
-	t.poll()
+	if immediate {
+		t.poll()
+	}
 }
 
 func (t *adaptiveTimer) startLocked() {
@@ -88,12 +84,6 @@ func (t *adaptiveTimer) stopLocked() {
 		t.timer.Stop()
 		t.timer = nil
 	}
-}
-
-func (t *adaptiveTimer) running() bool {
-	t.access.Lock()
-	defer t.access.Unlock()
-	return t.timer != nil
 }
 
 func (t *adaptiveTimer) poll() {
@@ -144,13 +134,8 @@ func (t *adaptiveTimer) poll() {
 		interval = t.maxInterval
 	} else {
 		timeToLimit := time.Duration(float64(remaining) / float64(delta) * float64(t.lastInterval))
-		interval = timeToLimit / time.Duration(t.checksBeforeLimit)
-		if interval < t.minInterval {
-			interval = t.minInterval
-		}
-		if interval > t.maxInterval {
-			interval = t.maxInterval
-		}
+		interval = max(timeToLimit/time.Duration(t.checksBeforeLimit), t.minInterval)
+		interval = min(interval, t.maxInterval)
 	}
 
 	t.lastInterval = interval

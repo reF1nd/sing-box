@@ -112,7 +112,7 @@ func (c *CacheFile) Start(stage adapter.StartStage) error {
 		db  *bbolt.DB
 		err error
 	)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		db, err = bbolt.Open(c.path, fileMode, &options)
 		if err == nil {
 			break

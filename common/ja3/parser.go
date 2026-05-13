@@ -131,7 +131,7 @@ func (j *ClientHello) parseHandshake(hs []byte) error {
 		return &ParseError{LengthErr, 7}
 	}
 
-	for i := 0; i < numCiphers; i++ {
+	for i := range numCiphers {
 		cipherSuite := uint16(cs[2+i<<1])<<8 | uint16(cs[3+i<<1])
 		cipherSuites = append(cipherSuites, cipherSuite)
 	}
@@ -234,7 +234,7 @@ func (j *ClientHello) parseExtensions(exs []byte) error {
 				return &ParseError{LengthErr, 16}
 			}
 
-			for i := 0; i < numCurves; i++ {
+			for i := range numCurves {
 				ecType := uint16(sex[i*2])<<8 | uint16(sex[1+i*2])
 				ellipticCurves = append(ellipticCurves, ecType)
 			}
@@ -256,7 +256,7 @@ func (j *ClientHello) parseExtensions(exs []byte) error {
 				return &ParseError{LengthErr, 18}
 			}
 
-			for i := 0; i < numPF; i++ {
+			for i := range numPF {
 				ellipticCurvePF[i] = uint8(sex[i])
 			}
 		case versionExtensionType:

@@ -603,10 +603,7 @@ func (s *StartedService) URLTest(ctx context.Context, request *URLTestRequest) (
 				return false
 			}
 			_, isGroup := it.(adapter.OutboundGroup)
-			if isGroup {
-				return false
-			}
-			return true
+			return !isGroup
 		})
 		b, _ := batch.New(boxService.ctx, batch.WithConcurrencyNum[any](10))
 		for _, detour := range outbounds {

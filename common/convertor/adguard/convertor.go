@@ -63,9 +63,7 @@ parseLine:
 			}
 			continue
 		}
-		if strings.HasSuffix(ruleLine, "|") {
-			ruleLine = ruleLine[:len(ruleLine)-1]
-		}
+		ruleLine = strings.TrimSuffix(ruleLine, "|")
 		var (
 			isExclude   bool
 			isSuffix    bool
@@ -76,7 +74,7 @@ parseLine:
 		)
 		if !strings.HasPrefix(ruleLine, "/") && strings.Contains(ruleLine, "$") {
 			params := common.SubstringAfter(ruleLine, "$")
-			for _, param := range strings.Split(params, ",") {
+			for param := range strings.SplitSeq(params, ",") {
 				paramParts := strings.Split(param, "=")
 				var ignored bool
 				if len(paramParts) > 0 && len(paramParts) <= 2 {
@@ -106,9 +104,7 @@ parseLine:
 			ruleLine = ruleLine[2:]
 			isExclude = true
 		}
-		if strings.HasSuffix(ruleLine, "|") {
-			ruleLine = ruleLine[:len(ruleLine)-1]
-		}
+		ruleLine = strings.TrimSuffix(ruleLine, "|")
 		if strings.HasPrefix(ruleLine, "||") {
 			ruleLine = ruleLine[2:]
 			isSuffix = true
@@ -414,18 +410,18 @@ func ignoreIPCIDRRegexp(ruleLine string) bool {
 }
 
 func parseAdGuardHostLine(ruleLine string) (string, error) {
-	idx := strings.Index(ruleLine, " ")
-	if idx == -1 {
+	before, after, ok := strings.Cut(ruleLine, " ")
+	if !ok {
 		return "", os.ErrInvalid
 	}
-	address, err := netip.ParseAddr(ruleLine[:idx])
+	address, err := netip.ParseAddr(before)
 	if err != nil {
 		return "", err
 	}
 	if !address.IsUnspecified() {
 		return "", nil
 	}
-	domain := ruleLine[idx+1:]
+	domain := after
 	if !M.IsDomainName(domain) {
 		return "", E.New("invalid domain name: ", domain)
 	}

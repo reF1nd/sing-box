@@ -48,12 +48,6 @@ func NewReader(readSeeker io.ReadSeeker) (*Reader, []string, error) {
 	return reader, codes, nil
 }
 
-type geositeMetadata struct {
-	Code   string
-	Index  uint64
-	Length uint64
-}
-
 func (r *Reader) readMetadata() error {
 	counter := &readCounter{Reader: r.reader}
 	reader := bufio.NewReader(counter)
@@ -101,6 +95,9 @@ func (r *Reader) readMetadata() error {
 }
 
 func (r *Reader) Read(code string) ([]Item, error) {
+	r.access.Lock()
+	defer r.access.Unlock()
+
 	index, exists := r.domainIndex[code]
 	if !exists {
 		return nil, E.New("code ", code, " not exists!")

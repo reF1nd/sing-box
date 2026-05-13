@@ -20,16 +20,15 @@ package credentials
 
 import (
 	"crypto/tls"
+	"slices"
 )
 
 const alpnProtoStrH2 = "h2"
 
 // AppendH2ToNextProtos appends h2 to next protos.
 func AppendH2ToNextProtos(ps []string) []string {
-	for _, p := range ps {
-		if p == alpnProtoStrH2 {
-			return ps
-		}
+	if slices.Contains(ps, alpnProtoStrH2) {
+		return ps
 	}
 	ret := make([]string, 0, len(ps)+1)
 	ret = append(ret, ps...)

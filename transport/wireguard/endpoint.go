@@ -182,10 +182,10 @@ func (e *Endpoint) Start(resolve bool) error {
 		return err
 	}
 	logger := &device.Logger{
-		Verbosef: func(format string, args ...interface{}) {
+		Verbosef: func(format string, args ...any) {
 			e.options.Logger.Debug(fmt.Sprintf(strings.ToLower(format), args...))
 		},
-		Errorf: func(format string, args ...interface{}) {
+		Errorf: func(format string, args ...any) {
 			e.options.Logger.Error(fmt.Sprintf(strings.ToLower(format), args...))
 		},
 	}
@@ -197,13 +197,15 @@ func (e *Endpoint) Start(resolve bool) error {
 	}
 	wgDevice := device.NewDevice(e.options.Context, deviceInput, bind, logger, e.options.Workers)
 	e.tunDevice.SetDevice(wgDevice)
-	ipcConf := e.ipcConf
+	var ipcConf strings.Builder
+	ipcConf.WriteString(e.ipcConf)
 	for _, peer := range e.peers {
-		ipcConf += peer.GenerateIpcLines()
+		ipcConf.WriteString(peer.GenerateIpcLines())
 	}
-	err = wgDevice.IpcSet(ipcConf)
+	err = wgDevice.IpcSet(ipcConf.String())
 	if err != nil {
-		return E.Cause(err, "setup wireguard: \n", ipcConf)
+		wgDevice.Close()
+		return E.Cause(err, "setup wireguard: \n", ipcConf.String())
 	}
 	e.device = wgDevice
 	e.pause = service.FromContext[pause.Manager](e.options.Context)
@@ -231,10 +233,12 @@ func (e *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 func (e *Endpoint) Close() error {
 	if e.pauseCallback != nil {
 		e.pause.UnregisterCallback(e.pauseCallback)
+		e.pauseCallback = nil
 	}
 	if e.device != nil {
 		e.device.Down()
 		e.device.Close()
+		e.device = nil
 	}
 	return nil
 }
@@ -273,18 +277,19 @@ type peerConfig struct {
 }
 
 func (c peerConfig) GenerateIpcLines() string {
-	ipcLines := "\npublic_key=" + c.publicKeyHex
+	var ipcLines strings.Builder
+	ipcLines.WriteString("\npublic_key=" + c.publicKeyHex)
 	if c.endpoint.IsValid() {
-		ipcLines += "\nendpoint=" + c.endpoint.String()
+		ipcLines.WriteString("\nendpoint=" + c.endpoint.String())
 	}
 	if c.preSharedKeyHex != "" {
-		ipcLines += "\npreshared_key=" + c.preSharedKeyHex
+		ipcLines.WriteString("\npreshared_key=" + c.preSharedKeyHex)
 	}
 	for _, allowedIP := range c.allowedIPs {
-		ipcLines += "\nallowed_ip=" + allowedIP.String()
+		ipcLines.WriteString("\nallowed_ip=" + allowedIP.String())
 	}
 	if c.keepalive > 0 {
-		ipcLines += "\npersistent_keepalive_interval=" + F.ToString(c.keepalive)
+		ipcLines.WriteString("\npersistent_keepalive_interval=" + F.ToString(c.keepalive))
 	}
-	return ipcLines
+	return ipcLines.String()
 }

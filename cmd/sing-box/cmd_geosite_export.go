@@ -43,16 +43,17 @@ func geositeExport(category string) error {
 		outputFile   *os.File
 		outputWriter io.Writer
 	)
-	if commandGeositeExportOutput == "stdout" {
+	switch commandGeositeExportOutput {
+	case "stdout":
 		outputWriter = os.Stdout
-	} else if commandGeositeExportOutput == commandGeositeExportDefaultOutput {
+	case commandGeositeExportDefaultOutput:
 		outputFile, err = os.Create("geosite-" + category + ".json")
 		if err != nil {
 			return err
 		}
 		defer outputFile.Close()
 		outputWriter = outputFile
-	} else {
+	default:
 		outputFile, err = os.Create(commandGeositeExportOutput)
 		if err != nil {
 			return err

@@ -54,9 +54,8 @@ type xorNonceAEAD struct {
 	aead      cipher.AEAD
 }
 
-func (f *xorNonceAEAD) NonceSize() int        { return 8 } // 64-bit sequence number
-func (f *xorNonceAEAD) Overhead() int         { return f.aead.Overhead() }
-func (f *xorNonceAEAD) explicitNonceLen() int { return 0 }
+func (f *xorNonceAEAD) NonceSize() int { return 8 } // 64-bit sequence number
+func (f *xorNonceAEAD) Overhead() int  { return f.aead.Overhead() }
 
 func (f *xorNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
 	for i, b := range nonce {

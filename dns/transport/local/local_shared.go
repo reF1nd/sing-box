@@ -82,7 +82,7 @@ func (t *Transport) tryOneName(ctx context.Context, config *dnsConfig, fqdn stri
 	sLen := uint32(len(config.servers))
 	var lastErr error
 	for i := 0; i < config.attempts; i++ {
-		for j := uint32(0); j < sLen; j++ {
+		for j := range sLen {
 			server := config.servers[(serverOffset+j)%sLen]
 			question := message.Question[0]
 			question.Name = fqdn

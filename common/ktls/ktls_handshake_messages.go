@@ -6,48 +6,7 @@
 
 package ktls
 
-import (
-	"fmt"
-
-	"golang.org/x/crypto/cryptobyte"
-)
-
-// The marshalingFunction type is an adapter to allow the use of ordinary
-// functions as cryptobyte.MarshalingValue.
-type marshalingFunction func(b *cryptobyte.Builder) error
-
-func (f marshalingFunction) Marshal(b *cryptobyte.Builder) error {
-	return f(b)
-}
-
-// addBytesWithLength appends a sequence of bytes to the cryptobyte.Builder. If
-// the length of the sequence is not the value specified, it produces an error.
-func addBytesWithLength(b *cryptobyte.Builder, v []byte, n int) {
-	b.AddValue(marshalingFunction(func(b *cryptobyte.Builder) error {
-		if len(v) != n {
-			return fmt.Errorf("invalid value length: expected %d, got %d", n, len(v))
-		}
-		b.AddBytes(v)
-		return nil
-	}))
-}
-
-// addUint64 appends a big-endian, 64-bit value to the cryptobyte.Builder.
-func addUint64(b *cryptobyte.Builder, v uint64) {
-	b.AddUint32(uint32(v >> 32))
-	b.AddUint32(uint32(v))
-}
-
-// readUint64 decodes a big-endian, 64-bit value into out and advances over it.
-// It reports whether the read was successful.
-func readUint64(s *cryptobyte.String, out *uint64) bool {
-	var hi, lo uint32
-	if !s.ReadUint32(&hi) || !s.ReadUint32(&lo) {
-		return false
-	}
-	*out = uint64(hi)<<32 | uint64(lo)
-	return true
-}
+import "golang.org/x/crypto/cryptobyte"
 
 // readUint8LengthPrefixed acts like s.ReadUint8LengthPrefixed, but targets a
 // []byte instead of a cryptobyte.String.
@@ -59,12 +18,6 @@ func readUint8LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
 // []byte instead of a cryptobyte.String.
 func readUint16LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
 	return s.ReadUint16LengthPrefixed((*cryptobyte.String)(out))
-}
-
-// readUint24LengthPrefixed acts like s.ReadUint24LengthPrefixed, but targets a
-// []byte instead of a cryptobyte.String.
-func readUint24LengthPrefixed(s *cryptobyte.String, out *[]byte) bool {
-	return s.ReadUint24LengthPrefixed((*cryptobyte.String)(out))
 }
 
 type keyUpdateMsg struct {
@@ -123,11 +76,6 @@ const (
 	typeKeyUpdate             uint8 = 24
 	typeCompressedCertificate uint8 = 25
 	typeMessageHash           uint8 = 254 // synthetic message
-)
-
-// TLS compression types.
-const (
-	compressionNone uint8 = 0
 )
 
 // TLS extension numbers

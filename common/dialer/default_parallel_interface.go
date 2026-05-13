@@ -136,18 +136,16 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 		go startRacer(fallbackCtx, false, iif)
 	}
 	var errors []error
-	for {
-		select {
-		case res := <-results:
-			if res.error == nil {
-				return res.Conn, res.primary, nil
-			}
-			errors = append(errors, res.error)
-			if len(errors) == len(primaryInterfaces)+len(fallbackInterfaces) {
-				return nil, false, E.Errors(errors...)
-			}
+	for res := range results {
+		if res.error == nil {
+			return res.Conn, res.primary, nil
+		}
+		errors = append(errors, res.error)
+		if len(errors) == len(primaryInterfaces)+len(fallbackInterfaces) {
+			return nil, false, E.Errors(errors...)
 		}
 	}
+	return nil, false, E.Errors(errors...)
 }
 
 func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, listener net.ListenConfig, network string, addr string, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error) {

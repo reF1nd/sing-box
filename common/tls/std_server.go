@@ -141,13 +141,14 @@ func (c *STDServerConfig) startWatcher() error {
 
 func (c *STDServerConfig) certificateUpdated(path string) error {
 	if path == c.certificatePath || path == c.keyPath {
-		if path == c.certificatePath {
+		switch path {
+		case c.certificatePath:
 			certificate, err := os.ReadFile(c.certificatePath)
 			if err != nil {
 				return E.Cause(err, "reload certificate from ", c.certificatePath)
 			}
 			c.certificate = certificate
-		} else if path == c.keyPath {
+		case c.keyPath:
 			key, err := os.ReadFile(c.keyPath)
 			if err != nil {
 				return E.Cause(err, "reload key from ", c.keyPath)
@@ -338,9 +339,10 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 			}
 			tlsConfig.ClientCAs = clientCertificateCA
 		} else if len(options.ClientCertificatePublicKeySHA256) > 0 {
-			if tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+			switch tlsConfig.ClientAuth {
+			case tls.RequireAndVerifyClientCert:
 				tlsConfig.ClientAuth = tls.RequireAnyClientCert
-			} else if tlsConfig.ClientAuth == tls.VerifyClientCertIfGiven {
+			case tls.VerifyClientCertIfGiven:
 				tlsConfig.ClientAuth = tls.RequestClientCert
 			}
 			tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {

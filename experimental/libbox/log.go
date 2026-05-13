@@ -8,8 +8,6 @@ import (
 	"runtime/debug"
 )
 
-var crashOutputFile *os.File
-
 func RedirectStderr(path string) error {
 	if stats, err := os.Stat(path); err == nil && stats.Size() > 0 {
 		_ = os.Rename(path, path+".old")
@@ -32,6 +30,5 @@ func RedirectStderr(path string) error {
 		os.Remove(outputFile.Name())
 		return err
 	}
-	crashOutputFile = outputFile
-	return nil
+	return outputFile.Close()
 }

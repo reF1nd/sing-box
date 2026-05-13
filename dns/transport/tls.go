@@ -102,7 +102,7 @@ func (t *TLSTransport) Reset() {
 
 func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
+	for range 2 {
 		conn, created, err := t.connections.Acquire(ctx, func(ctx context.Context) (*tlsDNSConn, error) {
 			tlsConn, err := t.dialer.DialTLSContext(ctx, t.serverAddr)
 			if err != nil {

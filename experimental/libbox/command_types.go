@@ -418,13 +418,3 @@ func systemProxyStatusFromGRPC(status *daemon.SystemProxyStatus) *SystemProxySta
 		Enabled:   status.Enabled,
 	}
 }
-
-func systemProxyStatusToGRPC(status *SystemProxyStatus) *daemon.SystemProxyStatus {
-	if status == nil {
-		return nil
-	}
-	return &daemon.SystemProxyStatus{
-		Available: status.Available,
-		Enabled:   status.Enabled,
-	}
-}

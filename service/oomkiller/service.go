@@ -96,6 +96,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 
 	if s.hasTimerMode {
 		s.adaptiveTimer = newAdaptiveTimer(s.logger, s.router, s.timerConfig)
+		s.adaptiveTimer.start(false)
 		if s.memoryLimit > 0 {
 			s.logger.Info("started memory monitor with limit: ", s.memoryLimit/(1024*1024), " MiB")
 		} else {
@@ -164,7 +165,7 @@ func goMemoryPressureCallback(status C.ulong) {
 			if isCritical {
 				s.logger.Warn("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB")
 				if s.adaptiveTimer != nil {
-					s.adaptiveTimer.startNow()
+					s.adaptiveTimer.start(true)
 				}
 			} else if isWarning {
 				s.logger.Warn("memory pressure: ", level, ", usage: ", usage/(1024*1024), " MiB")

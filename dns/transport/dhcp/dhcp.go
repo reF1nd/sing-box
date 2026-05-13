@@ -222,7 +222,7 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface)
 		packetConn net.PacketConn
 		err        error
 	)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		packetConn, err = listener.ListenPacket(t.ctx, "udp4", listenAddr)
 		if err == nil || !errors.Is(err, syscall.EADDRINUSE) {
 			break

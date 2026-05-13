@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -78,10 +79,8 @@ func (r *Router) isLocalSource(source netip.Addr) bool {
 		return true
 	}
 	if r.platformInterface != nil {
-		for _, addr := range r.platformInterface.MyInterfaceAddress() {
-			if addr == source {
-				return true
-			}
+		if slices.Contains(r.platformInterface.MyInterfaceAddress(), source) {
+			return true
 		}
 	}
 	for _, netInterface := range r.network.InterfaceFinder().Interfaces() {

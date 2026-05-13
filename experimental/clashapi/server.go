@@ -164,7 +164,7 @@ func (s *Server) Start(stage adapter.StartStage) error {
 				listener net.Listener
 				err      error
 			)
-			for i := 0; i < 3; i++ {
+			for range 3 {
 				listener, err = net.Listen("tcp", s.httpServer.Addr)
 				if runtime.GOOS == "android" && errors.Is(err, syscall.EADDRINUSE) {
 					time.Sleep(100 * time.Millisecond)

@@ -851,10 +851,7 @@ func normalizeGPT5Model(model string) string {
 func calculateCost(stats UsageStats, model string, serviceTier string, contextWindow int) float64 {
 	pricing := getPricing(model, serviceTier, contextWindow)
 
-	regularInputTokens := stats.InputTokens - stats.CachedTokens
-	if regularInputTokens < 0 {
-		regularInputTokens = 0
-	}
+	regularInputTokens := max(stats.InputTokens-stats.CachedTokens, 0)
 
 	cost := (float64(regularInputTokens)*pricing.InputPrice +
 		float64(stats.OutputTokens)*pricing.OutputPrice +

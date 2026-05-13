@@ -40,14 +40,14 @@ func (m *connmanMonitor) ReadWIFIState() adapter.WIFIState {
 	defer cancel()
 
 	cmObj := m.conn.Object("net.connman", "/")
-	var services []interface{}
+	var services []any
 	err := cmObj.CallWithContext(ctx, "net.connman.Manager.GetServices", 0).Store(&services)
 	if err != nil {
 		return adapter.WIFIState{}
 	}
 
 	for _, service := range services {
-		servicePair, ok := service.([]interface{})
+		servicePair, ok := service.([]any)
 		if !ok || len(servicePair) != 2 {
 			continue
 		}

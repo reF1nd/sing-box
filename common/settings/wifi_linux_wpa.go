@@ -1,3 +1,4 @@
+//nolint:unused
 package settings
 
 import (
@@ -73,13 +74,13 @@ func (m *wpaSupplicantMonitor) ReadWIFIState() adapter.WIFIState {
 	scanner := bufio.NewScanner(strings.NewReader(status))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "wpa_state=") {
-			state := strings.TrimPrefix(line, "wpa_state=")
+		if after, ok := strings.CutPrefix(line, "wpa_state="); ok {
+			state := after
 			connected = state == "COMPLETED"
-		} else if strings.HasPrefix(line, "ssid=") {
-			ssid = strings.TrimPrefix(line, "ssid=")
-		} else if strings.HasPrefix(line, "bssid=") {
-			bssid = strings.TrimPrefix(line, "bssid=")
+		} else if after, ok := strings.CutPrefix(line, "ssid="); ok {
+			ssid = after
+		} else if after, ok := strings.CutPrefix(line, "bssid="); ok {
+			bssid = after
 		}
 	}
 

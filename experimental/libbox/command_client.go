@@ -147,7 +147,7 @@ func (c *CommandClient) dialWithRetry(target string, contextDialer func(context.
 	var client daemon.StartedServiceClient
 	var lastError error
 
-	for attempt := 0; attempt < commandClientDialAttempts; attempt++ {
+	for attempt := range commandClientDialAttempts {
 		if connection == nil {
 			options := []grpc.DialOption{
 				grpc.WithTransportCredentials(insecure.NewCredentials()),

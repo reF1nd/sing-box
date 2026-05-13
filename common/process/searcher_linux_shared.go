@@ -1,5 +1,6 @@
 //go:build linux
 
+//nolint:unused
 package process
 
 import (
@@ -117,7 +118,7 @@ func (c *socketDiagConn) query(source netip.AddrPort, destination netip.AddrPort
 	c.access.Lock()
 	defer c.access.Unlock()
 	request := packSocketDiagRequest(c.family, c.protocol, source, destination, false)
-	for attempt := 0; attempt < 2; attempt++ {
+	for range 2 {
 		err = c.ensureOpenLocked()
 		if err != nil {
 			return 0, 0, E.Cause(err, "dial netlink")

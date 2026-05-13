@@ -72,7 +72,7 @@ func (t *Transport) tryOneName(ctx context.Context, servers []M.Socksaddr, fqdn 
 	sLen := len(servers)
 	var lastErr error
 	for i := 0; i < t.attempts; i++ {
-		for j := 0; j < sLen; j++ {
+		for j := range sLen {
 			server := servers[j]
 			question := message.Question[0]
 			question.Name = fqdn

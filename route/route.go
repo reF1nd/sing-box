@@ -31,7 +31,7 @@ import (
 
 // Deprecated: use RouteConnectionEx instead.
 func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
-	done := make(chan interface{})
+	done := make(chan any)
 	err := r.routeConnection(ctx, conn, metadata, N.OnceClose(func(it error) {
 		close(done)
 	}))
@@ -161,7 +161,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
-	done := make(chan interface{})
+	done := make(chan any)
 	err := r.routePacketConnection(ctx, conn, metadata, N.OnceClose(func(it error) {
 		close(done)
 	}))

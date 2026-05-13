@@ -5,6 +5,7 @@ package wireguard
 import (
 	"context"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/sagernet/gvisor/pkg/buffer"
@@ -20,7 +21,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/wireguard-go/device"
@@ -35,6 +35,7 @@ type systemStackDevice struct {
 	stack     *stack.Stack
 	endpoint  *deviceEndpoint
 	writeBufs [][]byte
+	closeOnce sync.Once
 }
 
 func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
@@ -104,13 +105,13 @@ func (w *systemStackDevice) Write(bufs [][]byte, offset int) (count int, err err
 			}
 		}
 		if len(w.writeBufs) > 0 {
-			return w.batchDevice.BatchWrite(bufs, offset)
+			return w.batchDevice.BatchWrite(w.writeBufs, offset)
 		}
 	} else {
 		for _, packet := range bufs {
 			if !w.writeStack(packet[offset:]) {
 				if tun.PacketOffset > 0 {
-					common.ClearArray(packet[offset-tun.PacketOffset : offset])
+					clear(packet[offset-tun.PacketOffset : offset])
 					tun.PacketFillHeader(packet[offset-tun.PacketOffset:], tun.PacketIPVersion(packet[offset:]))
 				}
 				_, err = w.device.Write(packet[offset-tun.PacketOffset:])
@@ -125,13 +126,17 @@ func (w *systemStackDevice) Write(bufs [][]byte, offset int) (count int, err err
 }
 
 func (w *systemStackDevice) Close() error {
-	close(w.endpoint.done)
-	w.stack.Close()
-	for _, endpoint := range w.stack.CleanupEndpoints() {
-		endpoint.Abort()
-	}
-	w.stack.Wait()
-	return w.systemDevice.Close()
+	var err error
+	w.closeOnce.Do(func() {
+		close(w.endpoint.done)
+		w.stack.Close()
+		for _, endpoint := range w.stack.CleanupEndpoints() {
+			endpoint.Abort()
+		}
+		w.stack.Wait()
+		err = w.systemDevice.Close()
+	})
+	return err
 }
 
 func (w *systemStackDevice) writeStack(packet []byte) bool {

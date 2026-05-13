@@ -4,13 +4,7 @@ import (
 	"context"
 	"math/rand"
 	"time"
-
-	"github.com/sagernet/sing/common/random"
 )
-
-func init() {
-	random.InitializeSeed()
-}
 
 type idKey struct{}
 

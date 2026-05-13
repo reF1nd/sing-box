@@ -64,7 +64,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		return E.New("memory pressure monitoring is not available on this platform without memory_limit")
 	}
 	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.router, s.timerConfig)
-	s.adaptiveTimer.start(0)
+	s.adaptiveTimer.start(false)
 	if s.useAvailable {
 		s.logger.Info("started memory monitor with available memory detection")
 	} else {

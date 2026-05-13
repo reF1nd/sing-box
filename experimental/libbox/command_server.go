@@ -114,7 +114,7 @@ func (s *CommandServer) Start() error {
 	if sCommandServerListenPort == 0 {
 		sockPath := filepath.Join(sBasePath, "command.sock")
 		os.Remove(sockPath)
-		for i := 0; i < 30; i++ {
+		for range 30 {
 			listener, err = net.ListenUnix("unix", &net.UnixAddr{
 				Name: sockPath,
 				Net:  "unix",

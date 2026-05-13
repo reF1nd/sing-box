@@ -39,7 +39,7 @@ func main() {
 	common.Must(os.Chdir(androidPath))
 	localProps := common.Must1(os.ReadFile("version.properties"))
 	var propsList [][]string
-	for _, propLine := range strings.Split(string(localProps), "\n") {
+	for propLine := range strings.SplitSeq(string(localProps), "\n") {
 		propsList = append(propsList, strings.Split(propLine, "="))
 	}
 	var (

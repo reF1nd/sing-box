@@ -30,7 +30,7 @@ func TestSniffQUICQuicGoFingerprint(t *testing.T) {
 	go func() {
 		var packets [][]byte
 		udpConn.SetReadDeadline(time.Now().Add(3 * time.Second))
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			buf := make([]byte, 2048)
 			n, _, err := udpConn.ReadFromUDP(buf)
 			if err != nil {
@@ -104,7 +104,7 @@ func TestSniffQUICInitialFromQuicGo(t *testing.T) {
 	go func() {
 		var packets [][]byte
 		udpConn.SetReadDeadline(time.Now().Add(3 * time.Second))
-		for i := 0; i < 5; i++ { // Capture up to 5 packets
+		for range 5 { // Capture up to 5 packets
 			buf := make([]byte, 2048)
 			n, _, err := udpConn.ReadFromUDP(buf)
 			if err != nil {

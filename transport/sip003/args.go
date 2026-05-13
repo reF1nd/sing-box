@@ -105,15 +105,3 @@ func ParsePluginOptions(s string) (opts Args, err error) {
 	}
 	return opts, nil
 }
-
-// Escape backslashes and all the bytes that are in set.
-func backslashEscape(s string, set []byte) string {
-	var buf bytes.Buffer
-	for _, b := range []byte(s) {
-		if b == '\\' || bytes.IndexByte(set, b) != -1 {
-			buf.WriteByte('\\')
-		}
-		buf.WriteByte(b)
-	}
-	return buf.String()
-}

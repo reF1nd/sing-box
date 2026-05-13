@@ -112,9 +112,7 @@ func IsValid(versionName string) bool {
 }
 
 func Parse(versionName string) (version Version) {
-	if strings.HasPrefix(versionName, "v") {
-		versionName = versionName[1:]
-	}
+	versionName = strings.TrimPrefix(versionName, "v")
 	if strings.Contains(versionName, "-") {
 		parts := strings.Split(versionName, "-")
 		versionName = parts[0]

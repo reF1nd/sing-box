@@ -109,7 +109,7 @@ func getInterfaceDisplayName(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, deviceSpan := range strings.Split(string(content), "Ethernet Address") {
+	for deviceSpan := range strings.SplitSeq(string(content), "Ethernet Address") {
 		if strings.Contains(deviceSpan, "Device: "+name) {
 			substr := "Hardware Port: "
 			deviceSpan = deviceSpan[strings.Index(deviceSpan, substr)+len(substr):]

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -127,7 +128,7 @@ func (t *resolve1Manager) createMetadata(sender dbus.Sender) adapter.InboundCont
 	var uidFound bool
 	statusContent, err := os.ReadFile(F.ToString("/proc/", senderPid, "/status"))
 	if err == nil {
-		for _, line := range strings.Split(string(statusContent), "\n") {
+		for line := range strings.SplitSeq(string(statusContent), "\n") {
 			line = strings.TrimSpace(line)
 			if strings.HasPrefix(line, "Uid:") {
 				fields := strings.Fields(line)
@@ -255,8 +256,8 @@ func (t *resolve1Manager) ResolveAddress(sender dbus.Sender, ifIndex int32, fami
 		return
 	}
 	var nibbles []string
-	for i := len(address) - 1; i >= 0; i-- {
-		b := address[i]
+	for _, v := range slices.Backward(address) {
+		b := v
 		nibbles = append(nibbles, fmt.Sprintf("%x", b&0x0F))
 		nibbles = append(nibbles, fmt.Sprintf("%x", b>>4))
 	}

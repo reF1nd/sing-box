@@ -556,8 +556,8 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 					continue
 				}
 
-				if bytes.HasPrefix(line, []byte("data: ")) {
-					eventData := bytes.TrimPrefix(line, []byte("data: "))
+				if after, ok0 := bytes.CutPrefix(line, []byte("data: ")); ok0 {
+					eventData := after
 					if bytes.Equal(eventData, []byte("[DONE]")) {
 						continue
 					}

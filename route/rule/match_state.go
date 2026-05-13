@@ -42,11 +42,11 @@ func (s ruleMatchStateSet) combine(other ruleMatchStateSet) ruleMatchStateSet {
 		return 0
 	}
 	var combined ruleMatchStateSet
-	for left := ruleMatchState(0); left < 16; left++ {
+	for left := range ruleMatchState(16) {
 		if !s.contains(left) {
 			continue
 		}
-		for right := ruleMatchState(0); right < 16; right++ {
+		for right := range ruleMatchState(16) {
 			if !other.contains(right) {
 				continue
 			}
@@ -61,7 +61,7 @@ func (s ruleMatchStateSet) withBase(base ruleMatchState) ruleMatchStateSet {
 		return 0
 	}
 	var withBase ruleMatchStateSet
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := range ruleMatchState(16) {
 		if !s.contains(state) {
 			continue
 		}
@@ -72,7 +72,7 @@ func (s ruleMatchStateSet) withBase(base ruleMatchState) ruleMatchStateSet {
 
 func (s ruleMatchStateSet) filter(allowed func(ruleMatchState) bool) ruleMatchStateSet {
 	var filtered ruleMatchStateSet
-	for state := ruleMatchState(0); state < 16; state++ {
+	for state := range ruleMatchState(16) {
 		if !s.contains(state) {
 			continue
 		}
@@ -91,10 +91,6 @@ type ruleStateMatcherWithBase interface {
 	matchStatesWithBase(metadata *adapter.InboundContext, base ruleMatchState) ruleMatchStateSet
 }
 
-func matchHeadlessRuleStates(rule adapter.HeadlessRule, metadata *adapter.InboundContext) ruleMatchStateSet {
-	return matchHeadlessRuleStatesWithBase(rule, metadata, 0)
-}
-
 func matchHeadlessRuleStatesWithBase(rule adapter.HeadlessRule, metadata *adapter.InboundContext, base ruleMatchState) ruleMatchStateSet {
 	if matcher, isStateMatcher := rule.(ruleStateMatcherWithBase); isStateMatcher {
 		return matcher.matchStatesWithBase(metadata, base)
@@ -106,10 +102,6 @@ func matchHeadlessRuleStatesWithBase(rule adapter.HeadlessRule, metadata *adapte
 		return emptyRuleMatchState().withBase(base)
 	}
 	return 0
-}
-
-func matchRuleItemStates(item RuleItem, metadata *adapter.InboundContext) ruleMatchStateSet {
-	return matchRuleItemStatesWithBase(item, metadata, 0)
 }
 
 func matchRuleItemStatesWithBase(item RuleItem, metadata *adapter.InboundContext, base ruleMatchState) ruleMatchStateSet {

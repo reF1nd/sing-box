@@ -1,6 +1,8 @@
 package sniff
 
 import (
+	"slices"
+
 	"github.com/sagernet/sing-box/common/ja3"
 )
 
@@ -15,15 +17,8 @@ const (
 // Note: uQUIC with Chromium mimicry cannot be reliably distinguished from real Chromium
 // since it uses the same TLS fingerprint, so it will be identified as Chromium.
 func isQUICGo(fingerprint *ja3.ClientHello) bool {
-	for _, curve := range fingerprint.EllipticCurves {
-		if curve == x25519Kyber768Draft00 {
-			return true
-		}
+	if slices.Contains(fingerprint.EllipticCurves, x25519Kyber768Draft00) {
+		return true
 	}
-	for _, ext := range fingerprint.Extensions {
-		if ext == extensionRenegotiationInfo {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(fingerprint.Extensions, extensionRenegotiationInfo)
 }
