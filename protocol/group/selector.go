@@ -3,8 +3,8 @@ package group
 import (
 	"context"
 	"net"
-	"time"
 	"regexp"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
