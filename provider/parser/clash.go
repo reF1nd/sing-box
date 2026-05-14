@@ -705,7 +705,7 @@ func clashPorts(ports string) badoption.Listable[string] {
 	}
 	serverPorts := badoption.Listable[string]{}
 	ports = strings.ReplaceAll(ports, "/", ",")
-	for _, port := range strings.Split(ports, ",") {
+	for port := range strings.SplitSeq(ports, ",") {
 		if port == "" {
 			continue
 		}
