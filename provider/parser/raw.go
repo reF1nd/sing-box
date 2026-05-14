@@ -22,8 +22,8 @@ func ParseRawSubscription(ctx context.Context, content string) ([]option.Outboun
 func parseRawSubscription(content string) ([]option.Outbound, error) {
 	var servers []option.Outbound
 	content = strings.ReplaceAll(content, "\r\n", "\n")
-	linkList := strings.Split(content, "\n")
-	for _, linkLine := range linkList {
+	linkList := strings.SplitSeq(content, "\n")
+	for linkLine := range linkList {
 		server, err := ParseSubscriptionLink(linkLine)
 		if err != nil {
 			continue
