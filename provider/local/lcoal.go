@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sagernet/fswatch"
@@ -37,6 +38,7 @@ type ProviderLocal struct {
 	logger      log.ContextLogger
 	provider    adapter.ProviderManager
 	path        string
+	mu          sync.Mutex
 	lastOutOpts []option.Outbound
 	lastEPOpts  []option.Endpoint
 	lastUpdated time.Time
@@ -119,10 +121,14 @@ func (s *ProviderLocal) StartContext(ctx context.Context, startContext *adapter.
 }
 
 func (s *ProviderLocal) UpdatedAt() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.lastUpdated
 }
 
 func (s *ProviderLocal) reloadFile(path string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	file, err := filemanager.OpenFile(s.ctx, path, os.O_RDONLY, 0)
 	if err != nil {
 		return err
