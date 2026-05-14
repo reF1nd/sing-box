@@ -25,7 +25,6 @@ type Manager struct {
 	stage         adapter.StartStage
 	providers     []adapter.Provider
 	providerByTag map[string]adapter.Provider
-	wg            sync.WaitGroup
 }
 
 func NewManager(logger logger.ContextLogger, registry adapter.ProviderRegistry) *Manager {
