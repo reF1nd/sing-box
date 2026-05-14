@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -52,6 +53,7 @@ type ProviderRemote struct {
 	cacheFile        adapter.CacheFile
 	dialer           N.Dialer
 	hash             hash.HashType
+	infoMu           sync.RWMutex
 	lastEtag         string
 	lastOutOpts      []option.Outbound
 	lastEPOpts       []option.Endpoint
@@ -100,8 +102,6 @@ func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory lo
 	outbound := service.FromContext[adapter.OutboundManager](ctx)
 	endpointMgr := service.FromContext[adapter.EndpointManager](ctx)
 	logger := logFactory.NewLogger(F.ToString("provider/remote", "[", tag, "]"))
-	updateChan := make(chan struct{})
-	close(updateChan)
 	return &ProviderRemote{
 		Adapter:  provider.NewAdapter(ctx, router, outbound, endpointMgr, logFactory, logger, tag, C.ProviderTypeRemote, options.HealthCheck),
 		ctx:      ctx,
@@ -144,6 +144,7 @@ func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter
 			return E.Cause(err, "initial outbound provider: ", s.Tag())
 		}
 	}
+	s.ticker = time.NewTicker(s.updateInterval)
 	go s.loopUpdate()
 	return s.Adapter.Start()
 }
@@ -157,10 +158,14 @@ func (s *ProviderRemote) Update() error {
 }
 
 func (s *ProviderRemote) UpdatedAt() time.Time {
+	s.infoMu.RLock()
+	defer s.infoMu.RUnlock()
 	return s.lastUpdated
 }
 
 func (s *ProviderRemote) SubscriptionInfo() adapter.SubscriptionInfo {
+	s.infoMu.RLock()
+	defer s.infoMu.RUnlock()
 	return s.subscriptionInfo
 }
 
@@ -220,8 +225,10 @@ func (s *ProviderRemote) fetch(ctx context.Context, startContext *adapter.HTTPSt
 	switch resp.StatusCode {
 	case http.StatusOK:
 	case http.StatusNotModified:
+		s.infoMu.Lock()
 		s.subscriptionInfo = info
 		s.lastUpdated = time.Now()
+		s.infoMu.Unlock()
 		if s.cacheFile != nil {
 			saveSub := s.cacheFile.LoadSubscription(s.Tag())
 			if saveSub != nil {
@@ -258,7 +265,9 @@ func (s *ProviderRemote) fetch(ctx context.Context, startContext *adapter.HTTPSt
 	}
 	eTagHeader := resp.Header.Get("Etag")
 	if eTagHeader != "" {
+		s.infoMu.Lock()
 		s.lastEtag = eTagHeader
+		s.infoMu.Unlock()
 	}
 	content, _ := parser.DecodeBase64URLSafe(string(contentRaw))
 	if !hasInfo {
@@ -272,8 +281,10 @@ func (s *ProviderRemote) fetch(ctx context.Context, startContext *adapter.HTTPSt
 		return err
 	}
 	s.UpdateGroups()
+	s.infoMu.Lock()
 	s.subscriptionInfo = info
 	s.lastUpdated = time.Now()
+	s.infoMu.Unlock()
 	if s.path != "" || s.cacheFile != nil {
 		content, _ := json.Marshal(option.Options{
 			Outbounds: s.lastOutOpts,
@@ -389,17 +400,21 @@ func pathExists(path string) (bool, error) {
 }
 
 func (s *ProviderRemote) loopUpdate() {
-	if time.Since(s.lastUpdated) < s.updateInterval {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-time.After(time.Until(s.lastUpdated.Add(s.updateInterval))):
-			s.updateOnce()
-		}
+	s.ticker.Stop()
+	select {
+	case <-s.ticker.C:
+	default:
+	}
+	if remaining := time.Until(func() time.Time {
+		s.infoMu.RLock()
+		defer s.infoMu.RUnlock()
+		return s.lastUpdated
+	}().Add(s.updateInterval)); remaining > 0 {
+		s.ticker.Reset(remaining)
 	} else {
 		s.updateOnce()
+		s.ticker.Reset(s.updateInterval)
 	}
-	s.ticker = time.NewTicker(s.updateInterval)
 	for {
 		runtime.GC()
 		select {
@@ -407,6 +422,7 @@ func (s *ProviderRemote) loopUpdate() {
 			return
 		case <-s.ticker.C:
 			s.updateOnce()
+			s.ticker.Reset(s.updateInterval)
 		}
 	}
 }
