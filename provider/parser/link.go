@@ -64,7 +64,7 @@ func StringToType[T any](str string) T {
 	case badoption.HTTPHeader:
 		headers := badoption.HTTPHeader{}
 		reg := regexp.MustCompile(`^[ \t]*?(\S+?):[ \t]*?(\S+?)[ \t]*?$`)
-		for _, header := range strings.Split(str, "\n") {
+		for header := range strings.SplitSeq(str, "\n") {
 			result := reg.FindStringSubmatch(header)
 			if result != nil {
 				key := result[1]
@@ -94,15 +94,15 @@ func StringToType[T any](str string) T {
 }
 
 func shadowsocksPluginName(plugin string) string {
-	if index := strings.Index(plugin, ";"); index != -1 {
-		return plugin[:index]
+	if before, _, ok := strings.Cut(plugin, ";"); ok {
+		return before
 	}
 	return plugin
 }
 
 func shadowsocksPluginOptions(plugin string) string {
-	if index := strings.Index(plugin, ";"); index != -1 {
-		return plugin[index+1:]
+	if _, after, ok := strings.Cut(plugin, ";"); ok {
+		return after
 	}
 	return ""
 }
@@ -432,9 +432,10 @@ func parseVLESSLink(link string) (option.Outbound, error) {
 			}
 			options.Transport = &Transport
 		case "security":
-			if value == "tls" {
+			switch value {
+			case "tls":
 				TLSOptions.Enabled = true
-			} else if value == "reality" {
+			case "reality":
 				TLSOptions.Enabled = true
 				TLSOptions.Reality.Enabled = true
 			}
