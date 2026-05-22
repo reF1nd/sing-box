@@ -10,7 +10,9 @@
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
   "managed": false,
-  "multiplex": {}
+  "multiplex": {},
+  "obfs_mode": "",
+  "obfs_host": ""
 }
 ```
 
@@ -94,3 +96,15 @@
 #### multiplex
 
 参阅 [多路复用](/zh/configuration/shared/multiplex#入站)。
+
+#### obfs_mode
+
+TCP 连接的 Simple-obfs 混淆模式。原生 UDP 数据包不进行混淆。
+
+可选值为 `http` `tls`，留空则禁用混淆。
+
+#### obfs_host
+
+为兼容配置而接受此字段，但它对入站不生效。
+
+伪装主机名由客户端设置，服务端不校验 HTTP Host 或 TLS SNI。
