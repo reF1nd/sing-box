@@ -14,6 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	obfs "github.com/sagernet/sing-box/transport/simple-obfs"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
@@ -35,15 +36,22 @@ type RelayInbound struct {
 	listener     *listener.Listener
 	service      *shadowaead_2022.RelayService[int]
 	destinations []option.ShadowsocksDestination
+	obfsMode     string
 }
 
 func newRelayInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*RelayInbound, error) {
+	switch options.ObfsMode {
+	case "", "http", "tls":
+	default:
+		return nil, E.New("shadowsocks: unsupported obfs mode: ", options.ObfsMode)
+	}
 	inbound := &RelayInbound{
 		Adapter:      inbound.NewAdapter(C.TypeShadowsocks, tag),
 		ctx:          ctx,
 		router:       uot.NewRouter(router, logger),
 		logger:       logger,
 		destinations: options.Destinations,
+		obfsMode:     options.ObfsMode,
 	}
 	var err error
 	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
@@ -99,6 +107,12 @@ func (h *RelayInbound) Close() error {
 
 //nolint:staticcheck
 func (h *RelayInbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	switch h.obfsMode {
+	case "http":
+		conn = obfs.NewHTTPObfsServer(conn)
+	case "tls":
+		conn = obfs.NewTLSObfsServer(conn)
+	}
 	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
