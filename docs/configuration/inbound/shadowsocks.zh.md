@@ -10,7 +10,9 @@
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
   "managed": false,
-  "multiplex": {}
+  "multiplex": {},
+  "obfs_mode": "",
+  "obfs_host": ""
 }
 ```
 
@@ -94,3 +96,15 @@
 #### multiplex
 
 参阅 [多路复用](/zh/configuration/shared/multiplex#入站)。
+
+#### obfs_mode
+
+Simple-obfs 混淆模式。
+
+可选值为 `http` `tls`，留空则禁用混淆。
+
+#### obfs_host
+
+HTTP/TLS 混淆使用的主机名。
+
+未设置时默认为 `bing.com`。
