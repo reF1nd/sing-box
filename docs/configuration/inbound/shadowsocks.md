@@ -10,7 +10,9 @@
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
   "managed": false,
-  "multiplex": {}
+  "multiplex": {},
+  "obfs_mode": "",
+  "obfs_host": ""
 }
 ```
 
@@ -94,3 +96,15 @@ Defaults to `false`. Enable this when the inbound is managed by the [SSM API](/c
 #### multiplex
 
 See [Multiplex](/configuration/shared/multiplex#inbound) for details.
+
+#### obfs_mode
+
+Simple-obfs obfuscation mode.
+
+One of `http` `tls`, or empty to disable.
+
+#### obfs_host
+
+The obfuscation hostname used for HTTP/TLS obfuscation.
+
+Defaults to `bing.com` if not set.
