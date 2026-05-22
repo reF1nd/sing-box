@@ -14,6 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	obfs "github.com/sagernet/sing-box/transport/simple-obfs"
 	"github.com/sagernet/sing-shadowsocks"
 	"github.com/sagernet/sing-shadowsocks/shadowaead"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
@@ -41,6 +42,7 @@ type MultiInbound struct {
 	listener *listener.Listener
 	service  shadowsocks.MultiService[multiUser]
 	tracker  adapter.SSMTracker
+	obfsMode string
 }
 
 type multiUser struct {
@@ -49,11 +51,17 @@ type multiUser struct {
 }
 
 func newMultiInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowsocksInboundOptions) (*MultiInbound, error) {
+	switch options.ObfsMode {
+	case "", "http", "tls":
+	default:
+		return nil, E.New("shadowsocks: unsupported obfs mode: ", options.ObfsMode)
+	}
 	inbound := &MultiInbound{
-		Adapter: inbound.NewAdapter(C.TypeShadowsocks, tag),
-		ctx:     ctx,
-		router:  uot.NewRouter(router, logger),
-		logger:  logger,
+		Adapter:  inbound.NewAdapter(C.TypeShadowsocks, tag),
+		ctx:      ctx,
+		router:   uot.NewRouter(router, logger),
+		logger:   logger,
+		obfsMode: options.ObfsMode,
 	}
 	var err error
 	inbound.router, err = mux.NewRouterWithOptions(inbound.router, logger, common.PtrValueOrDefault(options.Multiplex))
@@ -134,6 +142,12 @@ func (h *MultiInbound) UpdateUsers(users []string, uPSKs []string) error {
 
 //nolint:staticcheck
 func (h *MultiInbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	switch h.obfsMode {
+	case "http":
+		conn = obfs.NewHTTPObfsServer(conn)
+	case "tls":
+		conn = obfs.NewTLSObfsServer(conn)
+	}
 	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
