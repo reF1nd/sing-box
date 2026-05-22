@@ -10,7 +10,9 @@
   "method": "2022-blake3-aes-128-gcm",
   "password": "8JCsPssfgS8tiRwiMlhARg==",
   "managed": false,
-  "multiplex": {}
+  "multiplex": {},
+  "obfs_mode": "",
+  "obfs_host": ""
 }
 ```
 
@@ -94,3 +96,15 @@ Defaults to `false`. Enable this when the inbound is managed by the [SSM API](/c
 #### multiplex
 
 See [Multiplex](/configuration/shared/multiplex#inbound) for details.
+
+#### obfs_mode
+
+Simple-obfs obfuscation mode for TCP connections. Native UDP packets are not obfuscated.
+
+One of `http` `tls`, or empty to disable.
+
+#### obfs_host
+
+Accepted for configuration compatibility; this field has no effect on the inbound.
+
+The camouflage hostname is set by the client. The server does not validate HTTP Host or TLS SNI.
