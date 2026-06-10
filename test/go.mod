@@ -4,7 +4,10 @@ go 1.24.7
 
 require github.com/sagernet/sing-box v0.0.0
 
-replace github.com/sagernet/sing-box => ../
+replace (
+	github.com/sagernet/sing-box => ../
+	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.8.12-0.20260729091938-d2199c3f8df2
+)
 
 require (
 	github.com/docker/docker v27.3.1+incompatible
@@ -12,11 +15,12 @@ require (
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sagernet/quic-go v0.59.0-sing-box-mod.4
-	github.com/sagernet/sing v0.8.12-0.20260717153536-4f1ed45a99a5
-	github.com/sagernet/sing-quic v0.6.4-0.20260720125339-63fa6a7ebc31
+	github.com/sagernet/sing v0.8.12-0.20260727093221-6a8f0ea47052
+	github.com/sagernet/sing-openvpn v0.0.0-20260721005523-64b754d1c277
+	github.com/sagernet/sing-quic v0.6.4-0.20260727030926-0b32a5074a40
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
-	github.com/sagernet/sing-tun v0.8.12-0.20260719094150-557ca930fccd
+	github.com/sagernet/sing-tun v0.8.12-0.20260729054528-2d9b8aed5fe2
 	github.com/spyzhov/ajson v0.9.4
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/goleak v1.3.0
@@ -27,6 +31,7 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
@@ -48,6 +53,7 @@ require (
 	github.com/database64128/tfo-go/v2 v2.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect
+	github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d // indirect
 	github.com/distribution/reference v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
@@ -154,10 +160,9 @@ require (
 	github.com/sagernet/nftables v0.3.0-mod.4 // indirect
 	github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3 // indirect
 	github.com/sagernet/sing-mux v0.3.5 // indirect
-	github.com/sagernet/sing-openconnect v0.0.0-20260720032640-bf28b6a6f10e // indirect
-	github.com/sagernet/sing-openvpn v0.0.0-20260720132803-a5e407d00242 // indirect
+	github.com/sagernet/sing-openconnect v0.0.0-20260722140139-e0c977659ca2 // indirect
 	github.com/sagernet/sing-shadowtls v0.2.1 // indirect
-	github.com/sagernet/sing-snell v0.0.0-20260719094200-c43fbee0e839 // indirect
+	github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73 // indirect
 	github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb // indirect
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 // indirect
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1 // indirect
@@ -176,6 +181,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/u-root/uio v0.0.0-20240224005618-d2acac8f3701 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
