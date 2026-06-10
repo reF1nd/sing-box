@@ -94,7 +94,7 @@ func newStackDevice(options DeviceOptions) (*stackDevice, error) {
 		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
 		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
 		icmpForwarder := tun.NewICMPForwarder(options.Context, ipStack, options.Handler, options.ICMPTimeout)
-		icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
+		icmpForwarder.SetLocalAddresses([]netip.Addr{inet4Address}, []netip.Addr{inet6Address})
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
 	}

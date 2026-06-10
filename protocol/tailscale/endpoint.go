@@ -828,7 +828,7 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 			inet6Address = address.Addr()
 		}
 	}
-	t.icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
+	t.icmpForwarder.SetLocalAddresses([]netip.Addr{inet4Address}, []netip.Addr{inet6Address})
 	t.cfg = cfg
 	t.routerCfg = routerCfg
 	t.dnsCfg = dnsCfg
