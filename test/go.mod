@@ -4,7 +4,10 @@ go 1.25.5
 
 require github.com/sagernet/sing-box v0.0.0
 
-replace github.com/sagernet/sing-box => ../
+replace (
+	github.com/sagernet/sing-box => ../
+	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.6-0.20260925104803-09666f0b9669
+)
 
 require (
 	github.com/coder/websocket v1.8.14
