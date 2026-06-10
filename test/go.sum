@@ -248,6 +248,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
+github.com/reF1nd/sing-tun v0.9.7-0.20261126054119-6ba2b41fb95d h1:j3WK9aq0GhaZPTQtCuqI09GDbw1Ll8cZvecViy/SiaA=
+github.com/reF1nd/sing-tun v0.9.7-0.20261126054119-6ba2b41fb95d/go.mod h1:4zbFh2PyjeJikVCvcjdOC+wL71Jg6Kw+z5OKrLRdfOk=
 github.com/safchain/ethtool v0.7.0 h1:rlJzfDetsVvT61uz8x1YIcFn12akMfuPulHtZjtb7Is=
 github.com/safchain/ethtool v0.7.0/go.mod h1:MenQKEjXdfkjD3mp2QdCk8B/hwvkrlOTm/FD4gTpFxQ=
 github.com/sagernet/bbolt v0.0.0-20261124060517-2ab7bd6d2bff h1:A3yzdwayzHZ9VW0HxDGar0T0XRzNZT6GZFxVFmcOXPs=
@@ -350,8 +352,6 @@ github.com/sagernet/sing-shadowtls v0.2.2-0.20261125124310-5028b2558ebf h1:1qCQP
 github.com/sagernet/sing-shadowtls v0.2.2-0.20261125124310-5028b2558ebf/go.mod h1:WyztWlXzZUKSu8uXVRfXTo4vgK2Jvpe5X6+sWRmUZrI=
 github.com/sagernet/sing-snell v0.0.0-20261125120456-6dfe590430a8 h1:tS4oi/f36knm2Q/X2aaPunk/dPbeF0GG+7rFOmWBfSQ=
 github.com/sagernet/sing-snell v0.0.0-20261125120456-6dfe590430a8/go.mod h1:9O6b0qRI/QjuycrYQVnftrRjztzHUV2qYuX6rmpDtCY=
-github.com/sagernet/sing-tun v0.9.7-0.20261126024559-1a13df1ac21f h1:f/7mUXgGb9t+VECBE8fSWxQyE54/FsdA6Wf++kMGoPY=
-github.com/sagernet/sing-tun v0.9.7-0.20261126024559-1a13df1ac21f/go.mod h1:4zbFh2PyjeJikVCvcjdOC+wL71Jg6Kw+z5OKrLRdfOk=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca h1:5wA+IE0Fq1CGVLOgSpm0gKKZ03HzugcJ2JyhmDqeX6A=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca/go.mod h1:ADAZZU85MnM91XNhd2TdZRTaIbA7RjTZuQ1KCHcUbNg=
 github.com/sagernet/sing-vmess v0.2.9-0.20261124075649-4acc92a6f6c6 h1:vyyQcx1p4dVam3oHPbxIUp/bzP1vKmHaidQ42iuRMa4=
