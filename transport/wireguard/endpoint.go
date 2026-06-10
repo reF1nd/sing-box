@@ -232,6 +232,13 @@ func (e *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return e.tunDevice.ListenPacket(ctx, destination)
 }
 
+func (e *Endpoint) BindUpdate() error {
+	if e.device == nil {
+		return net.ErrClosed
+	}
+	return e.device.BindUpdate()
+}
+
 func (e *Endpoint) Close() error {
 	if e.pauseCallback != nil {
 		e.pause.UnregisterCallback(e.pauseCallback)
