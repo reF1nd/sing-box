@@ -27,6 +27,7 @@ import (
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
+	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
 )
 
 func RegisterEndpoint(registry *endpoint.Registry) {
@@ -170,6 +171,16 @@ func (w *Endpoint) Start(stage adapter.StartStage) error {
 func (w *Endpoint) Close() error {
 	w.started.Store(false)
 	return w.endpoint.Close()
+}
+
+func (w *Endpoint) InterfaceUpdated() {
+	if !w.started.Load() {
+		return
+	}
+	err := w.endpoint.BindUpdate()
+	if err != nil {
+		w.logger.Warn(E.Cause(err, "update WireGuard bind"))
+	}
 }
 
 func (w *Endpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
