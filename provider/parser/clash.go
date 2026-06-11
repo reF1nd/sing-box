@@ -73,6 +73,9 @@ func (c *ClashProxy) UnmarshalYAML(value *yaml.Node) error {
 	case "ssh":
 		c.SingType = C.TypeSSH
 		options = &SSHOption{}
+	case "snell":
+		c.SingType = C.TypeSnell
+		options = &SnellOption{}
 	case "anytls":
 		c.SingType = C.TypeAnyTLS
 		options = &AnyTLSOption{}
@@ -466,6 +469,35 @@ func (s *SSHOption) Build() any {
 	return options
 }
 
+type SnellOption struct {
+	DialerOptions `yaml:",inline"`
+	ServerOptions `yaml:",inline"`
+	PSK           string         `yaml:"psk"`
+	UDP           bool           `yaml:"udp,omitempty"`
+	Version       int            `yaml:"version,omitempty"`
+	Reuse         bool           `yaml:"reuse,omitempty"`
+	ObfsOpts      map[string]any `yaml:"obfs-opts,omitempty"`
+}
+
+func (s *SnellOption) Build() any {
+	version := s.Version
+	if version == 5 {
+		version = 4
+	}
+	return &option.SnellOutboundOptions{
+		DialerOptions: s.DialerOptions.Build(),
+		ServerOptions: s.ServerOptions.Build(),
+		PSK:           s.PSK,
+		Version:       version,
+		Reuse:         s.Reuse,
+		Network:       clashSnellNetworks(s.UDP),
+		ObfsOptions: option.SnellObfsClientOptions{
+			ObfsMode: clashStringOption(s.ObfsOpts, "mode"),
+			ObfsHost: clashStringOption(s.ObfsOpts, "host"),
+		},
+	}
+}
+
 type AnyTLSOption struct {
 	DialerOptions            `yaml:",inline"`
 	ServerOptions            `yaml:",inline"`
@@ -799,6 +831,24 @@ func clashNetworks(udpEnabled bool) option.NetworkList {
 		return N.NetworkTCP
 	}
 	return ""
+}
+
+func clashSnellNetworks(udpEnabled bool) option.NetworkList {
+	if !udpEnabled {
+		return N.NetworkTCP
+	}
+	return option.NetworkList(strings.Join([]string{N.NetworkTCP, N.NetworkUDP}, "\n"))
+}
+
+func clashStringOption(options map[string]any, key string) string {
+	if options == nil {
+		return ""
+	}
+	value, loaded := options[key]
+	if !loaded || value == nil {
+		return ""
+	}
+	return F.ToString(value)
 }
 
 func clashPluginName(plugin string) string {
