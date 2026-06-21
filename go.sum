@@ -231,8 +231,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
-github.com/reF1nd/sing-tun v0.9.1-0.20260904094132-40ca0e669e55 h1:/oU2hdwjzrWzB2R8wV5Ylc+tEqldvqjxYkLklok3hes=
-github.com/reF1nd/sing-tun v0.9.1-0.20260904094132-40ca0e669e55/go.mod h1:kCw7pD7VnxuTsoEyU7uSI1b01w1rbyuUJKYqwlR9qtc=
+github.com/reF1nd/sing-tun v0.9.1-0.20260904094216-8ac41c38bd38 h1:pXkrIBIl0GUF5wE9xOSjCmxcdy1lVncIH1g/G3ZJXks=
+github.com/reF1nd/sing-tun v0.9.1-0.20260904094216-8ac41c38bd38/go.mod h1:kCw7pD7VnxuTsoEyU7uSI1b01w1rbyuUJKYqwlR9qtc=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/safchain/ethtool v0.3.0 h1:gimQJpsI6sc1yIqP/y8GYgiXn/NjgvpM0RNoWLVVmP0=
 github.com/safchain/ethtool v0.3.0/go.mod h1:SA9BwrgyAqNo7M+uaL6IYbxpm5wk3L7Mm6ocLW+CJUs=
