@@ -157,7 +157,7 @@ func (w *Endpoint) InterfaceUpdated() {
 	}
 	err := w.endpoint.BindUpdate()
 	if err != nil {
-		w.logger.Warn(E.Cause(err, "update WireGuard bind"))
+		w.logger.Warn(E.Cause(err, "update WireGuard bind after network change"))
 	}
 }
 
