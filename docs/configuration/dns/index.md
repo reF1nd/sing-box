@@ -32,6 +32,7 @@ icon: material/alert-decagram
     "independent_cache": false,
     "round_robin_cache": false,
     "cache_capacity": 0,
+    "cache_client_subnet": false,
     "min_cache_ttl": 0,
     "max_cache_ttl": 0,
     "optimistic": false, // or {}
@@ -95,6 +96,16 @@ Make the order of cached response addresses rotated in round robin manner.
 LRU cache capacity.
 
 Value less than 1024 will be ignored.
+
+#### cache_client_subnet
+
+!!! question "Since sing-box 1.12.25-reF1nd.2 / 1.13.15-reF1nd / 1.14.0-alpha.38-reF1nd"
+
+Allow storing responses for DNS queries received from clients that contain an EDNS0 Client Subnet (ECS) option. If the upstream response contains an ECS option, it is preserved in the cached response.
+
+Disabled by default. When disabled, matching existing ECS cache entries can still be used, but cache misses are not stored and stale entries are not refreshed. This option does not affect `client_subnet` configured by sing-box itself, whose responses are cached using the configured prefix as part of the cache key.
+
+Each distinct ECS prefix creates an independent cache entry. Enabling this option can significantly increase both in-memory DNS cache usage and the size of the persistent DNS cache file. Do not enable it for DNS listeners accessible by untrusted clients unless the cache expiration policy and listener exposure are carefully controlled. Enabling it together with `disable_expire` prevents persistent ECS cache entries from expiring automatically.
 
 #### min_cache_ttl
 

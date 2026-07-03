@@ -36,13 +36,17 @@ var (
 		string(bucketExternalUI),
 		string(bucketOutboundProvider),
 		string(bucketRDRC),
+		string(bucketRDRCECS),
 		string(bucketDNSCache),
+		string(bucketDNSCacheECS),
 	}
 
 	cacheIDDefault = []byte("default")
 )
 
 var _ adapter.CacheFile = (*CacheFile)(nil)
+var _ adapter.RDRCStoreWithKey = (*CacheFile)(nil)
+var _ adapter.DNSCacheStoreWithKey = (*CacheFile)(nil)
 
 type CacheFile struct {
 	ctx                context.Context
@@ -63,22 +67,21 @@ type CacheFile struct {
 	saveAddress4       map[string]netip.Addr
 	saveAddress6       map[string]netip.Addr
 	saveRDRCAccess     sync.RWMutex
-	saveRDRC           map[saveCacheKey]bool
+	saveRDRC           map[adapter.DNSCacheKey]bool
+	saveRDRCQueue      chan saveRDRCRequest
 	saveDNSCacheAccess sync.RWMutex
-	saveDNSCache       map[saveCacheKey]saveDNSCacheEntry
-}
-
-type saveCacheKey struct {
-	TransportName string
-	QuestionName  string
-	QType         uint16
+	saveDNSCache       map[adapter.DNSCacheKey]saveDNSCacheEntry
+	saveDNSCacheQueue  chan adapter.DNSCacheKey
+	saveDNSCacheSeq    uint64
 }
 
 type saveDNSCacheEntry struct {
 	rawMessage []byte
 	expireAt   time.Time
 	sequence   uint64
-	saving     bool
+	queued     bool
+	inFlight   bool
+	logger     logger.Logger
 }
 
 func New(ctx context.Context, logger logger.Logger, options option.CacheFileOptions) *CacheFile {
@@ -104,19 +107,21 @@ func New(ctx context.Context, logger logger.Logger, options option.CacheFileOpti
 		}
 	}
 	return &CacheFile{
-		ctx:          ctx,
-		logger:       logger,
-		path:         filemanager.BasePath(ctx, path),
-		cacheID:      cacheIDBytes,
-		storeFakeIP:  options.StoreFakeIP,
-		storeRDRC:    options.StoreRDRC,
-		storeDNS:     options.StoreDNS,
-		rdrcTimeout:  rdrcTimeout,
-		saveDomain:   make(map[netip.Addr]string),
-		saveAddress4: make(map[string]netip.Addr),
-		saveAddress6: make(map[string]netip.Addr),
-		saveRDRC:     make(map[saveCacheKey]bool),
-		saveDNSCache: make(map[saveCacheKey]saveDNSCacheEntry),
+		ctx:               ctx,
+		logger:            logger,
+		path:              filemanager.BasePath(ctx, path),
+		cacheID:           cacheIDBytes,
+		storeFakeIP:       options.StoreFakeIP,
+		storeRDRC:         options.StoreRDRC,
+		storeDNS:          options.StoreDNS,
+		rdrcTimeout:       rdrcTimeout,
+		saveDomain:        make(map[netip.Addr]string),
+		saveAddress4:      make(map[string]netip.Addr),
+		saveAddress6:      make(map[string]netip.Addr),
+		saveRDRC:          make(map[adapter.DNSCacheKey]bool),
+		saveRDRCQueue:     make(chan saveRDRCRequest, rdrcSaveQueueSize),
+		saveDNSCache:      make(map[adapter.DNSCacheKey]saveDNSCacheEntry),
+		saveDNSCacheQueue: make(chan adapter.DNSCacheKey, dnsCacheSaveQueueSize),
 	}
 }
 
@@ -139,7 +144,15 @@ func (c *CacheFile) SetDisableExpire(disableExpire bool) {
 func (c *CacheFile) Start(stage adapter.StartStage) error {
 	switch stage {
 	case adapter.StartStateInitialize:
-		return c.start()
+		err := c.start()
+		if err == nil {
+			if c.StoreDNS() {
+				go c.loopDNSCacheSave()
+			} else if c.StoreRDRC() {
+				go c.loopRDRCSave()
+			}
+		}
+		return err
 	case adapter.StartStateStart:
 		c.startCacheCleanup()
 	}
@@ -198,30 +211,52 @@ func (c *CacheFile) start() error {
 		db.Close()
 		return E.Cause(err, "platform chown")
 	}
-	err = db.Batch(func(tx *bbolt.Tx) error {
-		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
-			if name[0] == 0 {
-				return b.ForEachBucket(func(k []byte) error {
-					bucketName := string(k)
-					if !(common.Contains(bucketNameList, bucketName)) {
-						_ = b.DeleteBucket(name)
-					}
-					return nil
-				})
-			} else {
-				bucketName := string(name)
-				if !(common.Contains(bucketNameList, bucketName) || strings.HasPrefix(bucketName, fakeipBucketPrefix)) {
-					_ = tx.DeleteBucket(name)
-				}
-			}
-			return nil
-		})
-	})
+	err = db.Batch(cleanupUnknownBuckets)
 	if err != nil {
 		db.Close()
 		return err
 	}
 	c.DB = db
+	return nil
+}
+
+func cleanupUnknownBuckets(tx *bbolt.Tx) error {
+	var unknownTopLevelBuckets [][]byte
+	err := tx.ForEach(func(name []byte, bucket *bbolt.Bucket) error {
+		if len(name) > 0 && name[0] == 0 {
+			var unknownNestedBuckets [][]byte
+			err := bucket.ForEachBucket(func(key []byte) error {
+				if !common.Contains(bucketNameList, string(key)) {
+					unknownNestedBuckets = append(unknownNestedBuckets, append([]byte(nil), key...))
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			for _, key := range unknownNestedBuckets {
+				err = bucket.DeleteBucket(key)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		bucketName := string(name)
+		if !common.Contains(bucketNameList, bucketName) && !strings.HasPrefix(bucketName, fakeipBucketPrefix) {
+			unknownTopLevelBuckets = append(unknownTopLevelBuckets, append([]byte(nil), name...))
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for _, name := range unknownTopLevelBuckets {
+		err = tx.DeleteBucket(name)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
