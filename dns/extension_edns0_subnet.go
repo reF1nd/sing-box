@@ -6,6 +6,53 @@ import (
 	"github.com/miekg/dns"
 )
 
+func extractClientSubnet(message *dns.Msg) (netip.Prefix, bool) {
+	for _, record := range message.Extra {
+		optRecord, isOPT := record.(*dns.OPT)
+		if !isOPT {
+			continue
+		}
+		for _, option := range optRecord.Option {
+			subnetOption, isSubnet := option.(*dns.EDNS0_SUBNET)
+			if !isSubnet {
+				continue
+			}
+			return clientSubnetFromOption(subnetOption)
+		}
+	}
+	return netip.Prefix{}, false
+}
+
+func clientSubnetFromOption(option *dns.EDNS0_SUBNET) (netip.Prefix, bool) {
+	if option.SourceScope != 0 {
+		return netip.Prefix{}, false
+	}
+	var address netip.Addr
+	switch option.Family {
+	case 1:
+		if option.SourceNetmask > 32 {
+			return netip.Prefix{}, false
+		}
+		addressBytes := option.Address.To4()
+		if len(addressBytes) != 4 {
+			return netip.Prefix{}, false
+		}
+		address = netip.AddrFrom4([4]byte(addressBytes))
+	case 2:
+		if option.SourceNetmask > 128 {
+			return netip.Prefix{}, false
+		}
+		var addressValid bool
+		address, addressValid = netip.AddrFromSlice(option.Address)
+		if !addressValid || address.Is4() {
+			return netip.Prefix{}, false
+		}
+	default:
+		return netip.Prefix{}, false
+	}
+	return netip.PrefixFrom(address, int(option.SourceNetmask)).Masked(), true
+}
+
 func SetClientSubnet(message *dns.Msg, clientSubnet netip.Prefix) *dns.Msg {
 	return setClientSubnet(message, clientSubnet, true)
 }

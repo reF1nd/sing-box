@@ -49,17 +49,18 @@ func (o *DNSOptions) UnmarshalJSONContext(ctx context.Context, content []byte) e
 }
 
 type DNSClientOptions struct {
-	Strategy         DomainStrategy        `json:"strategy,omitempty"`
-	Timeout          badoption.Duration    `json:"timeout,omitempty"`
-	DisableCache     bool                  `json:"disable_cache,omitempty"`
-	DisableExpire    bool                  `json:"disable_expire,omitempty"`
-	IndependentCache bool                  `json:"independent_cache,omitempty"`
-	RoundRobinCache  bool                  `json:"round_robin_cache,omitempty"`
-	CacheCapacity    uint32                `json:"cache_capacity,omitempty"`
-	MinCacheTTL      uint32                `json:"min_cache_ttl,omitempty"`
-	MaxCacheTTL      uint32                `json:"max_cache_ttl,omitempty"`
-	Optimistic       *OptimisticDNSOptions `json:"optimistic,omitempty"`
-	ClientSubnet     *badoption.Prefixable `json:"client_subnet,omitempty"`
+	Strategy          DomainStrategy        `json:"strategy,omitempty"`
+	Timeout           badoption.Duration    `json:"timeout,omitempty"`
+	DisableCache      bool                  `json:"disable_cache,omitempty"`
+	DisableExpire     bool                  `json:"disable_expire,omitempty"`
+	IndependentCache  bool                  `json:"independent_cache,omitempty"`
+	RoundRobinCache   bool                  `json:"round_robin_cache,omitempty"`
+	CacheCapacity     uint32                `json:"cache_capacity,omitempty"`
+	CacheClientSubnet bool                  `json:"cache_client_subnet,omitempty"`
+	MinCacheTTL       uint32                `json:"min_cache_ttl,omitempty"`
+	MaxCacheTTL       uint32                `json:"max_cache_ttl,omitempty"`
+	Optimistic        *OptimisticDNSOptions `json:"optimistic,omitempty"`
+	ClientSubnet      *badoption.Prefixable `json:"client_subnet,omitempty"`
 }
 
 type _OptimisticDNSOptions struct {

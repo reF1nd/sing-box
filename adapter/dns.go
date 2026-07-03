@@ -69,12 +69,32 @@ type RDRCStore interface {
 	SaveRDRCAsync(transportName string, qName string, qType uint16, logger logger.Logger)
 }
 
+type DNSCacheKey struct {
+	TransportName string
+	QuestionName  string
+	QType         uint16
+	ClientSubnet  netip.Prefix
+}
+
+type RDRCStoreWithKey interface {
+	LoadRDRCWithKey(key DNSCacheKey) (rejected bool)
+	SaveRDRCWithKey(key DNSCacheKey) error
+	SaveRDRCAsyncWithKey(key DNSCacheKey, logger logger.Logger)
+}
+
 type DNSCacheStore interface {
 	LoadDNSCache(transportName string, qName string, qType uint16) (rawMessage []byte, expireAt time.Time, loaded bool)
 	SaveDNSCache(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time) error
 	SaveDNSCacheAsync(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time, logger logger.Logger)
 	DeleteDNSCache(transportName string, qName string, qType uint16)
 	ClearDNSCache() error
+}
+
+type DNSCacheStoreWithKey interface {
+	LoadDNSCacheWithKey(key DNSCacheKey) (rawMessage []byte, expireAt time.Time, loaded bool)
+	SaveDNSCacheWithKey(key DNSCacheKey, rawMessage []byte, expireAt time.Time) error
+	SaveDNSCacheAsyncWithKey(key DNSCacheKey, rawMessage []byte, expireAt time.Time, logger logger.Logger)
+	DeleteDNSCacheWithKey(key DNSCacheKey)
 }
 
 type DNSTransport interface {
