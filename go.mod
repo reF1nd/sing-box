@@ -71,6 +71,8 @@ require (
 	howett.net/plist v1.0.1
 )
 
+require github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	filippo.io/hpke v0.4.0 // indirect
