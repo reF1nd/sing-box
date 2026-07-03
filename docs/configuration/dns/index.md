@@ -27,6 +27,7 @@ icon: material/alert-decagram
     "round_robin_cache": false,
     "lazy_cache_ttl": 0,
     "cache_capacity": 0,
+    "cache_client_subnet": false,
     "min_cache_ttl": 0,
     "max_cache_ttl": 0,
     "reverse_mapping": false,
@@ -84,6 +85,16 @@ Serve expired cached response with given extra ttl. It will attempt to refresh t
 LRU cache capacity.
 
 Value less than 1024 will be ignored.
+
+#### cache_client_subnet
+
+!!! question "Since sing-box 1.12.25-reF1nd.2 / 1.13.15-reF1nd / 1.14.0-alpha.38-reF1nd"
+
+Allow storing responses for DNS queries received from clients that contain an EDNS0 Client Subnet (ECS) option. If the upstream response contains an ECS option, it is preserved in the cached response. The same policy applies to rejected DNS response cache (RDRC) entries.
+
+Disabled by default. When disabled, matching existing ECS cache entries can still be used, but cache misses are not stored and stale entries are not refreshed. This option does not affect `client_subnet` configured by sing-box itself, whose responses are cached using the configured prefix as part of the cache key.
+
+Each distinct ECS prefix creates an independent cache entry. Enabling this option can significantly increase in-memory DNS cache usage and, when `store_rdrc` is enabled, the persistent RDRC database size. Do not enable it for DNS listeners accessible by untrusted clients unless the cache capacity and listener exposure are carefully controlled.
 
 #### min_cache_ttl
 

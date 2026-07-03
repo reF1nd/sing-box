@@ -52,15 +52,16 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
 	}
 	router.client = NewClient(ClientOptions{
-		DisableCache:     options.DNSClientOptions.DisableCache,
-		DisableExpire:    options.DNSClientOptions.DisableExpire,
-		IndependentCache: options.DNSClientOptions.IndependentCache,
-		RoundRobinCache:  options.DNSClientOptions.RoundRobinCache,
-		CacheCapacity:    options.DNSClientOptions.CacheCapacity,
-		ClientSubnet:     options.DNSClientOptions.ClientSubnet.Build(netip.Prefix{}),
-		MinCacheTTL:      options.DNSClientOptions.MinCacheTTL,
-		MaxCacheTTL:      options.DNSClientOptions.MaxCacheTTL,
-		LazyCacheTTL:     options.DNSClientOptions.LazyCacheTTL,
+		DisableCache:      options.DNSClientOptions.DisableCache,
+		DisableExpire:     options.DNSClientOptions.DisableExpire,
+		IndependentCache:  options.DNSClientOptions.IndependentCache,
+		RoundRobinCache:   options.DNSClientOptions.RoundRobinCache,
+		CacheCapacity:     options.DNSClientOptions.CacheCapacity,
+		CacheClientSubnet: options.DNSClientOptions.CacheClientSubnet,
+		ClientSubnet:      options.DNSClientOptions.ClientSubnet.Build(netip.Prefix{}),
+		MinCacheTTL:       options.DNSClientOptions.MinCacheTTL,
+		MaxCacheTTL:       options.DNSClientOptions.MaxCacheTTL,
+		LazyCacheTTL:      options.DNSClientOptions.LazyCacheTTL,
 		RDRC: func() adapter.RDRCStore {
 			cacheFile := service.FromContext[adapter.CacheFile](ctx)
 			if cacheFile == nil {

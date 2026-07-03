@@ -27,6 +27,7 @@ icon: material/alert-decagram
     "round_robin_cache": false,
     "lazy_cache_ttl": 0,
     "cache_capacity": 0,
+    "cache_client_subnet": false,
     "min_cache_ttl": 0,
     "max_cache_ttl": 0,
     "reverse_mapping": false,
@@ -83,6 +84,16 @@ icon: material/alert-decagram
 LRU 缓存容量。
 
 小于 1024 的值将被忽略。
+
+#### cache_client_subnet
+
+!!! question "自 sing-box 1.12.25-reF1nd.2 / 1.13.15-reF1nd / 1.14.0-alpha.38-reF1nd 起"
+
+允许存储从客户端收到的、包含 EDNS0 Client Subnet（ECS）选项的 DNS 查询响应。如果上游响应包含 ECS 选项，则会在缓存响应中保留该选项。拒绝 DNS 响应缓存（RDRC）条目也遵循相同策略。
+
+默认关闭。关闭时仍可使用匹配的现有 ECS 缓存，但缓存未命中时不会写入，过期缓存也不会触发刷新。此选项不影响由 sing-box 自身配置的 `client_subnet`；后者始终将配置的前缀作为缓存键的一部分来缓存响应。
+
+每个不同的 ECS 前缀都会创建独立的缓存条目。启用此选项会显著增加内存 DNS 缓存占用；启用 `store_rdrc` 时，也会增加持久化 RDRC 数据库大小。除非已严格控制缓存容量和监听器暴露范围，否则不要为不受信任客户端可访问的 DNS 监听器启用此选项。
 
 #### min_cache_ttl
 

@@ -67,6 +67,19 @@ type RDRCStore interface {
 	SaveRDRCAsync(transportName string, qName string, qType uint16, logger logger.Logger)
 }
 
+type DNSCacheKey struct {
+	TransportName string
+	QuestionName  string
+	QType         uint16
+	ClientSubnet  netip.Prefix
+}
+
+type RDRCStoreWithKey interface {
+	LoadRDRCWithKey(key DNSCacheKey) (rejected bool)
+	SaveRDRCWithKey(key DNSCacheKey) error
+	SaveRDRCAsyncWithKey(key DNSCacheKey, logger logger.Logger)
+}
+
 type DNSTransport interface {
 	Lifecycle
 	Type() string
