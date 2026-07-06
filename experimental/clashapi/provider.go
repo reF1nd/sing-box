@@ -21,6 +21,10 @@ func proxyProviderRouter(server *Server) http.Handler {
 		r.Get("/", getProvider(server))
 		r.Put("/", updateProvider)
 		r.Get("/healthcheck", healthCheckProvider)
+		r.Route("/{proxyName}", func(r chi.Router) {
+			r.Use(parseProviderProxyName, findProviderProxyByName)
+			r.Get("/healthcheck", getProxyDelay(server))
+		})
 	})
 	return r
 }
@@ -102,4 +106,28 @@ func findProviderByName(server *Server) func(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func parseProviderProxyName(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := getEscapeParam(r, "proxyName")
+		ctx := context.WithValue(r.Context(), CtxKeyProxyName, name)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func findProviderProxyByName(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := r.Context().Value(CtxKeyProxyName).(string)
+		provider := r.Context().Value(CtxKeyProvider).(adapter.Provider)
+		proxy, exist := provider.Outbound(name)
+		if !exist {
+			render.Status(r, http.StatusNotFound)
+			render.JSON(w, r, ErrNotFound)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), CtxKeyProxy, proxy)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
