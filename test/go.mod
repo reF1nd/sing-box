@@ -21,6 +21,7 @@ require (
 	github.com/sagernet/sing-quic v0.7.1-0.20260904135313-497364e8ee3e
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
+	github.com/sagernet/sing-snell v0.0.0-20260904135315-bc5a12ac736f
 	github.com/sagernet/sing-tun v0.9.1-0.20260902150540-98e457e39c90
 	github.com/spyzhov/ajson v0.9.4
 	github.com/stretchr/testify v1.12.0
@@ -162,7 +163,6 @@ require (
 	github.com/sagernet/sing-mux v0.3.7-0.20260905054442-91d1502591ce // indirect
 	github.com/sagernet/sing-openconnect v0.0.0-20260903200519-8b89c968949d // indirect
 	github.com/sagernet/sing-shadowtls v0.2.1 // indirect
-	github.com/sagernet/sing-snell v0.0.0-20260904135315-bc5a12ac736f // indirect
 	github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca // indirect
 	github.com/sagernet/sing-vmess v0.2.8 // indirect
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1 // indirect
@@ -217,3 +217,5 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
+
+replace github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20260905064728-48a266fb2745
