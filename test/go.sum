@@ -250,6 +250,8 @@ github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
 github.com/reF1nd/sing-anytls v0.0.0-20261125081744-08981c57ec31 h1:89RceQFmm+OM1P68glXzjU3qizD+sR0N/TKkOcrcdAY=
 github.com/reF1nd/sing-anytls v0.0.0-20261125081744-08981c57ec31/go.mod h1:VRKLnj0ObEsN228h+zuzf91p+6sjtYE8SBaLPVsBy5o=
+github.com/reF1nd/sing-snell v0.0.0-20261126085318-32cdba1b822c h1:E7kAB47eGsL5U+qgAjm9EBhyzaOeDdthf0X4ZlqDEPA=
+github.com/reF1nd/sing-snell v0.0.0-20261126085318-32cdba1b822c/go.mod h1:9O6b0qRI/QjuycrYQVnftrRjztzHUV2qYuX6rmpDtCY=
 github.com/reF1nd/sing-tun v0.9.7-0.20261126054119-6ba2b41fb95d h1:j3WK9aq0GhaZPTQtCuqI09GDbw1Ll8cZvecViy/SiaA=
 github.com/reF1nd/sing-tun v0.9.7-0.20261126054119-6ba2b41fb95d/go.mod h1:4zbFh2PyjeJikVCvcjdOC+wL71Jg6Kw+z5OKrLRdfOk=
 github.com/safchain/ethtool v0.7.0 h1:rlJzfDetsVvT61uz8x1YIcFn12akMfuPulHtZjtb7Is=
@@ -350,8 +352,6 @@ github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95 h1:nu
 github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95/go.mod h1:RnXS0lExcDAovvDeniJ4IKa2IuChrdipolPYWBv9hWQ=
 github.com/sagernet/sing-shadowtls v0.2.2-0.20261125124310-5028b2558ebf h1:1qCQPI1qWXi7pKpta0nedF/53zqbsCdtQVuXUD8HD+s=
 github.com/sagernet/sing-shadowtls v0.2.2-0.20261125124310-5028b2558ebf/go.mod h1:WyztWlXzZUKSu8uXVRfXTo4vgK2Jvpe5X6+sWRmUZrI=
-github.com/sagernet/sing-snell v0.0.0-20261125120456-6dfe590430a8 h1:tS4oi/f36knm2Q/X2aaPunk/dPbeF0GG+7rFOmWBfSQ=
-github.com/sagernet/sing-snell v0.0.0-20261125120456-6dfe590430a8/go.mod h1:9O6b0qRI/QjuycrYQVnftrRjztzHUV2qYuX6rmpDtCY=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca h1:5wA+IE0Fq1CGVLOgSpm0gKKZ03HzugcJ2JyhmDqeX6A=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca/go.mod h1:ADAZZU85MnM91XNhd2TdZRTaIbA7RjTZuQ1KCHcUbNg=
 github.com/sagernet/sing-vmess v0.2.9-0.20261124075649-4acc92a6f6c6 h1:vyyQcx1p4dVam3oHPbxIUp/bzP1vKmHaidQ42iuRMa4=
