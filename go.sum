@@ -233,6 +233,8 @@ github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
 github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a h1:9bnRAsAjqDSQkGLjjd64rvzAir42v5lH16aJDFg8TEU=
 github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a/go.mod h1:VRKLnj0ObEsN228h+zuzf91p+6sjtYE8SBaLPVsBy5o=
+github.com/reF1nd/sing-snell v0.0.0-20261111152839-c3d3cba7c508 h1:zQjnw9m3AuY8dqjeHh1q7BqCzvc22X4YBkiz/nPsgVQ=
+github.com/reF1nd/sing-snell v0.0.0-20261111152839-c3d3cba7c508/go.mod h1:Na4U54WiSQxWD/KEFIIdr+rPE9Qnr/kk8EtKXa18pRk=
 github.com/reF1nd/sing-tun v0.9.7-0.20261111075846-c70827b4926d h1:l/Yk5Oas1d3qkwseJJUSk3sbYgirPEJI5u3fFRBDkA8=
 github.com/reF1nd/sing-tun v0.9.7-0.20261111075846-c70827b4926d/go.mod h1:liMb9HPIWcFWqF6VJ/ttIY8fTSRPdRltBeSeEcXt1Dk=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
@@ -338,8 +340,6 @@ github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95 h1:nu
 github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95/go.mod h1:RnXS0lExcDAovvDeniJ4IKa2IuChrdipolPYWBv9hWQ=
 github.com/sagernet/sing-shadowtls v0.2.2-0.20261110092247-ce8a3b8474bb h1:Rv9NFICdu8ldDeXtlVCwAQhFknTntYbBLDPt1I11S9M=
 github.com/sagernet/sing-shadowtls v0.2.2-0.20261110092247-ce8a3b8474bb/go.mod h1:sWqKnGlMipCHaGsw1sTTlimyUpgzP4WP3pjhCsYt9oA=
-github.com/sagernet/sing-snell v0.0.0-20261110094602-04667b0a321c h1:OODxu54K5ZvgnS97t8HlN3tily8Oj+s6ygOJ1ZzyfFQ=
-github.com/sagernet/sing-snell v0.0.0-20261110094602-04667b0a321c/go.mod h1:Na4U54WiSQxWD/KEFIIdr+rPE9Qnr/kk8EtKXa18pRk=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca h1:5wA+IE0Fq1CGVLOgSpm0gKKZ03HzugcJ2JyhmDqeX6A=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca/go.mod h1:ADAZZU85MnM91XNhd2TdZRTaIbA7RjTZuQ1KCHcUbNg=
 github.com/sagernet/sing-vmess v0.2.9-0.20261110093549-d800eb57f96c h1:3svsvOhs6e7BcHY8o9+Fo0qGJ+enoLTdPIaRbqwsiaE=
