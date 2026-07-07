@@ -6,6 +6,7 @@ require github.com/sagernet/sing-box v0.0.0
 
 replace (
 	github.com/sagernet/sing-box => ../
+	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20260726145454-89775d46ec1e
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.8.12-0.20260726155000-195a82197708
 )
 
@@ -20,6 +21,7 @@ require (
 	github.com/sagernet/sing-quic v0.6.4-0.20260720125339-63fa6a7ebc31
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
+	github.com/sagernet/sing-snell v0.0.0-20260719094200-c43fbee0e839
 	github.com/sagernet/sing-tun v0.8.12-0.20260724023008-68aa7bdc2819
 	github.com/spyzhov/ajson v0.9.4
 	github.com/stretchr/testify v1.11.1
@@ -162,7 +164,6 @@ require (
 	github.com/sagernet/sing-mux v0.3.5 // indirect
 	github.com/sagernet/sing-openconnect v0.0.0-20260722140139-e0c977659ca2 // indirect
 	github.com/sagernet/sing-shadowtls v0.2.1 // indirect
-	github.com/sagernet/sing-snell v0.0.0-20260719094200-c43fbee0e839 // indirect
 	github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb // indirect
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 // indirect
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1 // indirect
