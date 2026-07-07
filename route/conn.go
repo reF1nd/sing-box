@@ -2,6 +2,7 @@ package route
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
@@ -18,6 +19,7 @@ import (
 	"github.com/sagernet/sing-box/common/tlsfragment"
 	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
+	snell "github.com/sagernet/sing-snell"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -319,6 +321,8 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn,
 	if !direction {
 		if err == nil {
 			m.logger.DebugContext(ctx, "connection upload finished")
+		} else if isSnellRemoteEOF(err) {
+			m.logger.DebugContext(ctx, "connection upload closed: ", err)
 		} else if !E.IsClosedOrCanceled(err) {
 			m.logger.ErrorContext(ctx, "connection upload closed: ", err)
 		} else {
@@ -327,12 +331,26 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn,
 	} else {
 		if err == nil {
 			m.logger.DebugContext(ctx, "connection download finished")
+		} else if isSnellRemoteEOF(err) {
+			m.logger.DebugContext(ctx, "connection download closed: ", err)
 		} else if !E.IsClosedOrCanceled(err) {
 			m.logger.ErrorContext(ctx, "connection download closed: ", err)
 		} else {
 			m.logger.TraceContext(ctx, "connection download closed")
 		}
 	}
+}
+
+func isSnellRemoteEOF(err error) bool {
+	// Follow single-error wrappers only. A joined error may contain another
+	// failure that must retain its normal log level.
+	for err != nil {
+		if response, ok := err.(*snell.ServerResponseError); ok {
+			return response.IsRemoteEOF()
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
 }
 
 func (m *ConnectionManager) kickWriteHandshake(ctx context.Context, source net.Conn, destination net.Conn, serverFirst bool, direction bool, done *atomic.Bool, onClose N.CloseHandlerFunc) bool {
