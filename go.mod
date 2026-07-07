@@ -85,6 +85,7 @@ require (
 
 replace (
 	github.com/sagernet/sing-anytls => github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a
+	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20261023074937-e056cb336137
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.7-0.20261023142205-68a8ad81087d
 )
 
