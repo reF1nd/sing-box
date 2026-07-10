@@ -290,6 +290,8 @@ When set to true, matches after a TLS or QUIC ClientHello has been sniffed if it
 
 Place rules that use this condition after a sniff action. The public name is learned from DNS HTTPS records when DNS reverse mapping or FakeIP is enabled. The outer SNI remains available as the sniffed hostname.
 
+This condition always uses the sniffed SNI. `domain_match_strategy` selects the hostname for the other domain conditions.
+
 #### geosite
 
 !!! failure "Deprecated in sing-box 1.8.0"

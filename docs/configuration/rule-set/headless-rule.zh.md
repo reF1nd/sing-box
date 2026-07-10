@@ -18,6 +18,12 @@ icon: material/new-box
     :material-plus: [network_is_expensive](#network_is_expensive)  
     :material-plus: [network_is_constrained](#network_is_constrained)
 
+### domain_match_strategy
+
+源格式的默认规则和逻辑规则支持 `domain_match_strategy`。逻辑规则的策略会传递给未指定策略的子规则，否则使用路由级默认策略。
+
+当前二进制规则集格式无法保留显式策略，编译此类规则会报错，请使用源格式。在 iOS 上，这些源规则会保留在内存中，不转换为 mmap 存储。
+
 ### 结构
 
 !!! question "自 sing-box 1.8.0 起"

@@ -288,6 +288,8 @@ icon: material/new-box
 
 将使用此条件的规则放在 sniff 动作之后。启用 DNS 反向映射或 FakeIP 时，公开名称从 DNS HTTPS 记录中学习。外层 SNI 继续作为嗅探域名使用。
 
+此条件始终使用嗅探到的 SNI。`domain_match_strategy` 用于选择其他域名条件匹配的域名。
+
 #### geosite
 
 !!! failure "已在 sing-box 1.8.0 废弃"
