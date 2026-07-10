@@ -77,12 +77,12 @@ func (r DNSRule) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
 			return nil, err
 		}
 		nestedRef, err := builder.Define("NestedDNSRule", func() (*schema.Node, error) {
-			return nestedRuleUnion(builder, reflect.TypeFor[RawDefaultDNSRule](), "NestedDNSRule")
+			return nestedRuleUnion(builder, reflect.TypeFor[RawDefaultDNSRule](), "NestedDNSRule", false)
 		})
 		if err != nil {
 			return nil, err
 		}
-		return ruleUnion(builder, reflect.TypeFor[RawDefaultDNSRule](), nestedRef, actionRef)
+		return ruleUnion(builder, reflect.TypeFor[RawDefaultDNSRule](), nestedRef, actionRef, false)
 	})
 }
 
