@@ -51,7 +51,8 @@ type Router struct {
 	platformInterface adapter.PlatformInterface
 	started           bool
 
-	quicSniffCache *expiringmap.Map[quicSniffCacheKey, string]
+	quicSniffCache             *expiringmap.Map[quicSniffCacheKey, string]
+	defaultDomainMatchStrategy C.DomainMatchStrategy
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions) *Router {
@@ -73,11 +74,15 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
 
-		quicSniffCache: expiringmap.New[quicSniffCacheKey, string](quicSniffCacheTTL),
+		quicSniffCache:             expiringmap.New[quicSniffCacheKey, string](quicSniffCacheTTL),
+		defaultDomainMatchStrategy: C.DomainMatchStrategy(options.DefaultDomainMatchStrategy),
 	}
 }
 
 func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) error {
+	if r.defaultDomainMatchStrategy == C.DomainMatchStrategyFQDNOnly || r.defaultDomainMatchStrategy == C.DomainMatchStrategySniffHostOnly {
+		return E.New("default_domain_match_strategy cannot be fqdn_only or sniffhost_only")
+	}
 	for i, options := range rules {
 		err := R.ValidateNoNestedRuleActions(options)
 		if err != nil {
@@ -322,4 +327,8 @@ func (r *Router) refreshQUICSniff(source, destination M.Socksaddr, sniffHost str
 	r.quicSniffCache.StoreIf(quicSniffCacheKey{source, destination}, sniffHost, func(current string, loaded bool) bool {
 		return !loaded || current == sniffHost
 	})
+}
+
+func (r *Router) DefaultDomainMatchStrategy() C.DomainMatchStrategy {
+	return r.defaultDomainMatchStrategy
 }
