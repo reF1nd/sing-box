@@ -149,8 +149,14 @@ func readRule(reader varbin.Reader, recover bool, depth int) (rule option.Headle
 func writeRule(writer varbin.Writer, rule option.HeadlessRule, generateVersion uint8) error {
 	switch rule.Type {
 	case C.RuleTypeDefault:
+		if rule.DefaultOptions.DomainMatchStrategy != option.DomainMatchStrategy(C.DomainMatchStrategyAsIS) {
+			return E.New("domain_match_strategy is not supported in binary rule-sets; use source format")
+		}
 		return writeDefaultRule(writer, rule.DefaultOptions, generateVersion)
 	case C.RuleTypeLogical:
+		if rule.LogicalOptions.DomainMatchStrategy != option.DomainMatchStrategy(C.DomainMatchStrategyAsIS) {
+			return E.New("domain_match_strategy is not supported in binary rule-sets; use source format")
+		}
 		return writeLogicalRule(writer, rule.LogicalOptions, generateVersion)
 	default:
 		panic("unknown rule type: " + rule.Type)
