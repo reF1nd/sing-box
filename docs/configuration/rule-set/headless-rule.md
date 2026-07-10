@@ -18,6 +18,12 @@ icon: material/new-box
     :material-plus: [network_is_expensive](#network_is_expensive)  
     :material-plus: [network_is_constrained](#network_is_constrained)
 
+### domain_match_strategy
+
+Source-format default and logical rules support `domain_match_strategy`. Logical rules pass their strategy to children that do not specify one; otherwise the route-level default applies.
+
+The current binary rule-set format cannot preserve an explicit strategy. Compiling such rules returns an error; use source format.
+
 ### Structure
 
 !!! question "Since sing-box 1.8.0"
