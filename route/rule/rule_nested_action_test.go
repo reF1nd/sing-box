@@ -36,6 +36,24 @@ func TestNewRuleRejectsNestedRuleAction(t *testing.T) {
 	require.ErrorContains(t, err, option.RouteRuleActionNestedUnsupportedMessage)
 }
 
+func TestNewRuleWithoutRouterUsesAsIsDomainMatchStrategy(t *testing.T) {
+	t.Parallel()
+
+	createdRule, err := NewRule(context.Background(), log.NewNOPFactory().NewLogger("router"), option.Rule{
+		Type: C.RuleTypeDefault,
+		DefaultOptions: option.DefaultRule{
+			RawDefaultRule: option.RawDefaultRule{
+				Domain: []string{"example.com"},
+			},
+			RuleAction: option.RuleAction{
+				Action: C.RuleActionTypeRoute,
+			},
+		},
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, C.DomainMatchStrategyAsIS, createdRule.(*DefaultRule).domainMatchStrategy)
+}
+
 func TestNewDNSRuleRejectsNestedRuleAction(t *testing.T) {
 	t.Parallel()
 

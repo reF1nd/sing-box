@@ -1,6 +1,11 @@
 package option
 
-import "github.com/sagernet/sing/common/json/badoption"
+import (
+	"reflect"
+
+	"github.com/sagernet/sing-box/schema"
+	"github.com/sagernet/sing/common/json/badoption"
+)
 
 type RouteOptions struct {
 	GeoIP                      *GeoIPOptions                     `json:"geoip,omitempty" schema:"omit"`
@@ -21,6 +26,19 @@ type RouteOptions struct {
 	DefaultFallbackNetworkType badoption.Listable[InterfaceType] `json:"default_fallback_network_type,omitempty"`
 	DefaultFallbackDelay       badoption.Duration                `json:"default_fallback_delay,omitempty"`
 	DefaultHTTPClient          string                            `json:"default_http_client,omitempty"`
+	DefaultDomainMatchStrategy DomainMatchStrategy               `json:"default_domain_match_strategy,omitempty"`
+}
+
+func (o RouteOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("RouteOptions", func() (*schema.Node, error) {
+		node := schema.StrictObject()
+		err := builder.FlattenStruct(node, reflect.TypeFor[RouteOptions]())
+		if err != nil {
+			return nil, err
+		}
+		node.Properties.Put("default_domain_match_strategy", schema.StringEnum("", "as_is", "prefer_fqdn", "prefer_sniffhost"))
+		return node, nil
+	})
 }
 
 type GeoIPOptions struct {
