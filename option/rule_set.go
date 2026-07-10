@@ -244,7 +244,7 @@ func (r HeadlessRule) IsValid() bool {
 
 func (r HeadlessRule) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
 	return builder.Define("HeadlessRule", func() (*schema.Node, error) {
-		return nestedRuleUnion(builder, reflect.TypeFor[DefaultHeadlessRule](), "HeadlessRule")
+		return nestedRuleUnion(builder, reflect.TypeFor[DefaultHeadlessRule](), "HeadlessRule", true)
 	})
 }
 
@@ -271,6 +271,7 @@ type DefaultHeadlessRule struct {
 	NetworkIsConstrained    bool                                                                        `json:"network_is_constrained,omitempty"`
 	WIFISSID                badoption.Listable[string]                                                  `json:"wifi_ssid,omitempty"`
 	WIFIBSSID               badoption.Listable[string]                                                  `json:"wifi_bssid,omitempty"`
+	DomainMatchStrategy     DomainMatchStrategy                                                         `json:"domain_match_strategy,omitempty"`
 	NetworkInterfaceAddress *badjson.TypedMap[InterfaceType, badoption.Listable[*badoption.Prefixable]] `json:"network_interface_address,omitempty"`
 	DefaultInterfaceAddress badoption.Listable[*badoption.Prefixable]                                   `json:"default_interface_address,omitempty"`
 
@@ -291,9 +292,10 @@ func (r DefaultHeadlessRule) IsValid() bool {
 }
 
 type LogicalHeadlessRule struct {
-	Mode   string         `json:"mode" enum:"and,or"`
-	Rules  []HeadlessRule `json:"rules,omitempty"`
-	Invert bool           `json:"invert,omitempty"`
+	Mode                string              `json:"mode" enum:"and,or"`
+	Rules               []HeadlessRule      `json:"rules,omitempty"`
+	DomainMatchStrategy DomainMatchStrategy `json:"domain_match_strategy,omitempty"`
+	Invert              bool                `json:"invert,omitempty"`
 }
 
 func (r LogicalHeadlessRule) IsValid() bool {
