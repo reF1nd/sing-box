@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/domain"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -12,11 +13,12 @@ import (
 var _ RuleItem = (*DomainItem)(nil)
 
 type DomainItem struct {
-	matcher     *domain.Matcher
-	description string
+	matcher             *domain.Matcher
+	description         string
+	domainMatchStrategy C.DomainMatchStrategy
 }
 
-func NewDomainItem(domains []string, domainSuffixes []string) (*DomainItem, error) {
+func NewDomainItem(domains []string, domainSuffixes []string, domainMatchStrategy C.DomainMatchStrategy) (*DomainItem, error) {
 	if slices.Contains(domains, "") {
 		return nil, E.New("domain: empty item is not allowed")
 	}
@@ -48,24 +50,45 @@ func NewDomainItem(domains []string, domainSuffixes []string) (*DomainItem, erro
 	return &DomainItem{
 		domain.NewMatcher(domains, domainSuffixes, false),
 		description,
+		domainMatchStrategy,
 	}, nil
 }
 
-func NewRawDomainItem(matcher *domain.Matcher) *DomainItem {
+func NewRawDomainItem(matcher *domain.Matcher, domainMatchStrategy C.DomainMatchStrategy) *DomainItem {
 	return &DomainItem{
 		matcher,
 		"domain/domain_suffix=<binary>",
+		domainMatchStrategy,
 	}
 }
 
 func (r *DomainItem) Match(metadata *adapter.InboundContext) bool {
 	var domainHost string
-	if metadata.SniffHost != "" {
-		domainHost = metadata.SniffHost
-	} else if metadata.Destination.IsDomain() {
-		domainHost = metadata.Destination.Fqdn
-	} else {
-		domainHost = metadata.Domain
+	switch r.domainMatchStrategy {
+	case C.DomainMatchStrategyPreferFQDN:
+		if metadata.Destination.IsDomain() {
+			domainHost = metadata.Destination.Fqdn
+		} else if metadata.SniffHost != "" {
+			domainHost = metadata.SniffHost
+		} else {
+			domainHost = metadata.Domain
+		}
+	case C.DomainMatchStrategyFQDNOnly:
+		if metadata.Destination.IsDomain() {
+			domainHost = metadata.Destination.Fqdn
+		}
+	case C.DomainMatchStrategySniffHostOnly:
+		if metadata.SniffHost != "" {
+			domainHost = metadata.SniffHost
+		}
+	default:
+		if metadata.SniffHost != "" {
+			domainHost = metadata.SniffHost
+		} else if metadata.Destination.IsDomain() {
+			domainHost = metadata.Destination.Fqdn
+		} else {
+			domainHost = metadata.Domain
+		}
 	}
 	if domainHost == "" {
 		return false
