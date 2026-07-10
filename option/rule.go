@@ -75,19 +75,19 @@ func (r Rule) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
 			return nil, err
 		}
 		nestedRef, err := builder.Define("NestedRule", func() (*schema.Node, error) {
-			return nestedRuleUnion(builder, reflect.TypeFor[RawDefaultRule](), "NestedRule")
+			return nestedRuleUnion(builder, reflect.TypeFor[RawDefaultRule](), "NestedRule", true)
 		})
 		if err != nil {
 			return nil, err
 		}
-		return ruleUnion(builder, reflect.TypeFor[RawDefaultRule](), nestedRef, actionRef)
+		return ruleUnion(builder, reflect.TypeFor[RawDefaultRule](), nestedRef, actionRef, true)
 	})
 }
 
 // ruleUnion builds the top-level rule schema: match fields composed with rule
 // actions via unevaluatedProperties, mirroring the badjson.UnmarshallExcluded
 // composition in DefaultRule / LogicalRule.
-func ruleUnion(builder schema.Builder, matchType reflect.Type, nestedRef *schema.Node, actionRef *schema.Node) (*schema.Node, error) {
+func ruleUnion(builder schema.Builder, matchType reflect.Type, nestedRef *schema.Node, actionRef *schema.Node, withDomainMatchStrategy bool) (*schema.Node, error) {
 	defaultMatch := schema.LooseObject()
 	defaultMatch.Properties.Put("type", schema.StringEnum(C.RuleTypeDefault, ""))
 	err := builder.FlattenStruct(defaultMatch, matchType)
@@ -102,7 +102,7 @@ func ruleUnion(builder schema.Builder, matchType reflect.Type, nestedRef *schema
 
 	logicalMatch := schema.LooseObject()
 	logicalMatch.Properties.Put("type", schema.StringConst(C.RuleTypeLogical))
-	logicalProperties(logicalMatch, nestedRef)
+	logicalProperties(logicalMatch, nestedRef, withDomainMatchStrategy)
 	logicalMatch.Required = []string{"type", "mode", "rules"}
 	logicalVariant := &schema.Node{
 		Type:                  "object",
@@ -115,7 +115,7 @@ func ruleUnion(builder schema.Builder, matchType reflect.Type, nestedRef *schema
 
 // nestedRuleUnion builds a match-only rule schema: nested rules reject rule
 // actions, and headless rules never carry them.
-func nestedRuleUnion(builder schema.Builder, matchType reflect.Type, selfName string) (*schema.Node, error) {
+func nestedRuleUnion(builder schema.Builder, matchType reflect.Type, selfName string, withDomainMatchStrategy bool) (*schema.Node, error) {
 	defaultVariant := schema.StrictObject()
 	defaultVariant.Properties.Put("type", schema.StringEnum(C.RuleTypeDefault, ""))
 	err := builder.FlattenStruct(defaultVariant, matchType)
@@ -125,15 +125,18 @@ func nestedRuleUnion(builder schema.Builder, matchType reflect.Type, selfName st
 
 	logicalVariant := schema.StrictObject()
 	logicalVariant.Properties.Put("type", schema.StringConst(C.RuleTypeLogical))
-	logicalProperties(logicalVariant, schema.RefNode(selfName))
+	logicalProperties(logicalVariant, schema.RefNode(selfName), withDomainMatchStrategy)
 	logicalVariant.Required = []string{"type", "mode", "rules"}
 
 	return schema.OneOf(defaultVariant, logicalVariant), nil
 }
 
-func logicalProperties(node *schema.Node, nestedRef *schema.Node) {
+func logicalProperties(node *schema.Node, nestedRef *schema.Node, withDomainMatchStrategy bool) {
 	node.Properties.Put("mode", schema.StringEnum(C.LogicalTypeAnd, C.LogicalTypeOr))
 	node.Properties.Put("rules", &schema.Node{Type: "array", Items: nestedRef})
+	if withDomainMatchStrategy {
+		node.Properties.Put("domain_match_strategy", schema.RefNode("DomainMatchStrategy"))
+	}
 	node.Properties.Put("invert", schema.BooleanNode())
 }
 
@@ -180,6 +183,7 @@ type RawDefaultRule struct {
 	PreferredBy              badoption.Listable[string]                                                  `json:"preferred_by,omitempty"`
 	RuleSet                  badoption.Listable[string]                                                  `json:"rule_set,omitempty" reference:"rule_set"`
 	RuleSetIPCIDRMatchSource bool                                                                        `json:"rule_set_ip_cidr_match_source,omitempty"`
+	DomainMatchStrategy      DomainMatchStrategy                                                         `json:"domain_match_strategy,omitempty"`
 	Invert                   bool                                                                        `json:"invert,omitempty"`
 
 	// Deprecated: renamed to rule_set_ip_cidr_match_source
@@ -210,9 +214,10 @@ func (r DefaultRule) IsValid() bool {
 }
 
 type RawLogicalRule struct {
-	Mode   string `json:"mode" enum:"and,or"`
-	Rules  []Rule `json:"rules,omitempty"`
-	Invert bool   `json:"invert,omitempty"`
+	Mode                string              `json:"mode" enum:"and,or"`
+	Rules               []Rule              `json:"rules,omitempty"`
+	DomainMatchStrategy DomainMatchStrategy `json:"domain_match_strategy,omitempty"`
+	Invert              bool                `json:"invert,omitempty"`
 }
 
 type LogicalRule struct {
