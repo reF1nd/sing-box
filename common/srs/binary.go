@@ -150,8 +150,14 @@ func readRule(reader varbin.Reader, recover bool, depth int, mmap *mmapReader) (
 func writeRule(writer varbin.Writer, rule option.HeadlessRule, generateVersion uint8, mmap *mmapWriter) error {
 	switch rule.Type {
 	case C.RuleTypeDefault:
+		if rule.DefaultOptions.DomainMatchStrategy != option.DomainMatchStrategy(C.DomainMatchStrategyAsIS) {
+			return E.New("domain_match_strategy is not supported in binary rule-sets; use source format")
+		}
 		return writeDefaultRule(writer, rule.DefaultOptions, generateVersion, mmap)
 	case C.RuleTypeLogical:
+		if rule.LogicalOptions.DomainMatchStrategy != option.DomainMatchStrategy(C.DomainMatchStrategyAsIS) {
+			return E.New("domain_match_strategy is not supported in binary rule-sets; use source format")
+		}
 		return writeLogicalRule(writer, rule.LogicalOptions, generateVersion, mmap)
 	default:
 		panic("unknown rule type: " + rule.Type)
