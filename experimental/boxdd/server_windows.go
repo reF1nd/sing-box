@@ -23,7 +23,7 @@ const pipeSecurityDescriptor = `D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;AU)`
 // pipe buffer.
 const (
 	pipeBufferSize = 65536
-	daemonPipePath = `\\.\pipe\ProtectedPrefix\Administrators\sing-box`
+	daemonPipePath = `\\.\pipe\ProtectedPrefix\Administrators\sing-box-reF1nd`
 )
 
 func listenEndpoint() (net.Listener, error) {
