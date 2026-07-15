@@ -2,7 +2,7 @@ package provider
 
 import (
 	"context"
-	"os"
+	"io"
 	"path/filepath"
 	"time"
 
@@ -108,13 +108,24 @@ func (s *ProviderLocal) UpdatedAt() time.Time {
 }
 
 func (s *ProviderLocal) reloadFile(path string) error {
-	if fileInfo, err := os.Stat(path); err == nil {
-		s.lastUpdated = fileInfo.ModTime()
-	}
-	content, err := os.ReadFile(path)
+	file, err := filemanager.Open(s.ctx, path)
 	if err != nil {
 		return err
 	}
+	content, err := io.ReadAll(file)
+	if err != nil {
+		file.Close()
+		return err
+	}
+	fileInfo, err := file.Stat()
+	closeErr := file.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	s.lastUpdated = fileInfo.ModTime()
 	outboundOpts, err := parser.ParseSubscription(s.ctx, string(content))
 	if err != nil {
 		return err
