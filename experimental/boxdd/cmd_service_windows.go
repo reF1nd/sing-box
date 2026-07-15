@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	serviceDisplayName             = "sing-box Service"
-	serviceDescriptionText         = "Privileged service for sing-box"
-	defaultServiceWorkingDirectory = `C:\ProgramData\sing-box-daemon`
+	serviceDisplayName             = "sing-box reF1nd Service"
+	serviceDescriptionText         = "Privileged service for sing-box reF1nd"
+	defaultServiceWorkingDirectory = `C:\ProgramData\sing-box-daemon-reF1nd`
 )
 
 var commandServiceFlagAllowUnsafeInstallation bool
