@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const serviceName = "sing-box-daemon"
+const serviceName = "sing-box-daemon-reF1nd"
 
 var mainCommand = &cobra.Command{
 	Use:     serviceName,
