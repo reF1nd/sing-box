@@ -13,7 +13,7 @@ sing-box 为配置文件提供 JSON Schema Draft 2020-12。
 
 ```json
 {
-  "$schema": "https://sing-box.sagernet.org/schema.json"
+  "$schema": "https://raw.githubusercontent.com/reF1nd/sing-box/reF1nd-testing/docs/schema.json"
 }
 ```
 
@@ -24,7 +24,7 @@ sing-box 为配置文件提供 JSON Schema Draft 2020-12。
 兼容编辑器使用的 Schema URI。
 
 随本文档发布的 Schema 位于
-[sing-box.sagernet.org/schema.json](https://sing-box.sagernet.org/schema.json)。
+[raw.githubusercontent.com/reF1nd/sing-box/reF1nd-testing/docs/schema.json](https://raw.githubusercontent.com/reF1nd/sing-box/reF1nd-testing/docs/schema.json)。
 
 ### 生成
 

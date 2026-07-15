@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sing-box.sagernet.org/schema.json",
+  "$id": "https://raw.githubusercontent.com/reF1nd/sing-box/reF1nd-testing/docs/schema.json",
   "type": "object",
   "properties": {
     "$schema": {
       "type": "string",
       "examples": [
-        "https://sing-box.sagernet.org/schema.json"
+        "https://raw.githubusercontent.com/reF1nd/sing-box/reF1nd-testing/docs/schema.json"
       ]
     },
     "log": {
