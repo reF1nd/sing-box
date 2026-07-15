@@ -23,7 +23,7 @@ import (
 
 const (
 	daemonExecutableName      = "sing-box-daemon.exe"
-	applicationExecutableName = "sing-box.exe"
+	applicationExecutableName = "sing-box-reF1nd.exe"
 	workerPipePrefix          = `\\.\pipe\sing-box-worker.`
 )
 
