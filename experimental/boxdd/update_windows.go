@@ -22,7 +22,7 @@ import (
 
 const (
 	updateInstallerDesktop = `winsta0\default`
-	updateProductName      = "sing-box"
+	updateProductName      = "sing-box-reF1nd"
 	seTcbPrivilege         = "SeTcbPrivilege"
 	seAssignPrimaryToken   = "SeAssignPrimaryTokenPrivilege"
 	seIncreaseQuota        = "SeIncreaseQuotaPrivilege"
