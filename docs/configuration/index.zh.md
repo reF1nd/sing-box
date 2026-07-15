@@ -5,7 +5,7 @@ sing-box 使用 JSON 作为配置文件格式。
 
 ```json
 {
-  "$schema": "https://sing-box.sagernet.org/schema.json",
+  "$schema": "https://raw.githubusercontent.com/reF1nd/sing-box/reF1nd-testing/docs/schema.json",
   "log": {},
   "dns": {},
   "ntp": {},
