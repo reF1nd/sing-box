@@ -15,6 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -40,6 +41,7 @@ type Endpoint struct {
 	tunDevice      Device
 	returnDevice   *returnDeviceWrapper
 	device         *device.Device
+	egressPool     *tun.UDPEgressPool
 	allowedIPs     *device.AllowedIPs
 	pause          pause.Manager
 	pauseCallback  *list.Element[pause.Callback]
@@ -169,14 +171,19 @@ func (e *Endpoint) Start(resolve bool) error {
 	var bind conn.Bind
 	wireGuardListener, isWireGuardListener := common.Cast[dialer.WireGuardListener](e.options.Dialer)
 	if isWireGuardListener {
-		wireGuardControl, _ := wireGuardListener.WireGuardControl()
+		wireGuardControl, egressEnabled := wireGuardListener.WireGuardControl()
 		standardBind := conn.NewStdNetBind(wireGuardControl).(*conn.StdNetBind)
 		if e.options.ListenPort == 0 && len(e.peers) == 1 && e.peers[0].endpoint.IsValid() {
 			standardBind.SetSinglePeerMode()
 		}
-		if e.options.EgressPool != nil {
-			standardBind.SetEgressProvider(e.options.EgressPool)
+		var egressPool *tun.UDPEgressPool
+		if egressEnabled && e.options.EgressPoolOptions != nil {
+			egressPoolOptions := *e.options.EgressPoolOptions
+			egressPoolOptions.Control = wireGuardControl
+			egressPool = tun.NewUDPEgressPool(egressPoolOptions)
+			standardBind.SetEgressProvider(egressPool)
 		}
+		e.egressPool = egressPool
 		bind = standardBind
 	} else {
 		var (
@@ -200,6 +207,7 @@ func (e *Endpoint) Start(resolve bool) error {
 	}
 	err := e.tunDevice.Start()
 	if err != nil {
+		e.closeEgressPool()
 		return err
 	}
 	logger := &device.Logger{
@@ -220,6 +228,7 @@ func (e *Endpoint) Start(resolve bool) error {
 	err = wgDevice.IpcSet(ipcConf.String())
 	if err != nil {
 		wgDevice.Close()
+		e.closeEgressPool()
 		return E.Cause(err, "setup wireguard: \n", ipcConf.String())
 	}
 	e.deviceAccess.Lock()
@@ -333,9 +342,7 @@ func (e *Endpoint) Close() error {
 			e.pause.UnregisterCallback(e.pauseCallback)
 			e.pauseCallback = nil
 		}
-		if e.options.EgressPool != nil {
-			e.options.EgressPool.Close()
-		}
+		e.closeEgressPool()
 		e.deviceAccess.Lock()
 		defer e.deviceAccess.Unlock()
 		if e.device != nil {
@@ -347,6 +354,13 @@ func (e *Endpoint) Close() error {
 		}
 	})
 	return e.closeErr
+}
+
+func (e *Endpoint) closeEgressPool() {
+	if e.egressPool != nil {
+		e.egressPool.Close()
+		e.egressPool = nil
+	}
 }
 
 func (e *Endpoint) Lookup(address netip.Addr) *device.Peer {
