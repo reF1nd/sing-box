@@ -71,7 +71,20 @@ require (
 	howett.net/plist v1.0.1
 )
 
-require github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73
+require (
+	github.com/sagernet/sing-openconnect v0.0.0-20260717081856-cf2c71a71aba
+	github.com/sagernet/sing-openvpn v0.0.0-20260717092601-0db6ebb53109
+	github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73
+)
+
+require (
+	github.com/anchore/go-lzo v0.1.0 // indirect
+	github.com/pion/dtls/v3 v3.1.5 // indirect
+	github.com/pion/logging v0.2.4 // indirect
+	github.com/pion/transport/v4 v4.0.2 // indirect
+	github.com/smallstep/pkcs7 v0.1.1 // indirect
+	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
+)
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -178,7 +191,7 @@ require (
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
 	golang.org/x/text v0.34.0
-	golang.org/x/time v0.11.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
