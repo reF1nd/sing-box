@@ -31,7 +31,7 @@ func RegisterURLTest(registry *outbound.Registry) {
 }
 
 var (
-	_ adapter.OutboundGroup           = (*URLTest)(nil)
+	_ adapter.PreMatchOutboundGroup   = (*URLTest)(nil)
 	_ adapter.InterfaceUpdateListener = (*URLTest)(nil)
 	_ adapter.Referrer                = (*URLTest)(nil)
 )
@@ -133,6 +133,15 @@ func (s *URLTest) References() []string {
 		references = append(references, group.selectedOutboundUDP.Tag())
 	}
 	return references
+}
+
+func (s *URLTest) SelectPreMatchOutbound(metadata *adapter.InboundContext, selectOutbound func(adapter.Outbound) (adapter.Outbound, adapter.PreMatchAction)) (adapter.Outbound, adapter.PreMatchAction) {
+	s.group.Touch()
+	network := metadata.Network
+	if network == N.NetworkICMP {
+		network = N.NetworkTCP
+	}
+	return selectOutbound(s.Selected(network))
 }
 
 func (s *URLTest) URLTest(ctx context.Context) (map[string]uint16, error) {

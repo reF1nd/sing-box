@@ -36,7 +36,7 @@ import (
 
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*ServerEndpoint)(nil)
-	_ adapter.FlowOutbound                = (*ServerEndpoint)(nil)
+	_ adapter.FlowOutboundDomainResolver  = (*ServerEndpoint)(nil)
 	_ adapter.ConnectionHandler           = (*serverConnectionHandler)(nil)
 	_ dialer.PacketDialerWithDestination  = (*ServerEndpoint)(nil)
 	_ masque.ServerHandler                = (*ServerEndpoint)(nil)
@@ -221,6 +221,10 @@ func (s *ServerEndpoint) WriteInboundBuffers(packetBuffers []*buf.Buffer) error 
 
 func (s *ServerEndpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
 	return adapter.PreMatchFlow
+}
+
+func (s *ServerEndpoint) FlowDomainResolveOptions() adapter.DNSQueryOptions {
+	return s.innerDNSQueryOptions
 }
 
 func (s *ServerEndpoint) PortAddresses() (netip.Addr, netip.Addr) {
