@@ -24,7 +24,7 @@ func RegisterOutbound(registry *outbound.Registry) {
 
 var (
 	_ adapter.Outbound                    = (*Outbound)(nil)
-	_ adapter.FlowOutbound                = (*Outbound)(nil)
+	_ adapter.FlowOutboundDomainResolver  = (*Outbound)(nil)
 	_ adapter.OutboundWithPreferredRoutes = (*Outbound)(nil)
 	_ adapter.Lifecycle                   = (*Outbound)(nil)
 )
@@ -36,24 +36,30 @@ type Backend interface {
 
 type Outbound struct {
 	outbound.Adapter
-	logger            log.ContextLogger
-	networkManager    adapter.NetworkManager
-	platformInterface adapter.PlatformInterface
-	backend           Backend
+	logger               log.ContextLogger
+	networkManager       adapter.NetworkManager
+	platformInterface    adapter.PlatformInterface
+	backend              Backend
+	domainResolveOptions adapter.DNSQueryOptions
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.BridgeOutboundOptions) (adapter.Outbound, error) {
+	domainResolveOptions, err := adapter.DNSQueryOptionsFrom(ctx, options.DomainResolver)
+	if err != nil {
+		return nil, err
+	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	outboundBackend, err := newBackend(ctx, logger, networkManager, tag, options)
 	if err != nil {
 		return nil, err
 	}
 	return &Outbound{
-		Adapter:           outbound.NewAdapter(C.TypeBridge, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
-		logger:            logger,
-		networkManager:    networkManager,
-		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
-		backend:           outboundBackend,
+		Adapter:              outbound.NewAdapter(C.TypeBridge, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
+		logger:               logger,
+		networkManager:       networkManager,
+		platformInterface:    service.FromContext[adapter.PlatformInterface](ctx),
+		backend:              outboundBackend,
+		domainResolveOptions: domainResolveOptions,
 	}, nil
 }
 
@@ -79,6 +85,10 @@ func (o *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.
 		return adapter.PreMatchReject
 	}
 	return adapter.PreMatchFlow
+}
+
+func (o *Outbound) FlowDomainResolveOptions() adapter.DNSQueryOptions {
+	return o.domainResolveOptions
 }
 
 func (o *Outbound) isLocalDestination(destination netip.Addr) bool {
