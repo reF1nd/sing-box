@@ -38,6 +38,7 @@ var (
 	_ dialer.PacketDialerWithDestination = (*Outbound)(nil)
 	_ dialer.DirectDialer                = (*Outbound)(nil)
 	_ adapter.FlowOutbound               = (*Outbound)(nil)
+	_ adapter.FlowOutboundDomainResolver = (*Outbound)(nil)
 	_ adapter.InterfaceUpdateListener    = (*Outbound)(nil)
 )
 
@@ -89,6 +90,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		}),
 		proxyProto: options.ProxyProtocol,
 	}
+	// Snapshot the eagerly resolved options before the dialer's lazy initialization
+	// can write them during the first concurrent L4 connection.
 	if resolveDialer, loaded := outboundDialer.(dialer.ResolveDialer); loaded {
 		outbound.domainResolveOptions = resolveDialer.QueryOptions()
 	}
@@ -262,6 +265,10 @@ func (h *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.
 		return adapter.PreMatchFlow
 	}
 	return adapter.PreMatchContinue
+}
+
+func (h *Outbound) FlowDomainResolveOptions() adapter.DNSQueryOptions {
+	return h.domainResolveOptions
 }
 
 func (h *Outbound) PortAddresses() (netip.Addr, netip.Addr) {

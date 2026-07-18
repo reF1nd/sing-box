@@ -22,6 +22,10 @@ func (t *Endpoint) PreMatchFlow(network string, destination netip.Addr) adapter.
 	return adapter.PreMatchFlow
 }
 
+func (t *Endpoint) FlowDomainResolveOptions() adapter.DNSQueryOptions {
+	return t.innerDNSQueryOptions
+}
+
 func (t *Endpoint) PortAddresses() (netip.Addr, netip.Addr) {
 	if !t.started.Load() {
 		return netip.Addr{}, netip.Addr{}

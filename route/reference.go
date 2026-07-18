@@ -91,11 +91,14 @@ func domainResolverServer(dialerOptions option.DialerOptions) string {
 }
 
 func appendDomainResolver(transports []string, rawOptions any) []string {
-	dialerOptionsWrapper, isDialerOptionsWrapper := rawOptions.(option.DialerOptionsWrapper)
-	if isDialerOptionsWrapper {
-		domainResolver := dialerOptionsWrapper.TakeDialerOptions().DomainResolver
-		if domainResolver != nil && domainResolver.Server != "" {
-			transports = append(transports, domainResolver.Server)
+	if options, ok := rawOptions.(*option.BridgeOutboundOptions); ok {
+		if resolver := options.DomainResolver; resolver != nil && resolver.Server != "" {
+			transports = append(transports, resolver.Server)
+		}
+	} else if wrapper, ok := rawOptions.(option.DialerOptionsWrapper); ok {
+		resolver := wrapper.TakeDialerOptions().DomainResolver
+		if resolver != nil && resolver.Server != "" {
+			transports = append(transports, resolver.Server)
 		}
 	}
 	innerDomainResolverOptionsWrapper, isInnerDomainResolverOptionsWrapper := rawOptions.(option.InnerDomainResolverOptionsWrapper)
