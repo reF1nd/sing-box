@@ -31,7 +31,8 @@ icon: material/new-box
   "interface": "",
   "bridge_name": "",
   "iproute2_table_index": 0,
-  "iproute2_rule_index": 0
+  "iproute2_rule_index": 0,
+  "domain_resolver": ""
 }
 ```
 
@@ -70,3 +71,11 @@ icon: material/new-box
 Linux iproute2 规则起始索引。
 
 默认使用 `100`。
+
+#### domain_resolver
+
+当此出站被选中用于 L3 转发时，设置用于解析尚未解析的域名目标的域名解析器。
+
+此选项与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 格式相同。
+
+未设置时使用默认 DNS。

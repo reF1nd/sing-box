@@ -49,8 +49,11 @@ Supported targets:
 L3 forwarding also applies when no rule matches and the default outbound is a supported
 target; for outbound groups, the currently selected outbound is used.
 
-FakeIP destinations require a `resolve` action performed in pre-match,
-otherwise connections will be rejected.
+For unresolved domain destinations restored from FakeIP or overridden by
+protocol sniffing, the selected outbound's domain resolver is used: WireGuard
+and Tailscale use `inner_domain_resolver`, while Direct and Bridge use
+`domain_resolver`. An earlier `resolve` action takes precedence and can override
+this behavior.
 
 See [route](/configuration/route/rule_action/#route) for details.
 
