@@ -102,12 +102,16 @@ func domainResolverServer(dialerOptions option.DialerOptions) string {
 }
 
 func appendDomainResolver(transports []string, rawOptions any) []string {
+	var domainResolver *option.DomainResolveOptions
+	domainResolverOptionsWrapper, isDomainResolverOptionsWrapper := rawOptions.(option.DomainResolverOptionsWrapper)
 	dialerOptionsWrapper, isDialerOptionsWrapper := rawOptions.(option.DialerOptionsWrapper)
-	if isDialerOptionsWrapper {
-		domainResolver := dialerOptionsWrapper.TakeDialerOptions().DomainResolver
-		if domainResolver != nil && domainResolver.Server != "" {
-			transports = append(transports, domainResolver.Server)
-		}
+	if isDomainResolverOptionsWrapper {
+		domainResolver = domainResolverOptionsWrapper.TakeDomainResolverOptions()
+	} else if isDialerOptionsWrapper {
+		domainResolver = dialerOptionsWrapper.TakeDialerOptions().DomainResolver
+	}
+	if domainResolver != nil && domainResolver.Server != "" {
+		transports = append(transports, domainResolver.Server)
 	}
 	innerDomainResolverOptionsWrapper, isInnerDomainResolverOptionsWrapper := rawOptions.(option.InnerDomainResolverOptionsWrapper)
 	if isInnerDomainResolverOptionsWrapper {
