@@ -240,6 +240,8 @@ is.
 
 Set domain resolver for resolving domain names of connections passing through the Tailscale tunnel.
 
+It is also used to resolve unresolved domain destinations when this endpoint is selected for L3 forwarding.
+
 This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
 
 When not set, the default DNS is used.
