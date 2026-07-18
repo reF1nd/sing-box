@@ -11864,6 +11864,9 @@
             },
             "iproute2_rule_index": {
               "type": "integer"
+            },
+            "domain_resolver": {
+              "$ref": "#/$defs/DomainResolver"
             }
           },
           "required": [

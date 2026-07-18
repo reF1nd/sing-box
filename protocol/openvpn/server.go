@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	_ adapter.FlowOutbound               = (*ServerEndpoint)(nil)
+	_ adapter.FlowOutboundDomainResolver = (*ServerEndpoint)(nil)
 	_ dialer.PacketDialerWithDestination = (*ServerEndpoint)(nil)
 )
 
@@ -657,6 +657,10 @@ func (s *ServerEndpoint) readLoop(ctx context.Context) {
 
 func (s *ServerEndpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
 	return adapter.PreMatchFlow
+}
+
+func (s *ServerEndpoint) FlowDomainResolveOptions() adapter.DNSQueryOptions {
+	return s.innerDNSQueryOptions
 }
 
 func (s *ServerEndpoint) PortAddresses() (netip.Addr, netip.Addr) {
