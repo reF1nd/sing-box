@@ -80,3 +80,10 @@ func TestAppendDomainResolverIgnoresInnerResolverForSOCKS5(t *testing.T) {
 	})
 	require.Empty(t, transports)
 }
+
+func TestAppendDomainResolverIncludesBridgeResolver(t *testing.T) {
+	options := &option.BridgeOutboundOptions{DomainResolver: &option.DomainResolveOptions{Server: "bridge-dns"}}
+	require.Equal(t, []string{"bridge-dns"}, appendDomainResolver(nil, options))
+	options.DomainResolver = nil
+	require.Empty(t, appendDomainResolver(nil, options))
+}
