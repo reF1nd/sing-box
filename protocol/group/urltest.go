@@ -29,7 +29,7 @@ func RegisterURLTest(registry *outbound.Registry) {
 }
 
 var (
-	_ adapter.OutboundGroup           = (*URLTest)(nil)
+	_ adapter.PreMatchOutboundGroup   = (*URLTest)(nil)
 	_ adapter.InterfaceUpdateListener = (*URLTest)(nil)
 )
 
@@ -107,6 +107,25 @@ func (s *URLTest) Now() string {
 
 func (s *URLTest) All() []string {
 	return s.tags
+}
+
+func (s *URLTest) SelectPreMatchOutbound(metadata *adapter.InboundContext, selectOutbound func(adapter.Outbound) (adapter.Outbound, adapter.PreMatchAction)) (adapter.Outbound, adapter.PreMatchAction) {
+	s.group.Touch()
+	network := metadata.Network
+	if network == N.NetworkICMP {
+		network = N.NetworkTCP
+	}
+	var selectedOutbound adapter.Outbound
+	switch network {
+	case N.NetworkTCP:
+		selectedOutbound = s.group.selectedOutboundTCP
+	case N.NetworkUDP:
+		selectedOutbound = s.group.selectedOutboundUDP
+	}
+	if selectedOutbound == nil {
+		selectedOutbound, _ = s.group.Select(network)
+	}
+	return selectOutbound(selectedOutbound)
 }
 
 func (s *URLTest) URLTest(ctx context.Context) (map[string]uint16, error) {
