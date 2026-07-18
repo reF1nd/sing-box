@@ -66,6 +66,7 @@ import (
 
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
+	_ adapter.FlowOutboundDomainResolver  = (*Endpoint)(nil)
 	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
 	_ tun.Port                            = (*Endpoint)(nil)
