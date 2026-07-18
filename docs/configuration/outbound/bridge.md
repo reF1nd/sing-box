@@ -36,7 +36,8 @@ cannot be routed.
   "interface": "",
   "bridge_name": "",
   "iproute2_table_index": 0,
-  "iproute2_rule_index": 0
+  "iproute2_rule_index": 0,
+  "domain_resolver": ""
 }
 ```
 
@@ -75,3 +76,12 @@ Linux iproute2 table index for pinned egress routes.
 Linux iproute2 rule start index.
 
 `100` is used by default.
+
+#### domain_resolver
+
+Set the domain resolver used to resolve unresolved domain destinations when this
+outbound is selected for L3 forwarding.
+
+This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
+
+When not set, the default DNS is used.

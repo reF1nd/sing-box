@@ -50,4 +50,7 @@ Protocol value can be `1` or `2`.
 
 ### Dial Fields
 
+The `domain_resolver` field is also used to resolve unresolved domain destinations
+when Direct is selected for L3 ICMP forwarding.
+
 See [Dial Fields](/configuration/shared/dial/) for details.
