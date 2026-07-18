@@ -144,6 +144,8 @@
 
 指定将此 endpoint 用作出站时，解析目标域名所使用的 DNS 解析器。适用于 TCP 和 UDP。
 
+当此端点被选中用于 L3 转发时，也使用此解析器解析尚未解析的目标域名。
+
 此选项使用与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 相同的格式。
 
 未设置时，使用现有 DNS 路由规则及默认 DNS。目标为 IP 地址时不进行域名解析。

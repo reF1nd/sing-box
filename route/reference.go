@@ -62,7 +62,11 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 }
 
 func appendDomainResolver(transports []string, rawOptions any) []string {
-	if wrapper, ok := rawOptions.(option.DialerOptionsWrapper); ok {
+	if options, ok := rawOptions.(*option.BridgeOutboundOptions); ok {
+		if resolver := options.DomainResolver; resolver != nil && resolver.Server != "" {
+			transports = append(transports, resolver.Server)
+		}
+	} else if wrapper, ok := rawOptions.(option.DialerOptionsWrapper); ok {
 		resolver := wrapper.TakeDialerOptions().DomainResolver
 		if resolver != nil && resolver.Server != "" {
 			transports = append(transports, resolver.Server)
