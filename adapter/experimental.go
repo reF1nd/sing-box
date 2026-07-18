@@ -165,6 +165,14 @@ type OutboundGroup interface {
 	All() []string
 }
 
+type PreMatchOutboundGroup interface {
+	OutboundGroup
+	// selectOutbound resolves nested groups and returns nil when the selected outbound is not eligible for pre-match.
+	// Implementations must not advance consumptive selection state when selectOutbound returns nil, but may retain
+	// a stable mapping when it is required for the following L4 selection to replay the same outbound.
+	SelectPreMatchOutbound(metadata *InboundContext, selectOutbound func(Outbound) (Outbound, PreMatchAction)) (Outbound, PreMatchAction)
+}
+
 type URLTestGroup interface {
 	OutboundGroup
 	URLTest(ctx context.Context) (map[string]uint16, error)
