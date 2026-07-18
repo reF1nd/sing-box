@@ -17,7 +17,7 @@ Pre-match is rule matching that runs before the connection is established.
 
 ### How it works
 
-When an L3 inbound (TUN, WireGuard, or Tailscale) receives a connection request, the connection has not yet been established:
+When an L3 inbound (TUN, WireGuard, Tailscale, OpenConnect, OpenVPN, or MASQUE) receives a connection request, the connection has not yet been established:
 for TCP connections no connection data is available, while for UDP connections only the first packet is available.
 In this phase, sing-box runs the routing rules in pre-match mode.
 
@@ -43,14 +43,17 @@ without going through L3 to L4 translation.
 
 Supported targets:
 
-- ICMP connections: Direct and Bridge outbounds, and WireGuard / Tailscale endpoints.
-- TCP and UDP connections: Bridge outbounds, and WireGuard / Tailscale endpoints.
+- ICMP connections: Direct and Bridge outbounds, and WireGuard / Tailscale / OpenConnect / OpenVPN / MASQUE endpoints.
+- TCP and UDP connections: Bridge outbounds, and WireGuard / Tailscale / OpenConnect / OpenVPN / MASQUE endpoints.
 
 L3 forwarding also applies when no rule matches and the default outbound is a supported
 target; for outbound groups, the currently selected outbound is used.
 
-FakeIP destinations require a `resolve` action performed in pre-match,
-otherwise connections will be rejected.
+For unresolved domain destinations restored from FakeIP or overridden by
+protocol sniffing, the selected outbound's domain resolver is used: WireGuard,
+Tailscale, OpenConnect, OpenVPN, and MASQUE use `inner_domain_resolver`, while Direct and Bridge use
+`domain_resolver`. An earlier `resolve` action without `match_only` takes precedence and can override
+this behavior.
 
 See [route](/configuration/route/rule_action/#route) for details.
 

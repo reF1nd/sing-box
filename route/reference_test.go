@@ -118,3 +118,10 @@ func TestNewReferenceManagerUsesIndexTagsForUntaggedStaticNodes(t *testing.T) {
 	require.NotContains(t, refManager.domainResolvers, domainResolverKey{tag: ""})
 	require.NotContains(t, refManager.domainResolvers, domainResolverKey{tag: "", endpoint: true})
 }
+
+func TestAppendDomainResolverIncludesBridgeResolver(t *testing.T) {
+	options := &option.BridgeOutboundOptions{DomainResolver: &option.DomainResolveOptions{Server: "bridge-dns"}}
+	require.Equal(t, []string{"bridge-dns"}, appendDomainResolver(nil, options))
+	options.DomainResolver = nil
+	require.Empty(t, appendDomainResolver(nil, options))
+}
