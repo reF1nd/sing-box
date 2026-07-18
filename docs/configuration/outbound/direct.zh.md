@@ -50,4 +50,6 @@ icon: material/alert-decagram
 
 ### 拨号字段
 
+当 direct 被选中用于 L3 ICMP 转发时，`domain_resolver` 字段也用于解析尚未解析的域名目标。
+
 参阅 [拨号字段](/zh/configuration/shared/dial/)。
