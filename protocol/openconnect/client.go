@@ -35,7 +35,7 @@ import (
 
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
-	_ adapter.FlowOutbound                = (*Endpoint)(nil)
+	_ adapter.FlowOutboundDomainResolver  = (*Endpoint)(nil)
 	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
 	_ tun.Port                            = (*Endpoint)(nil)
@@ -505,6 +505,10 @@ func (e *Endpoint) InterfaceUpdated(ctx context.Context) {
 
 func (e *Endpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
 	return adapter.PreMatchFlow
+}
+
+func (e *Endpoint) FlowDomainResolveOptions() adapter.DNSQueryOptions {
+	return e.innerDNSQueryOptions
 }
 
 func (e *Endpoint) PortAddresses() (netip.Addr, netip.Addr) {

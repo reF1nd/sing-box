@@ -730,6 +730,8 @@ This option has no effect when `system` is `false`.
 
 Set the DNS resolver used for destination domain names when this endpoint is selected as an outbound. Applies to TCP and UDP.
 
+It is also used to resolve unresolved domain destinations when this endpoint is selected for L3 forwarding.
+
 This option uses the same format as [domain_resolver](/configuration/shared/dial/#domain_resolver).
 
 When unset, existing DNS routing rules and the default DNS apply. IP destinations do not require domain resolution.
