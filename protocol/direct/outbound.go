@@ -31,11 +31,12 @@ func RegisterOutbound(registry *outbound.Registry) {
 }
 
 var (
-	_ N.ParallelDialer                = (*Outbound)(nil)
-	_ dialer.ParallelNetworkDialer    = (*Outbound)(nil)
-	_ dialer.DirectDialer             = (*Outbound)(nil)
-	_ adapter.FlowOutbound            = (*Outbound)(nil)
-	_ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+	_ N.ParallelDialer                   = (*Outbound)(nil)
+	_ dialer.ParallelNetworkDialer       = (*Outbound)(nil)
+	_ dialer.DirectDialer                = (*Outbound)(nil)
+	_ adapter.FlowOutbound               = (*Outbound)(nil)
+	_ adapter.FlowOutboundDomainResolver = (*Outbound)(nil)
+	_ adapter.InterfaceUpdateListener    = (*Outbound)(nil)
 )
 
 type Outbound struct {
@@ -204,6 +205,14 @@ func (h *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.
 		return adapter.PreMatchFlow
 	}
 	return adapter.PreMatchContinue
+}
+
+func (h *Outbound) FlowDomainResolveOptions() adapter.DNSQueryOptions {
+	resolveDialer, loaded := h.dialer.(dialer.ResolveDialer)
+	if !loaded {
+		return adapter.DNSQueryOptions{}
+	}
+	return resolveDialer.QueryOptions()
 }
 
 func (h *Outbound) PortAddresses() (netip.Addr, netip.Addr) {

@@ -148,6 +148,8 @@ WireGuard worker 数量。
 
 设置用于解析通过 WireGuard 隊道的连接的域名解析器。
 
+当此端点被选中用于 L3 转发时，它也用于解析尚未解析的域名目标。
+
 此选项与 [domain_resolver](/zh/configuration/shared/dial/#domain_resolver) 格式相同。
 
 未设置时使用默认DNS。

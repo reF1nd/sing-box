@@ -37,6 +37,11 @@ type FlowOutbound interface {
 	PreMatchFlow(network string, destination netip.Addr) PreMatchAction
 }
 
+type FlowOutboundDomainResolver interface {
+	FlowOutbound
+	FlowDomainResolveOptions() DNSQueryOptions
+}
+
 type OutboundRegistry interface {
 	option.OutboundOptionsRegistry
 	CreateOutbound(ctx context.Context, router Router, logger log.ContextLogger, tag string, outboundType string, options any) (Outbound, error)
