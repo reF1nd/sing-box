@@ -14,6 +14,7 @@ icon: material/new-box
     :material-plus: [client_key_path](#client_key_path)  
     :material-plus: [client_authentication](#client_authentication)  
     :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)  
+    :material-plus: [certificate_server_name](#certificate_server_name)<br>
     :material-plus: [ech.query_server_name](#query_server_name)
 
 !!! quote "sing-box 1.12.0 中的更改"
@@ -99,6 +100,7 @@ icon: material/new-box
   "enabled": true,
   "disable_sni": false,
   "server_name": "",
+  "certificate_server_name": "",
   "insecure": false,
   "alpn": [],
   "min_version": "",
@@ -182,9 +184,21 @@ TLS 版本值：
 
 #### server_name
 
-用于验证返回证书上的主机名，除非设置不安全。
+用于验证返回证书上的主机名，除非设置了 `certificate_server_name` 或 `insecure`。
 
 它还包含在 ClientHello 中以支持虚拟主机，除非它是 IP 地址。
+
+#### certificate_server_name
+
+!!! question "自 sing-box 1.13.0 起"
+
+==仅客户端==
+
+覆盖用于验证返回证书主机名的服务器名称。
+
+与 `server_name` 不同，此选项不会改变 ClientHello 中包含的服务器名称（SNI）。
+
+如果为空，则使用 `server_name` 验证证书主机名。
 
 #### insecure
 

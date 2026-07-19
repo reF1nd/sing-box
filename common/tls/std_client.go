@@ -25,17 +25,36 @@ import (
 type STDClientConfig struct {
 	ctx                   context.Context
 	config                *tls.Config
+	serverName            string
+	certificateServerName string
+	disableSNI            bool
+	verifyServerName      bool
 	fragment              bool
 	fragmentFallbackDelay time.Duration
 	recordFragment        bool
 }
 
 func (c *STDClientConfig) ServerName() string {
-	return c.config.ServerName
+	return c.serverName
 }
 
 func (c *STDClientConfig) SetServerName(serverName string) {
-	c.config.ServerName = serverName
+	c.serverName = serverName
+	if c.disableSNI {
+		c.config.ServerName = ""
+	} else {
+		c.config.ServerName = serverName
+	}
+	if c.verifyServerName {
+		c.config.VerifyConnection = verifyConnection(c.config.RootCAs, c.config.Time, c.verificationServerName())
+	}
+}
+
+func (c *STDClientConfig) verificationServerName() string {
+	if c.certificateServerName != "" {
+		return c.certificateServerName
+	}
+	return c.serverName
 }
 
 func (c *STDClientConfig) NextProtos() []string {
@@ -58,13 +77,19 @@ func (c *STDClientConfig) Client(conn net.Conn) (Conn, error) {
 }
 
 func (c *STDClientConfig) Clone() Config {
-	return &STDClientConfig{
+	cloned := &STDClientConfig{
 		ctx:                   c.ctx,
 		config:                c.config.Clone(),
+		serverName:            c.serverName,
+		certificateServerName: c.certificateServerName,
+		disableSNI:            c.disableSNI,
+		verifyServerName:      c.verifyServerName,
 		fragment:              c.fragment,
 		fragmentFallbackDelay: c.fragmentFallbackDelay,
 		recordFragment:        c.recordFragment,
 	}
+	cloned.SetServerName(cloned.serverName)
+	return cloned
 }
 
 func (c *STDClientConfig) ECHConfigList() []byte {
@@ -82,16 +107,17 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 	} else if serverAddress != "" {
 		serverName = serverAddress
 	}
-	if serverName == "" && !options.Insecure {
-		return nil, E.New("missing server_name or insecure=true")
+	verificationServerName := options.CertificateServerName
+	if verificationServerName == "" {
+		verificationServerName = serverName
+	}
+	if verificationServerName == "" && !options.Insecure {
+		return nil, E.New("missing server_name/certificate_server_name or insecure=true")
 	}
 
 	var tlsConfig tls.Config
 	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
 	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
-	if !options.DisableSNI {
-		tlsConfig.ServerName = serverName
-	}
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
 	} else if len(options.CertificatePinSHA256) > 0 {
@@ -116,7 +142,7 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 						opts := x509.VerifyOptions{
 							Roots:         x509.NewCertPool(),
 							Intermediates: x509.NewCertPool(),
-							DNSName:       serverName,
+							DNSName:       verificationServerName,
 						}
 						if tlsConfig.Time != nil {
 							opts.CurrentTime = tlsConfig.Time()
@@ -141,23 +167,9 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			return verifyPublicKeySHA256(options.CertificatePublicKeySHA256, rawCerts, tlsConfig.Time)
 		}
-	} else if options.DisableSNI {
+	} else if options.DisableSNI || options.CertificateServerName != "" {
 		tlsConfig.InsecureSkipVerify = true
-		tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
-			verifyOptions := x509.VerifyOptions{
-				Roots:         tlsConfig.RootCAs,
-				DNSName:       serverName,
-				Intermediates: x509.NewCertPool(),
-			}
-			for _, cert := range state.PeerCertificates[1:] {
-				verifyOptions.Intermediates.AddCert(cert)
-			}
-			if tlsConfig.Time != nil {
-				verifyOptions.CurrentTime = tlsConfig.Time()
-			}
-			_, err := state.PeerCertificates[0].Verify(verifyOptions)
-			return err
-		}
+		tlsConfig.VerifyConnection = verifyConnection(tlsConfig.RootCAs, tlsConfig.Time, verificationServerName)
 	}
 	if len(options.ALPN) > 0 {
 		tlsConfig.NextProtos = options.ALPN
@@ -237,7 +249,18 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 	} else if len(clientCertificate) > 0 || len(clientKey) > 0 {
 		return nil, E.New("client certificate and client key must be provided together")
 	}
-	var config Config = &STDClientConfig{ctx, &tlsConfig, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
+	var config Config = &STDClientConfig{
+		ctx:                   ctx,
+		config:                &tlsConfig,
+		serverName:            serverName,
+		certificateServerName: options.CertificateServerName,
+		disableSNI:            options.DisableSNI,
+		verifyServerName:      (options.DisableSNI || options.CertificateServerName != "") && !options.Insecure && len(options.CertificatePinSHA256) == 0 && len(options.CertificatePublicKeySHA256) == 0,
+		fragment:              options.Fragment,
+		fragmentFallbackDelay: time.Duration(options.FragmentFallbackDelay),
+		recordFragment:        options.RecordFragment,
+	}
+	config.SetServerName(serverName)
 	if options.ECH != nil && options.ECH.Enabled {
 		var err error
 		config, err = parseECHClientConfig(ctx, config.(ECHCapableConfig), options)
@@ -257,6 +280,27 @@ func NewSTDClient(ctx context.Context, logger logger.ContextLogger, serverAddres
 		}
 	}
 	return config, nil
+}
+
+func verifyConnection(rootCAs *x509.CertPool, timeFunc func() time.Time, serverName string) func(state tls.ConnectionState) error {
+	return func(state tls.ConnectionState) error {
+		if serverName == "" {
+			return E.New("missing server_name/certificate_server_name or insecure=true")
+		}
+		verifyOptions := x509.VerifyOptions{
+			Roots:         rootCAs,
+			DNSName:       serverName,
+			Intermediates: x509.NewCertPool(),
+		}
+		for _, cert := range state.PeerCertificates[1:] {
+			verifyOptions.Intermediates.AddCert(cert)
+		}
+		if timeFunc != nil {
+			verifyOptions.CurrentTime = timeFunc()
+		}
+		_, err := state.PeerCertificates[0].Verify(verifyOptions)
+		return err
+	}
 }
 
 func verifyPublicKeySHA256(knownHashValues [][]byte, rawCerts [][]byte, timeFunc func() time.Time) error {

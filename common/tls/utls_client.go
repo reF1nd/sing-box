@@ -31,6 +31,10 @@ import (
 type UTLSClientConfig struct {
 	ctx                   context.Context
 	config                *utls.Config
+	serverName            string
+	certificateServerName string
+	disableSNI            bool
+	verifyServerName      bool
 	id                    utls.ClientHelloID
 	fragment              bool
 	fragmentFallbackDelay time.Duration
@@ -38,11 +42,26 @@ type UTLSClientConfig struct {
 }
 
 func (c *UTLSClientConfig) ServerName() string {
-	return c.config.ServerName
+	return c.serverName
 }
 
 func (c *UTLSClientConfig) SetServerName(serverName string) {
-	c.config.ServerName = serverName
+	c.serverName = serverName
+	if c.disableSNI {
+		c.config.ServerName = ""
+	} else {
+		c.config.ServerName = serverName
+	}
+	if c.verifyServerName {
+		c.config.InsecureServerNameToVerify = c.verificationServerName()
+	}
+}
+
+func (c *UTLSClientConfig) verificationServerName() string {
+	if c.certificateServerName != "" {
+		return c.certificateServerName
+	}
+	return c.serverName
 }
 
 func (c *UTLSClientConfig) NextProtos() []string {
@@ -72,9 +91,20 @@ func (c *UTLSClientConfig) SetSessionIDGenerator(generator func(clientHello []by
 }
 
 func (c *UTLSClientConfig) Clone() Config {
-	return &UTLSClientConfig{
-		c.ctx, c.config.Clone(), c.id, c.fragment, c.fragmentFallbackDelay, c.recordFragment,
+	cloned := &UTLSClientConfig{
+		ctx:                   c.ctx,
+		config:                c.config.Clone(),
+		serverName:            c.serverName,
+		certificateServerName: c.certificateServerName,
+		disableSNI:            c.disableSNI,
+		verifyServerName:      c.verifyServerName,
+		id:                    c.id,
+		fragment:              c.fragment,
+		fragmentFallbackDelay: c.fragmentFallbackDelay,
+		recordFragment:        c.recordFragment,
 	}
+	cloned.SetServerName(cloned.serverName)
+	return cloned
 }
 
 func (c *UTLSClientConfig) ECHConfigList() []byte {
@@ -152,16 +182,17 @@ func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 	} else if serverAddress != "" {
 		serverName = serverAddress
 	}
-	if serverName == "" && !options.Insecure {
-		return nil, E.New("missing server_name or insecure=true")
+	verificationServerName := options.CertificateServerName
+	if verificationServerName == "" {
+		verificationServerName = serverName
+	}
+	if verificationServerName == "" && !options.Insecure {
+		return nil, E.New("missing server_name/certificate_server_name or insecure=true")
 	}
 
 	var tlsConfig utls.Config
 	tlsConfig.Time = ntp.TimeFuncFromContext(ctx)
 	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
-	if !options.DisableSNI {
-		tlsConfig.ServerName = serverName
-	}
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
 	} else if len(options.CertificatePinSHA256) > 0 {
@@ -186,7 +217,7 @@ func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 						opts := x509.VerifyOptions{
 							Roots:         x509.NewCertPool(),
 							Intermediates: x509.NewCertPool(),
-							DNSName:       serverName,
+							DNSName:       verificationServerName,
 						}
 						if tlsConfig.Time != nil {
 							opts.CurrentTime = tlsConfig.Time()
@@ -211,11 +242,13 @@ func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			return verifyPublicKeySHA256(options.CertificatePublicKeySHA256, rawCerts, tlsConfig.Time)
 		}
-	} else if options.DisableSNI {
+	} else if options.DisableSNI || options.CertificateServerName != "" {
 		if options.Reality != nil && options.Reality.Enabled {
-			return nil, E.New("disable_sni is unsupported in reality")
+			if options.DisableSNI {
+				return nil, E.New("disable_sni is unsupported in reality")
+			}
 		}
-		tlsConfig.InsecureServerNameToVerify = serverName
+		tlsConfig.InsecureServerNameToVerify = verificationServerName
 	}
 	if len(options.ALPN) > 0 {
 		tlsConfig.NextProtos = options.ALPN
@@ -296,7 +329,19 @@ func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 	if err != nil {
 		return nil, err
 	}
-	var config Config = &UTLSClientConfig{ctx, &tlsConfig, id, options.Fragment, time.Duration(options.FragmentFallbackDelay), options.RecordFragment}
+	var config Config = &UTLSClientConfig{
+		ctx:                   ctx,
+		config:                &tlsConfig,
+		serverName:            serverName,
+		certificateServerName: options.CertificateServerName,
+		disableSNI:            options.DisableSNI,
+		verifyServerName:      (options.DisableSNI || options.CertificateServerName != "") && !options.Insecure && len(options.CertificatePinSHA256) == 0 && len(options.CertificatePublicKeySHA256) == 0,
+		id:                    id,
+		fragment:              options.Fragment,
+		fragmentFallbackDelay: time.Duration(options.FragmentFallbackDelay),
+		recordFragment:        options.RecordFragment,
+	}
+	config.SetServerName(serverName)
 	if options.ECH != nil && options.ECH.Enabled {
 		if options.Reality != nil && options.Reality.Enabled {
 			return nil, E.New("Reality is conflict with ECH")

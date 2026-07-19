@@ -14,6 +14,7 @@ icon: material/new-box
     :material-plus: [client_key_path](#client_key_path)  
     :material-plus: [client_authentication](#client_authentication)  
     :material-plus: [client_certificate_public_key_sha256](#client_certificate_public_key_sha256)  
+    :material-plus: [certificate_server_name](#certificate_server_name)<br>
     :material-plus: [ech.query_server_name](#query_server_name)
 
 !!! quote "Changes in sing-box 1.12.0"
@@ -99,6 +100,7 @@ icon: material/new-box
   "enabled": true,
   "disable_sni": false,
   "server_name": "",
+  "certificate_server_name": "",
   "insecure": false,
   "alpn": [],
   "min_version": "",
@@ -182,9 +184,21 @@ Do not send server name in ClientHello.
 
 #### server_name
 
-Used to verify the hostname on the returned certificates unless insecure is given.
+Used to verify the hostname on the returned certificates unless `certificate_server_name` or `insecure` is given.
 
 It is also included in the client's handshake to support virtual hosting unless it is an IP address.
+
+#### certificate_server_name
+
+!!! question "Since sing-box 1.13.0"
+
+==Client only==
+
+Overrides the server name used to verify the hostname on the returned certificates.
+
+Unlike `server_name`, this option does not affect the server name included in the ClientHello (SNI).
+
+If empty, `server_name` is used for certificate hostname verification.
 
 #### insecure
 
