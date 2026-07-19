@@ -7,6 +7,7 @@ require github.com/sagernet/sing-box v0.0.0
 replace (
 	github.com/sagernet/sing-box => ../
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.6-0.20260925104051-de8bff1b88d9
+	github.com/sagernet/wireguard-go => github.com/reF1nd/wireguard-go v0.0.8-0.20260925161841-482a39450e8d
 )
 
 require (
