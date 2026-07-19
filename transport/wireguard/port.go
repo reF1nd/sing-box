@@ -19,7 +19,13 @@ func (e *Endpoint) PortMTU() uint32 {
 }
 
 func (e *Endpoint) WritePackets(packets [][]byte) error {
+	// This runs in the shared TUN receive loop, so do not wait for network wake.
+	if err := e.startDevice(); err != nil {
+		return err
+	}
+	e.deviceAccess.Lock()
 	wgDevice := e.device
+	e.deviceAccess.Unlock()
 	if wgDevice == nil {
 		return E.New("WireGuard device is not ready")
 	}
