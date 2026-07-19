@@ -279,7 +279,7 @@ func buildConnectionState(serverName string, client *schannel.ClientContext) (tl
 
 func (c *windowsClientConfig) verifyPeerCertificates(peerCertificates []*x509.Certificate) error {
 	if len(c.certificatePinSHA256) > 0 {
-		return VerifyCertificatePinSHA256(c.certificatePinSHA256, c.serverName, c.timeFunc, peerCertificates)
+		return VerifyCertificatePinSHA256(c.certificatePinSHA256, c.verificationServerName(), c.timeFunc, peerCertificates)
 	}
 	if c.insecure {
 		return nil
@@ -291,7 +291,7 @@ func (c *windowsClientConfig) verifyPeerCertificates(peerCertificates []*x509.Ce
 	case c.store != nil:
 		roots = c.store.Pool()
 	}
-	return verifySystemTLSPeer(roots, c.serverName, c.timeFunc, peerCertificates)
+	return verifySystemTLSPeer(roots, c.verificationServerName(), c.timeFunc, peerCertificates)
 }
 
 type windowsTLSConn struct {

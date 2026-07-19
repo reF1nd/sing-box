@@ -159,6 +159,28 @@ func testCertificatePinHandshake(t *testing.T, base option.OutboundTLSOptions) {
 			require.Error(t, dialCertificatePinConfig(t, certificate, config))
 		}
 	}
+	// A fixed verification name follows the certificate, not SNI or later destination changes.
+	options := base
+	options.ServerName = "sni.example"
+	options.CertificateServerName = "localhost"
+	options.CertificatePinSHA256 = certificatePin(chain[2])
+	config, err := NewClient(context.Background(), logger.NOP(), "", options)
+	require.NoError(t, err)
+	require.NoError(t, dialCertificatePinConfig(t, certificate, config))
+	cloned := config.Clone()
+	cloned.SetServerName("another-sni.example")
+	require.NoError(t, dialCertificatePinConfig(t, certificate, cloned))
+	options.CertificateServerName = "wrong.example"
+	config, err = NewClient(context.Background(), logger.NOP(), "", options)
+	require.NoError(t, err)
+	require.Error(t, dialCertificatePinConfig(t, certificate, config))
+	// Leaf-only pins must not acquire a second PKI/hostname verification callback.
+	options.CertificatePinSHA256 = ""
+	hash := sha256.Sum256(chain[0].RawSubjectPublicKeyInfo)
+	options.CertificatePublicKeySHA256 = [][]byte{hash[:]}
+	config, err = NewClient(context.Background(), logger.NOP(), "", options)
+	require.NoError(t, err)
+	require.NoError(t, dialCertificatePinConfig(t, certificate, config))
 }
 
 func dialCertificatePinConfig(t *testing.T, certificate stdtls.Certificate, config Config) error {
