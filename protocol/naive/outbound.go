@@ -51,6 +51,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.TLS.Insecure {
 		return nil, E.New("insecure is not supported on naive outbound")
 	}
+	if options.TLS.CertificateServerName != "" {
+		return nil, E.New("certificate_server_name is not supported on naive outbound")
+	}
 	if len(options.TLS.ALPN) > 0 {
 		return nil, E.New("alpn is not supported on naive outbound")
 	}
