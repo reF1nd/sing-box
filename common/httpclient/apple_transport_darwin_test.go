@@ -100,11 +100,12 @@ func TestNewAppleSessionConfig(t *testing.T) {
 				},
 				OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
 					TLS: &option.OutboundTLSOptions{
-						Enabled:     true,
-						ServerName:  "localhost",
-						MinVersion:  "1.2",
-						MaxVersion:  "1.3",
-						Certificate: badoption.Listable[string]{serverCertificatePEM},
+						Enabled:               true,
+						ServerName:            "localhost",
+						CertificateServerName: "certificate.example",
+						MinVersion:            "1.2",
+						MaxVersion:            "1.3",
+						Certificate:           badoption.Listable[string]{serverCertificatePEM},
 					},
 				},
 			},
@@ -112,6 +113,9 @@ func TestNewAppleSessionConfig(t *testing.T) {
 				t.Helper()
 				if config.serverName != "localhost" {
 					t.Fatalf("unexpected server name: %q", config.serverName)
+				}
+				if config.certificateServerName != "certificate.example" {
+					t.Fatalf("unexpected certificate server name: %q", config.certificateServerName)
 				}
 				if config.minVersion != stdtls.VersionTLS12 {
 					t.Fatalf("unexpected min version: %x", config.minVersion)
@@ -544,6 +548,36 @@ func TestAppleTransportRoundTripHTTPS(t *testing.T) {
 	}
 }
 
+func TestAppleTransportCertificateServerNameDoesNotChangeSNI(t *testing.T) {
+	serverSNI := make(chan string, 1)
+	server := startAppleHTTPTestServerWithCertificateName(t, "certificate.example", func(w http.ResponseWriter, r *http.Request) {
+		serverSNI <- r.TLS.ServerName
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	transport := newAppleHTTPTestTransport(t, server, option.HTTPClientOptions{
+		Version: 2,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: &option.OutboundTLSOptions{
+				Enabled:               true,
+				ServerName:            "localhost",
+				CertificateServerName: "certificate.example",
+				Certificate:           badoption.Listable[string]{server.certificatePEM},
+			},
+		},
+	})
+
+	assertAppleHTTPSucceeds(t, transport, server.URL("/certificate-server-name"))
+	select {
+	case actualSNI := <-serverSNI:
+		if actualSNI != "localhost" {
+			t.Fatalf("expected SNI localhost, got %q", actualSNI)
+		}
+	case <-time.After(appleHTTPTestTimeout):
+		t.Fatal("timed out waiting for server SNI")
+	}
+}
+
 func TestAppleTransportPinnedPublicKey(t *testing.T) {
 	server := startAppleHTTPTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -749,9 +783,13 @@ func TestAppleTransportLifecycle(t *testing.T) {
 }
 
 func startAppleHTTPTestServer(t *testing.T, handler http.HandlerFunc) *appleHTTPTestServer {
+	return startAppleHTTPTestServerWithCertificateName(t, "localhost", handler)
+}
+
+func startAppleHTTPTestServerWithCertificateName(t *testing.T, certificateServerName string, handler http.HandlerFunc) *appleHTTPTestServer {
 	t.Helper()
 
-	serverCertificate, serverCertificatePEM := newAppleHTTPTestCertificate(t, "localhost")
+	serverCertificate, serverCertificatePEM := newAppleHTTPTestCertificate(t, certificateServerName)
 	server := httptest.NewUnstartedServer(handler)
 	server.EnableHTTP2 = true
 	server.TLS = &stdtls.Config{

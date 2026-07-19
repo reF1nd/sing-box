@@ -57,6 +57,8 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 	serverName := c.serverName
 	serverNamePtr := cStringOrNil(serverName)
 	defer cFree(serverNamePtr)
+	certificateServerNamePtr := cStringOrNil(c.certificateServerName)
+	defer cFree(certificateServerNamePtr)
 
 	alpn := strings.Join(c.nextProtos, "\n")
 	alpnPtr := cStringOrNil(alpn)
@@ -84,6 +86,7 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 	client := C.box_apple_tls_client_create(
 		C.int(dupFD),
 		serverNamePtr,
+		certificateServerNamePtr,
 		alpnPtr,
 		C.size_t(len(alpn)),
 		C.uint16_t(c.minVersion),

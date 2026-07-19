@@ -9,6 +9,7 @@ icon: material/new-box
     :material-plus: [spoof](#spoof)  
     :material-plus: [spoof_method](#spoof_method)  
     :material-plus: [engine](#engine)  
+    :material-plus: [certificate_server_name](#certificate_server_name)<br>
     :material-delete-clock: [acme](#acme-fields)
 
 !!! quote "Changes in sing-box 1.13.0"
@@ -114,6 +115,7 @@ icon: material/new-box
   "engine": "",
   "disable_sni": false,
   "server_name": "",
+  "certificate_server_name": "",
   "insecure": false,
   "alpn": [],
   "min_version": "",
@@ -211,6 +213,7 @@ Values:
 Supported fields:
 
 * `server_name`
+* `certificate_server_name`
 * `insecure`
 * `alpn`
 * `min_version`
@@ -244,6 +247,7 @@ The default version range is TLS 1.2 to TLS 1.3, matching the `go` engine.
 Supported fields:
 
 * `server_name`
+* `certificate_server_name`
 * `insecure`
 * `alpn`
 * `min_version`
@@ -272,9 +276,21 @@ Do not send server name in ClientHello.
 
 #### server_name
 
-Used to verify the hostname on the returned certificates unless insecure is given.
+Used to verify the hostname on the returned certificates unless `certificate_server_name` or `insecure` is given.
 
 It is also included in the client's handshake to support virtual hosting unless it is an IP address.
+
+#### certificate_server_name
+
+!!! question "Since sing-box 1.14.0"
+
+==Client only==
+
+Overrides the server name used to verify the hostname on the returned certificates.
+
+Unlike `server_name`, this option does not affect the server name included in the ClientHello (SNI).
+
+If empty, `server_name` is used for certificate hostname verification.
 
 #### insecure
 
