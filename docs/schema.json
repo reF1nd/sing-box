@@ -14831,6 +14831,9 @@
         "server_name": {
           "type": "string"
         },
+        "certificate_server_name": {
+          "type": "string"
+        },
         "insecure": {
           "type": "boolean"
         },
