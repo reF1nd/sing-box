@@ -241,11 +241,22 @@ static NSArray<NSString *> *box_split_lines(const char *content, size_t content_
 	return lines;
 }
 
-static bool box_evaluate_trust(sec_trust_t trust, NSArray *anchors, bool anchor_only, NSDate *verify_date) {
+static bool box_evaluate_trust(sec_trust_t trust, NSString *certificate_server_name, NSArray *anchors, bool anchor_only, NSDate *verify_date) {
 	bool result = false;
 	SecTrustRef trustRef = sec_trust_copy_ref(trust);
 	if (trustRef == NULL) {
 		return false;
+	}
+	if (certificate_server_name.length > 0) {
+		SecPolicyRef policy = SecPolicyCreateSSL(true, (__bridge CFStringRef)certificate_server_name);
+		if (policy == NULL || SecTrustSetPolicies(trustRef, policy) != errSecSuccess) {
+			if (policy != NULL) {
+				CFRelease(policy);
+			}
+			CFRelease(trustRef);
+			return false;
+		}
+		CFRelease(policy);
 	}
 	if (verify_date != nil && SecTrustSetVerifyDate(trustRef, (__bridge CFDateRef)verify_date) != errSecSuccess) {
 		CFRelease(trustRef);
@@ -356,6 +367,7 @@ static void box_apple_tls_state_load(sec_protocol_metadata_t sec_metadata, box_a
 box_apple_tls_client_t *box_apple_tls_client_create(
 	int connected_socket,
 	const char *server_name,
+	const char *certificate_server_name,
 	const char *alpn,
 	size_t alpn_len,
 	uint16_t min_version,
@@ -383,6 +395,7 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 	}
 
 	NSArray<NSString *> *alpnList = box_split_lines(alpn, alpn_len);
+	NSString *certificateServerName = certificate_server_name != NULL ? [NSString stringWithUTF8String:certificate_server_name] : nil;
 	NSDate *verifyDate = nil;
 	if (has_verify_time) {
 		verifyDate = [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)verify_time_unix_millis / 1000.0];
@@ -406,7 +419,7 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 			if (client->state.version == 0) {
 				box_apple_tls_state_load(metadata, &client->state);
 			}
-			complete(insecure || box_evaluate_trust(trust, box_apple_tls_client_anchors(client), anchor_only, verifyDate));
+			complete(insecure || box_evaluate_trust(trust, certificateServerName, box_apple_tls_client_anchors(client), anchor_only, verifyDate));
 		}, box_apple_tls_client_queue(client));
 	}, NW_PARAMETERS_DEFAULT_CONFIGURATION);
 
