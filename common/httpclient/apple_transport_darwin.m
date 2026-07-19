@@ -36,9 +36,19 @@ static void box_set_error_from_nserror(char **error_out, NSError *error) {
 	box_set_error_string(error_out, error.localizedDescription ?: error.description);
 }
 
-static bool box_evaluate_trust(SecTrustRef trustRef, NSArray *anchors, bool anchor_only, NSDate *verifyDate) {
+static bool box_evaluate_trust(SecTrustRef trustRef, NSString *certificateServerName, NSArray *anchors, bool anchor_only, NSDate *verifyDate) {
 	if (trustRef == NULL) {
 		return false;
+	}
+	if (certificateServerName.length > 0) {
+		SecPolicyRef policy = SecPolicyCreateSSL(true, (__bridge CFStringRef)certificateServerName);
+		if (policy == NULL || SecTrustSetPolicies(trustRef, policy) != errSecSuccess) {
+			if (policy != NULL) {
+				CFRelease(policy);
+			}
+			return false;
+		}
+		CFRelease(policy);
 	}
 	if (verifyDate != nil && SecTrustSetVerifyDate(trustRef, (__bridge CFDateRef)verifyDate) != errSecSuccess) {
 		return false;
@@ -101,6 +111,7 @@ static box_apple_http_response_t *box_create_response(NSHTTPURLResponse *httpRes
 @property(nonatomic, assign) BOOL anchorOnly;
 @property(nonatomic, strong) NSArray *anchors;
 @property(nonatomic, strong) NSData *pinnedPublicKeyHashes;
+@property(nonatomic, strong) NSString *certificateServerName;
 @end
 
 @implementation BoxAppleHTTPSessionDelegate
@@ -127,14 +138,14 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
 		return;
 	}
 	NSDate *verifyDate = box_apple_http_verify_date_for_request(task.currentRequest ?: task.originalRequest);
-	BOOL needsCustomHandling = self.insecure || self.anchorOnly || self.anchors.count > 0 || self.pinnedPublicKeyHashes.length > 0 || verifyDate != nil;
+	BOOL needsCustomHandling = self.insecure || self.anchorOnly || self.anchors.count > 0 || self.pinnedPublicKeyHashes.length > 0 || self.certificateServerName.length > 0 || verifyDate != nil;
 	if (!needsCustomHandling) {
 		completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
 		return;
 	}
 	BOOL ok = YES;
 	if (!self.insecure) {
-		ok = box_evaluate_trust(trustRef, self.anchors, self.anchorOnly, verifyDate);
+		ok = box_evaluate_trust(trustRef, self.certificateServerName, self.anchors, self.anchorOnly, verifyDate);
 	}
 	if (ok && self.pinnedPublicKeyHashes.length > 0) {
 		CFArrayRef certificateChain = SecTrustCopyCertificateChain(trustRef);
@@ -211,6 +222,9 @@ box_apple_http_session_t *box_apple_http_session_create(
 		if (config != NULL) {
 			delegate.insecure = config->insecure;
 			delegate.anchorOnly = config->anchor_only;
+			if (config->certificate_server_name != NULL) {
+				delegate.certificateServerName = [NSString stringWithUTF8String:config->certificate_server_name];
+			}
 			if (config->anchors_cf != NULL) {
 				delegate.anchors = (__bridge NSArray *)config->anchors_cf;
 			} else {

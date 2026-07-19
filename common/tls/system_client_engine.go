@@ -17,6 +17,7 @@ import (
 
 type systemTLSConfig struct {
 	serverName                 string
+	certificateServerName      string
 	nextProtos                 []string
 	handshakeTimeout           time.Duration
 	minVersion                 uint16
@@ -34,6 +35,13 @@ func (c *systemTLSConfig) ServerName() string {
 
 func (c *systemTLSConfig) SetServerName(serverName string) {
 	c.serverName = serverName
+}
+
+func (c *systemTLSConfig) verificationServerName() string { //nolint:unused // Used by platform-specific TLS engines.
+	if c.certificateServerName != "" {
+		return c.certificateServerName
+	}
+	return c.serverName
 }
 
 func (c *systemTLSConfig) NextProtos() []string {
@@ -63,6 +71,7 @@ func (c *systemTLSConfig) Client(conn net.Conn) (Conn, error) {
 func (c *systemTLSConfig) clone() systemTLSConfig {
 	return systemTLSConfig{
 		serverName:                 c.serverName,
+		certificateServerName:      c.certificateServerName,
 		nextProtos:                 append([]string(nil), c.nextProtos...),
 		handshakeTimeout:           c.handshakeTimeout,
 		minVersion:                 c.minVersion,
@@ -86,7 +95,11 @@ func newSystemTLSConfig(ctx context.Context, serverAddress string, options optio
 	} else if serverAddress != "" {
 		serverName = serverAddress
 	}
-	if serverName == "" && !options.Insecure && !allowEmptyServerName {
+	verificationServerName := options.CertificateServerName
+	if verificationServerName == "" {
+		verificationServerName = serverName
+	}
+	if verificationServerName == "" && !options.Insecure && !allowEmptyServerName {
 		return systemTLSConfig{}, SystemTLSValidated{}, errMissingServerName
 	}
 	handshakeTimeout := C.TCPTimeout
@@ -95,6 +108,7 @@ func newSystemTLSConfig(ctx context.Context, serverAddress string, options optio
 	}
 	return systemTLSConfig{
 		serverName:                 serverName,
+		certificateServerName:      options.CertificateServerName,
 		nextProtos:                 append([]string(nil), options.ALPN...),
 		handshakeTimeout:           handshakeTimeout,
 		minVersion:                 validated.MinVersion,

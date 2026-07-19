@@ -288,7 +288,7 @@ func (c *windowsClientConfig) verifyPeerCertificates(peerCertificates []*x509.Ce
 	case c.store != nil:
 		roots = c.store.Pool()
 	}
-	return verifySystemTLSPeer(roots, c.serverName, c.timeFunc, peerCertificates)
+	return verifySystemTLSPeer(roots, c.verificationServerName(), c.timeFunc, peerCertificates)
 }
 
 type windowsTLSConn struct {

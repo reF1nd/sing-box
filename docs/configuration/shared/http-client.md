@@ -49,6 +49,7 @@ Supported fields:
 
 * `headers`
 * `tls.server_name` (must match request host)
+* `tls.certificate_server_name`
 * `tls.insecure`
 * `tls.min_version` / `tls.max_version`
 * `tls.certificate` / `tls.certificate_path`
