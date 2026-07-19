@@ -89,6 +89,7 @@ func box_apple_http_verify_certificate_pin(pin *C.uint8_t, pinLen C.size_t, chai
 
 type appleSessionConfig struct {
 	serverName             string
+	certificateServerName  string
 	minVersion             uint16
 	maxVersion             uint16
 	insecure               bool
@@ -199,13 +200,14 @@ func newAppleSessionConfig(ctx context.Context, options option.HTTPClientOptions
 	}
 
 	config := appleSessionConfig{
-		serverName:           tlsOptions.ServerName,
-		minVersion:           validated.MinVersion,
-		maxVersion:           validated.MaxVersion,
-		insecure:             len(validated.CertificatePinSHA256) > 0 || tlsOptions.Insecure || len(tlsOptions.CertificatePublicKeySHA256) > 0,
-		anchorOnly:           validated.Exclusive,
-		store:                validated.Store,
-		certificatePinSHA256: validated.CertificatePinSHA256,
+		serverName:            tlsOptions.ServerName,
+		certificateServerName: tlsOptions.CertificateServerName,
+		minVersion:            validated.MinVersion,
+		maxVersion:            validated.MaxVersion,
+		insecure:              len(validated.CertificatePinSHA256) > 0 || tlsOptions.Insecure || len(tlsOptions.CertificatePublicKeySHA256) > 0,
+		anchorOnly:            validated.Exclusive,
+		store:                 validated.Store,
+		certificatePinSHA256:  validated.CertificatePinSHA256,
 	}
 	if len(validated.UserPEM) > 0 {
 		userAnchors, anchorsErr := newAppleUserAnchors(validated.UserPEM)
@@ -255,6 +257,11 @@ func (s *appleTransportShared) newSession() (*C.box_apple_http_session_t, error)
 	defer C.free(unsafe.Pointer(cProxyUsername))
 	cProxyPassword := C.CString(s.bridge.Password())
 	defer C.free(unsafe.Pointer(cProxyPassword))
+	var cCertificateServerName *C.char
+	if s.config.certificateServerName != "" {
+		cCertificateServerName = C.CString(s.config.certificateServerName)
+		defer C.free(unsafe.Pointer(cCertificateServerName))
+	}
 	var certificatePinPointer *C.uint8_t
 	if len(s.config.certificatePinSHA256) > 0 {
 		certificatePinPointer = (*C.uint8_t)(C.CBytes(s.config.certificatePinSHA256))
@@ -273,6 +280,7 @@ func (s *appleTransportShared) newSession() (*C.box_apple_http_session_t, error)
 	}
 	cConfig := C.box_apple_http_session_config_t{
 		proxy_host:                   cProxyHost,
+		certificate_server_name:      cCertificateServerName,
 		proxy_port:                   C.int(s.bridge.Port()),
 		proxy_username:               cProxyUsername,
 		proxy_password:               cProxyPassword,

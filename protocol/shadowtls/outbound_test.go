@@ -144,3 +144,33 @@ func TestShadowTLSv3DefaultTLSCertificatePin(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "certificate fingerprint mismatch")
 }
+
+func TestShadowTLSv3DefaultTLSCertificateServerName(t *testing.T) {
+	port, _, certPEM := startShadowTLSv3TestServer(t, "san.example.test")
+
+	newClient := func(certServerName string) *Outbound {
+		out, err := NewOutbound(context.Background(), nil, log.NewNOPFactory().NewLogger("shadowtls"), "stls", option.ShadowTLSOutboundOptions{
+			ServerOptions: option.ServerOptions{Server: "127.0.0.1", ServerPort: port},
+			Version:       3,
+			Password:      "secret",
+			OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+				TLS: &option.OutboundTLSOptions{
+					Enabled:               true,
+					ServerName:            "sni.example.test",
+					CertificateServerName: certServerName,
+					Certificate:           []string{certPEM},
+				},
+			},
+		})
+		require.NoError(t, err)
+		return out.(*Outbound)
+	}
+
+	conn, err := newClient("san.example.test").DialContext(context.Background(), N.NetworkTCP, M.ParseSocksaddr("example.com:80"))
+	require.NoError(t, err)
+	_ = conn.Close()
+
+	_, err = newClient("wrong.example.test").DialContext(context.Background(), N.NetworkTCP, M.ParseSocksaddr("example.com:80"))
+	require.Error(t, err)
+	require.ErrorContains(t, err, "wrong.example.test")
+}

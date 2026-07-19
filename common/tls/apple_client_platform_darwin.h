@@ -18,6 +18,7 @@ typedef struct box_apple_tls_state {
 box_apple_tls_client_t *box_apple_tls_client_create(
 	int connected_socket,
 	const char *server_name,
+	const char *certificate_server_name,
 	const char *alpn,
 	size_t alpn_len,
 	uint16_t min_version,
