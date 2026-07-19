@@ -183,7 +183,7 @@ func (w *Endpoint) updateBind(ctx context.Context) {
 	}
 	err := w.endpoint.BindUpdate()
 	if err != nil {
-		w.logger.Error(E.Cause(err, "update bind"))
+		w.logger.Error(E.Cause(err, "update WireGuard bind after network change"))
 	}
 }
 

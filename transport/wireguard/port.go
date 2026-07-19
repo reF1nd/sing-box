@@ -19,7 +19,12 @@ func (e *Endpoint) PortMTU() uint32 {
 }
 
 func (e *Endpoint) WritePackets(packets [][]byte) error {
+	if err := e.ensureDeviceStarted(e.options.Context); err != nil {
+		return err
+	}
+	e.deviceAccess.Lock()
 	wgDevice := e.device
+	e.deviceAccess.Unlock()
 	if wgDevice == nil {
 		return E.New("WireGuard device is not ready")
 	}
