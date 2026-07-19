@@ -14,10 +14,17 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/pause"
 	"github.com/sagernet/wireguard-go/conn"
 )
 
 var _ conn.Bind = (*ClientBind)(nil)
+
+const (
+	clientBindPausePollInterval = 100 * time.Millisecond
+	clientBindRetryInterval     = time.Second
+)
 
 type ClientBind struct {
 	ctx                 context.Context
@@ -25,11 +32,13 @@ type ClientBind struct {
 	bindCtx             context.Context
 	bindDone            context.CancelFunc
 	dialer              N.Dialer
+	pauseManager        pause.Manager
 	reservedAccess      sync.RWMutex
 	reservedForEndpoint map[netip.AddrPort][3]uint8
 	connAccess          sync.Mutex
 	conn                atomic.Pointer[wireConn]
 	done                chan struct{}
+	closed              atomic.Bool
 	destination         M.Socksaddr
 	reserved            [3]uint8
 }
@@ -39,6 +48,7 @@ func NewClientBind(ctx context.Context, logger logger.Logger, dialer N.Dialer, d
 		ctx:                 ctx,
 		logger:              logger,
 		dialer:              dialer,
+		pauseManager:        service.FromContext[pause.Manager](ctx),
 		reservedForEndpoint: make(map[netip.AddrPort][3]uint8),
 		done:                make(chan struct{}),
 		destination:         destination,
@@ -46,31 +56,36 @@ func NewClientBind(ctx context.Context, logger logger.Logger, dialer N.Dialer, d
 	}
 }
 
+func (c *ClientBind) currentDone() <-chan struct{} {
+	c.connAccess.Lock()
+	done := c.done
+	c.connAccess.Unlock()
+	return done
+}
+
 func (c *ClientBind) connect() (*wireConn, error) {
 	serverConn := c.conn.Load()
-	if serverConn != nil {
-		select {
-		case <-serverConn.done:
-		default:
-			return serverConn, nil
-		}
+	if serverConn != nil && !isDone(serverConn.done) {
+		return serverConn, nil
 	}
 	c.connAccess.Lock()
-	defer c.connAccess.Unlock()
-	select {
-	case <-c.done:
+	bindCtx := c.bindCtx
+	if bindCtx == nil {
+		bindCtx = c.ctx
+	}
+	done := c.done
+	if isDone(done) {
+		c.connAccess.Unlock()
 		return nil, net.ErrClosed
-	default:
 	}
 	serverConn = c.conn.Load()
-	if serverConn != nil {
-		select {
-		case <-serverConn.done:
-		default:
-			return serverConn, nil
-		}
+	if serverConn != nil && !isDone(serverConn.done) {
+		c.connAccess.Unlock()
+		return serverConn, nil
 	}
-	udpConn, err := c.dialer.ListenPacket(c.bindCtx, c.destination)
+	c.connAccess.Unlock()
+
+	udpConn, err := c.dialer.ListenPacket(bindCtx, c.destination)
 	if err != nil {
 		return nil, err
 	}
@@ -78,51 +93,75 @@ func (c *ClientBind) connect() (*wireConn, error) {
 		PacketConn: bufio.NewPacketConn(udpConn),
 		done:       make(chan struct{}),
 	}
+
+	c.connAccess.Lock()
+	if done != c.done || isDone(done) {
+		c.connAccess.Unlock()
+		_ = serverConn.Close()
+		return nil, net.ErrClosed
+	}
+	if currentConn := c.conn.Load(); currentConn != nil && !isDone(currentConn.done) {
+		c.connAccess.Unlock()
+		_ = serverConn.Close()
+		return currentConn, nil
+	}
 	c.conn.Store(serverConn)
+	c.connAccess.Unlock()
 	return serverConn, nil
 }
 
 func (c *ClientBind) Open(port uint16) (fns []conn.ReceiveFunc, actualPort uint16, err error) {
+	c.connAccess.Lock()
+	defer c.connAccess.Unlock()
+	if c.closed.Load() {
+		return nil, 0, net.ErrClosed
+	}
 	select {
 	case <-c.done:
 		c.done = make(chan struct{})
 	default:
 	}
+	done := c.done
+	if c.bindDone != nil {
+		c.bindDone()
+	}
 	c.bindCtx, c.bindDone = context.WithCancel(c.ctx)
-	return []conn.ReceiveFunc{c.receive}, 0, nil
+	return []conn.ReceiveFunc{func(slab []byte, packets []conn.ReceivedPacket) (int, error) {
+		return c.receive(done, slab, packets)
+	}}, 0, nil
 }
 
-func (c *ClientBind) receive(slab []byte, packets []conn.ReceivedPacket) (int, error) {
+func (c *ClientBind) Shutdown() error {
+	c.closed.Store(true)
+	return c.Close()
+}
+
+func (c *ClientBind) receive(done <-chan struct{}, slab []byte, packets []conn.ReceivedPacket) (int, error) {
+	if isDone(done) {
+		return 0, net.ErrClosed
+	}
 	udpConn, err := c.connect()
 	if err != nil {
-		select {
-		case <-c.done:
+		if isDone(done) {
 			return 0, net.ErrClosed
-		default:
 		}
 		c.logger.Error(E.Cause(err, "connect to server"))
-		select {
-		case <-c.done:
+		if !c.waitAfterFailure(done) {
 			return 0, net.ErrClosed
-		case <-time.After(time.Second):
 		}
 		return 0, nil
 	}
 	n, addr, err := udpConn.ReadFrom(slab)
 	if err != nil {
-		select {
-		case <-c.done:
+		if isDone(done) {
 			return 0, net.ErrClosed
-		default:
 		}
 		if udpConn.Close() != nil {
 			return 0, nil
 		}
 		c.logger.Error(E.Cause(err, "read packet"))
-		select {
-		case <-c.done:
+		if !c.waitAfterFailure(done) {
 			return 0, net.ErrClosed
-		case <-time.After(time.Second):
 		}
 		return 0, nil
 	}
@@ -143,17 +182,20 @@ func (c *ClientBind) receive(slab []byte, packets []conn.ReceivedPacket) (int, e
 }
 
 func (c *ClientBind) Close() error {
+	c.connAccess.Lock()
 	select {
 	case <-c.done:
 	default:
 		close(c.done)
 	}
-	if c.bindDone != nil {
-		c.bindDone()
+	bindDone := c.bindDone
+	c.bindDone = nil
+	serverConn := c.conn.Swap(nil)
+	c.connAccess.Unlock()
+	if bindDone != nil {
+		bindDone()
 	}
-	c.connAccess.Lock()
-	defer c.connAccess.Unlock()
-	common.Close(common.PtrOrNil(c.conn.Load()))
+	common.Close(common.PtrOrNil(serverConn))
 	return nil
 }
 
@@ -164,7 +206,6 @@ func (c *ClientBind) SetMark(mark uint32) error {
 func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint, offset int) error {
 	udpConn, err := c.connect()
 	if err != nil {
-		time.Sleep(time.Second)
 		return err
 	}
 	destination := netip.AddrPort(ep.(remoteEndpoint))
@@ -208,6 +249,44 @@ func (c *ClientBind) SetReservedForEndpoint(destination netip.AddrPort, reserved
 	c.reservedAccess.Lock()
 	c.reservedForEndpoint[netip.AddrPortFrom(destination.Addr().Unmap(), destination.Port())] = reserved
 	c.reservedAccess.Unlock()
+}
+
+func (c *ClientBind) waitActive(done <-chan struct{}) bool {
+	for c.pauseManager != nil && c.pauseManager.IsNetworkPaused() {
+		if !c.waitDelay(done, clientBindPausePollInterval) {
+			return false
+		}
+	}
+	return !isDone(done)
+}
+
+func (c *ClientBind) waitAfterFailure(done <-chan struct{}) bool {
+	if c.pauseManager != nil && c.pauseManager.IsNetworkPaused() {
+		return c.waitActive(done)
+	}
+	return c.waitDelay(done, clientBindRetryInterval)
+}
+
+func (c *ClientBind) waitDelay(done <-chan struct{}, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return false
+	case <-c.ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func isDone(done <-chan struct{}) bool {
+	select {
+	case <-done:
+		return true
+	default:
+		return false
+	}
 }
 
 type wireConn struct {
