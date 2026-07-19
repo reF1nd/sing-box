@@ -154,6 +154,60 @@ func TestAppleClientHandshakeRejectsServerNameMismatch(t *testing.T) {
 	}
 }
 
+func TestAppleClientCertificateServerNameDoesNotChangeSNI(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "certificate.example")
+	serverResult, serverAddress := startAppleTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	clientConn, err := newAppleTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:               true,
+		Engine:                "apple",
+		ServerName:            "sni.example",
+		CertificateServerName: "certificate.example",
+		Certificate:           badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	result := <-serverResult
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	if result.state.ServerName != "sni.example" {
+		t.Fatalf("expected SNI sni.example, got %q", result.state.ServerName)
+	}
+}
+
+func TestAppleClientCertificateServerNameWithIPServerName(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "certificate.example")
+	serverResult, serverAddress := startAppleTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	clientConn, err := newAppleTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:               true,
+		Engine:                "apple",
+		ServerName:            "192.0.2.1",
+		CertificateServerName: "certificate.example",
+		Certificate:           badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	result := <-serverResult
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	if result.state.ServerName != "" {
+		t.Fatalf("expected empty SNI, got %q", result.state.ServerName)
+	}
+}
+
 func TestAppleClientHandshakeRecoversAfterFailure(t *testing.T) {
 	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
 	testCases := []struct {
