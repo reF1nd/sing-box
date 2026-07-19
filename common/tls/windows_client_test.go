@@ -515,6 +515,33 @@ func TestWindowsClientHandshakeRejectsServerNameMismatch(t *testing.T) {
 	}
 }
 
+func TestWindowsClientCertificateServerNameDoesNotChangeSNI(t *testing.T) {
+	serverCertificate, serverCertificatePEM := newWindowsTestCertificate(t, "certificate.example")
+	serverResult, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{
+		Certificates: []stdtls.Certificate{serverCertificate},
+	})
+
+	clientConn, err := newWindowsTestClientConn(t, serverAddress, option.OutboundTLSOptions{
+		Enabled:               true,
+		Engine:                C.TLSEngineWindows,
+		ServerName:            "sni.example",
+		CertificateServerName: "certificate.example",
+		Certificate:           badoption.Listable[string]{serverCertificatePEM},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clientConn.Close()
+
+	result := <-serverResult
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	if result.state.ServerName != "sni.example" {
+		t.Fatalf("expected SNI sni.example, got %q", result.state.ServerName)
+	}
+}
+
 func TestWindowsClientHandshakeRejectsUntrustedCA(t *testing.T) {
 	serverCertificate, _ := newWindowsTestCertificate(t, "localhost")
 	_, serverAddress := startWindowsTLSTestServer(t, &stdtls.Config{

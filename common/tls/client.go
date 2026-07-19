@@ -19,7 +19,7 @@ import (
 	aTLS "github.com/sagernet/sing/common/tls"
 )
 
-var errMissingServerName = E.New("missing server_name or insecure=true")
+var errMissingServerName = E.New("missing server_name/certificate_server_name or insecure=true")
 
 func parseTLSSpoofOptions(serverName string, options option.OutboundTLSOptions) (string, tlsspoof.Method, error) {
 	spoof, method, err := tlsspoof.ParseOptions(options.Spoof, options.SpoofMethod)
