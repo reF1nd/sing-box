@@ -15833,6 +15833,9 @@
         "server_name": {
           "type": "string"
         },
+        "certificate_server_name": {
+          "type": "string"
+        },
         "insecure": {
           "type": "boolean"
         },
@@ -15986,6 +15989,9 @@
             }
           ]
         },
+        "certificate_pin_sha256": {
+          "type": "string"
+        },
         "client_certificate": {
           "anyOf": [
             {
@@ -16057,9 +16063,6 @@
         },
         "reality": {
           "$ref": "#/$defs/OutboundRealityOptions"
-        },
-        "certificate_pin_sha256": {
-          "type": "string"
         }
       },
       "additionalProperties": false
