@@ -31,6 +31,7 @@ type UTLSClientConfig struct {
 	ctx                   context.Context
 	config                *utls.Config
 	serverName            string
+	certificateServerName string
 	disableSNI            bool
 	verifyServerName      bool
 	certificatePinSHA256  []byte
@@ -56,20 +57,25 @@ func (c *UTLSClientConfig) SetServerName(serverName string) {
 		}
 		c.config.InsecureServerNameToVerify = ""
 		c.config.VerifyConnection = func(state utls.ConnectionState) error {
-			return VerifyCertificatePinSHA256(c.certificatePinSHA256, serverName, c.config.Time, state.PeerCertificates)
+			return VerifyCertificatePinSHA256(c.certificatePinSHA256, c.verificationServerName(), c.config.Time, state.PeerCertificates)
 		}
 		return
 	}
 	if c.disableSNI {
 		c.config.ServerName = ""
-		if c.verifyServerName {
-			c.config.InsecureServerNameToVerify = serverName
-		} else {
-			c.config.InsecureServerNameToVerify = ""
-		}
-		return
+	} else {
+		c.config.ServerName = serverName
 	}
-	c.config.ServerName = serverName
+	if c.verifyServerName {
+		c.config.InsecureServerNameToVerify = c.verificationServerName()
+	}
+}
+
+func (c *UTLSClientConfig) verificationServerName() string {
+	if c.certificateServerName != "" {
+		return c.certificateServerName
+	}
+	return c.serverName
 }
 
 func (c *UTLSClientConfig) NextProtos() []string {
@@ -115,6 +121,7 @@ func (c *UTLSClientConfig) Clone() Config {
 		ctx:                   c.ctx,
 		config:                c.config.Clone(),
 		serverName:            c.serverName,
+		certificateServerName: c.certificateServerName,
 		disableSNI:            c.disableSNI,
 		verifyServerName:      c.verifyServerName,
 		certificatePinSHA256:  append([]byte(nil), c.certificatePinSHA256...),
@@ -221,7 +228,11 @@ func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 	} else if serverAddress != "" {
 		serverName = serverAddress
 	}
-	if serverName == "" && !options.Insecure && !allowEmptyServerName {
+	verificationServerName := options.CertificateServerName
+	if verificationServerName == "" {
+		verificationServerName = serverName
+	}
+	if verificationServerName == "" && !options.Insecure && !allowEmptyServerName {
 		return nil, errMissingServerName
 	}
 
@@ -230,9 +241,11 @@ func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 	tlsConfig.RootCAs = adapter.RootPoolFromContext(ctx)
 	if options.Insecure {
 		tlsConfig.InsecureSkipVerify = options.Insecure
-	} else if options.DisableSNI {
+	} else if options.DisableSNI || options.CertificateServerName != "" {
 		if options.Reality != nil && options.Reality.Enabled {
-			return nil, E.New("disable_sni is unsupported in reality")
+			if options.DisableSNI {
+				return nil, E.New("disable_sni is unsupported in reality")
+			}
 		}
 	}
 	if len(certificatePin) > 0 {
@@ -339,8 +352,9 @@ func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddre
 		ctx:                   ctx,
 		config:                &tlsConfig,
 		serverName:            serverName,
+		certificateServerName: options.CertificateServerName,
 		disableSNI:            options.DisableSNI,
-		verifyServerName:      options.DisableSNI && !options.Insecure,
+		verifyServerName:      (options.DisableSNI || options.CertificateServerName != "") && !options.Insecure && len(certificatePin) == 0 && len(options.CertificateSHA256) == 0 && len(options.CertificatePublicKeySHA256) == 0,
 		certificatePinSHA256:  certificatePin,
 		handshakeTimeout:      handshakeTimeout,
 		id:                    id,

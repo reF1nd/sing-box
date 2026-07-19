@@ -137,7 +137,7 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 		nowTime = time.Now()
 	}
 	verifier := &realityVerifier{
-		serverName:  e.uClient.ServerName(),
+		serverName:  e.uClient.verificationServerName(),
 		rootCAs:     uConfig.RootCAs,
 		currentTime: nowTime,
 	}
