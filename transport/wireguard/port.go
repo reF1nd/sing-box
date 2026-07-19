@@ -19,11 +19,13 @@ func (e *Endpoint) PortMTU() uint32 {
 }
 
 func (e *Endpoint) WritePackets(packets [][]byte) error {
+	if err := e.ensureDeviceStarted(e.options.Context); err != nil {
+		return err
+	}
 	wgDevice := e.device.Load()
 	if wgDevice == nil {
 		return E.New("WireGuard device is not ready")
 	}
-	e.resume()
 	packetRefs := make([]*device.InputPacketRef, 0, len(packets))
 	refs := make([]device.InputPacketRef, len(packets))
 	packetSlices := make([][]byte, len(packets))
