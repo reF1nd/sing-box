@@ -10,6 +10,7 @@ typedef struct box_apple_http_session_config {
 	int proxy_port;
 	const char *proxy_username;
 	const char *proxy_password;
+	const char *certificate_server_name;
 	uint16_t min_tls_version;
 	uint16_t max_tls_version;
 	bool insecure;
