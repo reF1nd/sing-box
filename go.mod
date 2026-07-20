@@ -73,12 +73,13 @@ require (
 
 require (
 	github.com/sagernet/sing-openconnect v0.0.0-20260720032640-bf28b6a6f10e
-	github.com/sagernet/sing-openvpn v0.0.0-20260719094204-c57d60b5c5a4
+	github.com/sagernet/sing-openvpn v0.0.0-20260720132803-a5e407d00242
 	github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73
 )
 
 require (
 	github.com/anchore/go-lzo v0.1.0 // indirect
+	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/pion/dtls/v3 v3.1.5 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/transport/v4 v4.0.2 // indirect
@@ -111,7 +112,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
