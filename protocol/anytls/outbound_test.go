@@ -25,3 +25,7 @@ func TestOutboundTCPFastOpen(t *testing.T) {
 	require.NoError(t, outbound.(*Outbound).Start(adapter.StartStateInitialize, scope))
 	require.NoError(t, scope.Close())
 }
+
+func TestInterfaceUpdated(t *testing.T) {
+	require.NotPanics(t, func() { (&Outbound{}).InterfaceUpdated(context.Background()) })
+}
