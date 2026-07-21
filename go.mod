@@ -72,7 +72,7 @@ require (
 )
 
 require (
-	github.com/sagernet/sing-openconnect v0.0.0-20260721013312-6c25fa7e089a
+	github.com/sagernet/sing-openconnect v0.0.0-20260721123934-0d945d43288f
 	github.com/sagernet/sing-openvpn v0.0.0-20260721005523-64b754d1c277
 	github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73
 )
