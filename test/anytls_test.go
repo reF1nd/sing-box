@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -45,7 +46,7 @@ func TestAnyTLSSelf(t *testing.T) {
 		for _, disableReuse := range []bool{false, true} {
 			t.Run(fmt.Sprintf("tfo=%t/disable_reuse=%t", fastOpen, disableReuse), func(t *testing.T) {
 				inListen, proxyListen := anyTLSListenOptions(t), anyTLSListenOptions(t)
-				startInstance(t, option.Options{
+				instance := startInstance(t, option.Options{
 					Inbounds: []option.Inbound{
 						{Type: C.TypeMixed, Tag: "mixed", Options: &option.HTTPMixedInboundOptions{ListenOptions: proxyListen}},
 						{Type: C.TypeAnyTLS, Tag: "anytls", Options: &option.AnyTLSInboundOptions{
@@ -69,6 +70,10 @@ func TestAnyTLSSelf(t *testing.T) {
 						RuleAction:     option.RuleAction{Action: C.RuleActionTypeRoute, RouteOptions: option.RouteActionOptions{Outbound: "anytls-out"}},
 					}}}},
 				})
+				outbound, loaded := instance.Outbound().Outbound("anytls-out")
+				require.True(t, loaded)
+				listener, ok := outbound.(adapter.InterfaceUpdateListener)
+				require.True(t, ok)
 				dialer := socks.NewClient(N.SystemDialer, M.ParseSocksaddrHostPort("127.0.0.1", proxyListen.ListenPort), socks.Version5, "", "")
 				// Cover TCP and UoT with both short and multi-frame payloads.
 				for _, size := range []int{16, 128 * 1024} {
@@ -95,6 +100,8 @@ func TestAnyTLSSelf(t *testing.T) {
 					response.Body.Close()
 					client.CloseIdleConnections()
 					echo.Close()
+					// Subsequent TCP and UoT connections must work after a network reset.
+					listener.InterfaceUpdated(context.Background())
 				}
 				udp, err := net.ListenPacket("udp4", "127.0.0.1:0")
 				require.NoError(t, err)

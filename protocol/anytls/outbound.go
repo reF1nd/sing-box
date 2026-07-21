@@ -41,10 +41,13 @@ type Outbound struct {
 	tlsConfig      tls.Config
 	clientOptions  anytls.ClientConfig
 	clientMetadata string
+	client         *anytls.Client
 	sessionClient  *session.Client
 	uotClient      *uot.Client
 	logger         log.ContextLogger
 }
+
+var _ adapter.InterfaceUpdateListener = (*Outbound)(nil)
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.AnyTLSOutboundOptions) (adapter.Outbound, error) {
 	outbound := &Outbound{
@@ -95,6 +98,7 @@ func (h *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if err != nil {
 		return err
 	}
+	h.client = client
 	scope.Add(client.Close)
 	h.sessionClient = sessionClientOf(client)
 	h.uotClient = &uot.Client{
@@ -157,4 +161,10 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 	return h.uotClient.ListenPacket(ctx, destination)
+}
+
+func (h *Outbound) InterfaceUpdated(context.Context) {
+	if h.client != nil {
+		h.client.Reset()
+	}
 }
