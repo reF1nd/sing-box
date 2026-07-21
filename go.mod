@@ -85,6 +85,7 @@ require (
 )
 
 replace (
+	github.com/anytls/sing-anytls => github.com/reF1nd/sing-anytls v0.0.14-0.20260721174145-21bcd8c411da
 	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20260808134633-c120d40d0d5b
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.8.12-0.20260810170205-6502608e55c8
 )
