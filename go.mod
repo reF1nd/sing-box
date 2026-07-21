@@ -72,18 +72,21 @@ require (
 )
 
 require (
-	github.com/sagernet/sing-openconnect v0.0.0-20260720032640-bf28b6a6f10e
-	github.com/sagernet/sing-openvpn v0.0.0-20260720132803-a5e407d00242
+	github.com/sagernet/sing-openconnect v0.0.0-20260721013312-6c25fa7e089a
+	github.com/sagernet/sing-openvpn v0.0.0-20260721005523-64b754d1c277
 	github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73
 )
 
 require (
+	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
 	github.com/anchore/go-lzo v0.1.0 // indirect
+	github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d // indirect
 	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/pion/dtls/v3 v3.1.5 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/transport/v4 v4.0.2 // indirect
 	github.com/smallstep/pkcs7 v0.1.1 // indirect
+	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 )
 
