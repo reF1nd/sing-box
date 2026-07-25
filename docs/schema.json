@@ -108,6 +108,12 @@
         "$ref": "#/$defs/Outbound"
       }
     },
+    "providers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provider"
+      }
+    },
     "route": {
       "$ref": "#/$defs/RouteOptions"
     },
@@ -12148,6 +12154,22 @@
                 "x-tag-reference": "outbound"
               }
             },
+            "providers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "x-tag-reference": "provider"
+              }
+            },
+            "exclude": {
+              "type": "string"
+            },
+            "include": {
+              "type": "string"
+            },
+            "use_all_providers": {
+              "type": "boolean"
+            },
             "default": {
               "type": "string",
               "x-tag-reference": "outbound"
@@ -14420,6 +14442,22 @@
                 "x-tag-reference": "outbound"
               }
             },
+            "providers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "x-tag-reference": "provider"
+              }
+            },
+            "exclude": {
+              "type": "string"
+            },
+            "include": {
+              "type": "string"
+            },
+            "use_all_providers": {
+              "type": "boolean"
+            },
             "url": {
               "type": "string"
             },
@@ -15126,6 +15164,110 @@
             "random",
             "randomized"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Provider": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "inline"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "outbounds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Outbound"
+              }
+            },
+            "health_check": {
+              "$ref": "#/$defs/ProviderHealthCheckOptions"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "local"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "health_check": {
+              "$ref": "#/$defs/ProviderHealthCheckOptions"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remote"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "user_agent": {
+              "type": "string"
+            },
+            "download_detour": {
+              "type": "string",
+              "x-tag-reference": "outbound"
+            },
+            "update_interval": {
+              "$ref": "#/$defs/Duration"
+            },
+            "exclude": {
+              "type": "string"
+            },
+            "include": {
+              "type": "string"
+            },
+            "health_check": {
+              "$ref": "#/$defs/ProviderHealthCheckOptions"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ProviderHealthCheckOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string"
+        },
+        "interval": {
+          "$ref": "#/$defs/Duration"
+        },
+        "timeout": {
+          "$ref": "#/$defs/Duration"
         }
       },
       "additionalProperties": false

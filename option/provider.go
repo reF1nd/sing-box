@@ -3,6 +3,7 @@ package option
 import (
 	"context"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -11,6 +12,7 @@ import (
 )
 
 type ProviderOptionsRegistry interface {
+	OptionTypes() []string
 	CreateOptions(providerType string) (any, bool)
 }
 type _Provider struct {
@@ -46,6 +48,16 @@ func (h *Provider) UnmarshalJSONContext(ctx context.Context, content []byte) err
 	return nil
 }
 
+func (h Provider) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("Provider", func() (*schema.Node, error) {
+		registry := service.FromContext[ProviderOptionsRegistry](builder.Context())
+		if registry == nil {
+			return nil, E.New("missing provider options registry in context")
+		}
+		return registryUnion(builder, registry, nil, true)
+	})
+}
+
 type ProviderLocalOptions struct {
 	Path        string                     `json:"path"`
 	HealthCheck ProviderHealthCheckOptions `json:"health_check,omitempty"`
@@ -54,7 +66,7 @@ type ProviderLocalOptions struct {
 type ProviderRemoteOptions struct {
 	URL            string             `json:"url"`
 	UserAgent      string             `json:"user_agent,omitempty"`
-	DownloadDetour string             `json:"download_detour,omitempty"`
+	DownloadDetour string             `json:"download_detour,omitempty" reference:"outbound"`
 	UpdateInterval badoption.Duration `json:"update_interval,omitempty"`
 
 	Exclude     *badoption.Regexp          `json:"exclude,omitempty"`
