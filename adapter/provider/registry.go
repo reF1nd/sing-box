@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -42,6 +44,12 @@ func NewRegistry() *Registry {
 		optionsType:  make(map[string]optionsConstructorFunc),
 		constructors: make(map[string]constructorFunc),
 	}
+}
+
+func (r *Registry) OptionTypes() []string {
+	r.access.Lock()
+	defer r.access.Unlock()
+	return slices.Sorted(maps.Keys(r.optionsType))
 }
 
 func (r *Registry) CreateOptions(providerType string) (any, bool) {
