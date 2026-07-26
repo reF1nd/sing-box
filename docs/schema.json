@@ -11237,6 +11237,9 @@
             },
             "min_idle_session": {
               "type": "integer"
+            },
+            "disable_reuse": {
+              "type": "boolean"
             }
           },
           "required": [
