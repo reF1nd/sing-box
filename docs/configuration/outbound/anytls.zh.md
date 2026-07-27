@@ -14,6 +14,7 @@ icon: material/new-box
   "server": "127.0.0.1",
   "server_port": 1080,
   "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "client_name": "",
   "idle_session_check_interval": "30s",
   "idle_session_timeout": "30s",
   "min_idle_session": 5,
@@ -43,6 +44,14 @@ icon: material/new-box
 ==必填==
 
 AnyTLS 密码。
+
+#### client_name
+
+在 AnyTLS 设置中报告的客户端名称和版本。
+
+留空时使用当前 sing-anytls 版本。
+
+除非你知道自己在做什么，否则不要配置此选项。
 
 #### idle_session_check_interval
 

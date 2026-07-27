@@ -11229,6 +11229,9 @@
             "password": {
               "type": "string"
             },
+            "client_name": {
+              "type": "string"
+            },
             "idle_session_check_interval": {
               "$ref": "#/$defs/Duration"
             },

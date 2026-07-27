@@ -14,6 +14,7 @@ icon: material/new-box
   "server": "127.0.0.1",
   "server_port": 1080,
   "password": "8JCsPssfgS8tiRwiMlhARg==",
+  "client_name": "",
   "idle_session_check_interval": "30s",
   "idle_session_timeout": "30s",
   "min_idle_session": 5,
@@ -43,6 +44,14 @@ The server port.
 ==Required==
 
 The AnyTLS password.
+
+#### client_name
+
+The client name and version reported in the AnyTLS settings.
+
+If empty, the current sing-anytls version is used.
+
+Do not configure this option unless you know what you are doing.
 
 #### idle_session_check_interval
 
