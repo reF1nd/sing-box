@@ -224,6 +224,7 @@ func (t *Transport) exchangeTarget(ctx context.Context, target queryTarget, rawM
 
 func (t *Transport) listenPacket(ctx context.Context, target queryTarget) (net.PacketConn, net.Addr, error) {
 	var listenConfig net.ListenConfig
+	listenConfig.Control = control.Append(listenConfig.Control, t.networkManager.SocketProtectFunc())
 	listenConfig.Control = control.Append(listenConfig.Control, control.BindToInterface(t.networkManager.InterfaceFinder(), target.iface.Name, target.iface.Index))
 	netInterface := target.iface.NetInterface()
 	switch target.family {

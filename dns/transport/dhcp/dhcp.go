@@ -314,6 +314,7 @@ func (t *Transport) interfaceUpdated(defaultInterface *control.Interface, flags 
 
 func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface) error {
 	var listener net.ListenConfig
+	listener.Control = control.Append(listener.Control, t.networkManager.SocketProtectFunc())
 	listener.Control = control.Append(listener.Control, control.BindToInterface(t.networkManager.InterfaceFinder(), iface.Name, iface.Index))
 	listener.Control = control.Append(listener.Control, control.ReuseAddr())
 	listenAddr := "0.0.0.0:68"

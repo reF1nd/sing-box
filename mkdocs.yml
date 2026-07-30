@@ -176,6 +176,7 @@ nav:
           - AnyTLS: configuration/inbound/anytls.md
           - Snell: configuration/inbound/snell.md
           - Tun: configuration/inbound/tun.md
+          - eBPF: configuration/inbound/ebpf.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
           - Cloudflared: configuration/inbound/cloudflared.md

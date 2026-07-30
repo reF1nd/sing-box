@@ -56,6 +56,8 @@ type NetworkManager struct {
 	wifiMonitor            settings.WIFIMonitor
 	wifiState              adapter.WIFIState
 	wifiStateMutex         sync.RWMutex
+	socketProtectAccess    sync.RWMutex
+	socketProtectFunc      control.Func
 	started                bool
 }
 
@@ -379,6 +381,37 @@ func (r *NetworkManager) ProtectFunc() control.Func {
 		}
 	}
 	return nil
+}
+
+func (r *NetworkManager) RegisterSocketProtectFunc(protectFunc control.Func) error {
+	if protectFunc == nil {
+		return E.New("socket protect function is nil")
+	}
+	r.socketProtectAccess.Lock()
+	defer r.socketProtectAccess.Unlock()
+	if r.socketProtectFunc != nil {
+		return E.New("a socket protect function is already registered")
+	}
+	r.socketProtectFunc = protectFunc
+	return nil
+}
+
+func (r *NetworkManager) UnregisterSocketProtectFunc() {
+	r.socketProtectAccess.Lock()
+	r.socketProtectFunc = nil
+	r.socketProtectAccess.Unlock()
+}
+
+func (r *NetworkManager) SocketProtectFunc() control.Func {
+	return func(network string, address string, conn syscall.RawConn) error {
+		r.socketProtectAccess.RLock()
+		defer r.socketProtectAccess.RUnlock()
+		protectFunc := r.socketProtectFunc
+		if protectFunc == nil {
+			return nil
+		}
+		return protectFunc(network, address, conn)
+	}
 }
 
 func (r *NetworkManager) DefaultOptions() adapter.NetworkOptions {
