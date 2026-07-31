@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/common/windivert"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/shell"
 )
 
 var (
@@ -66,6 +67,13 @@ func build() error {
 	tags, err := buildTags(operatingSystem, architecture, cgoEnabled)
 	if err != nil {
 		return err
+	}
+	if operatingSystem == "linux" && cgoEnabled {
+		tags = append(tags, "with_ebpf")
+		err = shell.Exec("make", "-C", "common/ebpf", "generate").Attach().Run()
+		if err != nil {
+			return E.Cause(err, "generate eBPF object")
+		}
 	}
 	arguments := []string{
 		"build",
