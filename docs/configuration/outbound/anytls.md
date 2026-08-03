@@ -63,6 +63,8 @@ In the check, at least the first `n` idle sessions are kept open. Default value:
 
 Check [AnyTLS client metadata](/manual/misc/anytls-client-metadata/).
 
+The built-in client metadata is used if not configured. An explicit empty string sends empty client metadata.
+
 #### disable_reuse
 
 Disable TLS connection reuse. Default: false.
