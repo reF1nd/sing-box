@@ -525,6 +525,7 @@ type AnyTLSOption struct {
 	IdleSessionCheckInterval int    `yaml:"idle-session-check-interval,omitempty"`
 	IdleSessionTimeout       int    `yaml:"idle-session-timeout,omitempty"`
 	MinIdleSession           int    `yaml:"min-idle-session,omitempty"`
+	DisableReuse             bool   `yaml:"disable-reuse,omitempty"`
 }
 
 func (a *AnyTLSOption) Build() any {
@@ -537,6 +538,7 @@ func (a *AnyTLSOption) Build() any {
 		IdleSessionCheckInterval:    badoption.Duration(a.IdleSessionCheckInterval),
 		IdleSessionTimeout:          badoption.Duration(a.IdleSessionTimeout),
 		MinIdleSession:              a.MinIdleSession,
+		DisableReuse:                a.DisableReuse,
 	}
 }
 
