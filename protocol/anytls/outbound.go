@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"os"
-	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -19,32 +18,25 @@ import (
 	"github.com/sagernet/sing/common/uot"
 
 	anytls "github.com/anytls/sing-anytls"
-	"github.com/anytls/sing-anytls/session"
 	"github.com/anytls/sing-anytls/util"
 )
 
 func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.AnyTLSOutboundOptions](registry, C.TypeAnyTLS, NewOutbound)
-
-	if !strings.Contains(util.Version, "sing-box") {
-		util.Version = util.Version + " sing-box/" + C.Version
-	}
 }
 
 var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
 
 type Outbound struct {
 	outbound.Adapter
-	ctx            context.Context
-	dialer         tls.Dialer
-	server         M.Socksaddr
-	tlsConfig      tls.Config
-	clientOptions  anytls.ClientConfig
-	clientMetadata string
-	client         *anytls.Client
-	sessionClient  *session.Client
-	uotClient      *uot.Client
-	logger         log.ContextLogger
+	ctx           context.Context
+	dialer        tls.Dialer
+	server        M.Socksaddr
+	tlsConfig     tls.Config
+	clientOptions anytls.ClientConfig
+	client        *anytls.Client
+	uotClient     *uot.Client
+	logger        log.ContextLogger
 }
 
 var _ adapter.InterfaceUpdateListener = (*Outbound)(nil)
@@ -79,6 +71,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 
 	outbound.clientOptions = anytls.ClientConfig{
 		Password:                 options.Password,
+		ClientMetadata:           clientMetadataOrDefault(options.ClientMetadata),
 		IdleSessionCheckInterval: options.IdleSessionCheckInterval.Build(),
 		IdleSessionTimeout:       options.IdleSessionTimeout.Build(),
 		MinIdleSession:           options.MinIdleSession,
@@ -86,7 +79,6 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		DialOut:                  outbound.dialOut,
 		Logger:                   logger,
 	}
-	outbound.clientMetadata = options.ClientMetadata
 	return outbound, nil
 }
 
@@ -99,26 +91,18 @@ func (h *Outbound) Start(stage adapter.StartStage) error {
 		return err
 	}
 	h.client = client
-	h.sessionClient = sessionClientOf(client)
 	h.uotClient = &uot.Client{
-		Dialer:  anytlsDialer(h.createProxy),
+		Dialer:  anytlsDialer(client.CreateProxy),
 		Version: uot.Version,
 	}
 	return nil
 }
 
-func (h *Outbound) createProxy(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
-	conn, err := h.sessionClient.CreateStream(ctx)
-	if err != nil {
-		return nil, err
+func clientMetadataOrDefault(clientMetadata *string) string {
+	if clientMetadata == nil {
+		return util.Version + " sing-box/" + C.Version
 	}
-	h.rewriteClientMetadata(conn)
-	err = M.SocksaddrSerializer.WriteAddrPort(conn, destination)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-	return conn, nil
+	return *clientMetadata
 }
 
 type anytlsDialer func(ctx context.Context, destination M.Socksaddr) (net.Conn, error)
@@ -146,7 +130,7 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-		return h.createProxy(ctx, destination)
+		return h.client.CreateProxy(ctx, destination)
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 		return h.uotClient.DialContext(ctx, network, destination)
