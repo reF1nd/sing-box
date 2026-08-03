@@ -59,6 +59,12 @@ option allows users to set a custom value.
 Since the open-source server implementation does not use this information and
 it has no legitimate use, this is not considered a breaking change.
 
+### 2026-08-05
+
+For compatibility, the built-in client metadata is now used when
+`client_metadata` is omitted. An explicit empty string continues to send an
+empty value.
+
 ## Recommendations
 
 We recommend that the AnyTLS protocol remove the client metadata, or replace
