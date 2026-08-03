@@ -70,6 +70,7 @@ type ProviderRemote struct {
 
 	overrideDialer *option.OverrideDialerOptions
 	overrideTLS    *option.OverrideTLSOptions
+	overrideAnyTLS *option.OverrideAnyTLSOptions
 }
 
 func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory log.Factory, tag string, options option.ProviderRemoteOptions) (adapter.Provider, error) {
@@ -148,6 +149,7 @@ func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory lo
 
 		overrideDialer: options.OverrideDialer,
 		overrideTLS:    options.OverrideTLS,
+		overrideAnyTLS: options.OverrideAnyTLS,
 
 		//nolint:staticcheck
 		downloadDetour: options.DownloadDetour,
@@ -533,7 +535,7 @@ func (s *ProviderRemote) saveCacheFile(hasInfo bool, info adapter.SubscriptionIn
 }
 
 func (s *ProviderRemote) updateProviderFromContent(content string) error {
-	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, content, s.overrideDialer, s.overrideTLS, s.Tag())
+	outboundOpts, endpointOpts, err := parser.ParseSubscription(s.ctx, content, s.overrideDialer, s.overrideTLS, s.overrideAnyTLS, s.Tag())
 	if err != nil {
 		return err
 	}
