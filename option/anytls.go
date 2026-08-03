@@ -24,6 +24,6 @@ type AnyTLSOutboundOptions struct {
 	IdleSessionCheckInterval badoption.Duration `json:"idle_session_check_interval,omitempty"`
 	IdleSessionTimeout       badoption.Duration `json:"idle_session_timeout,omitempty"`
 	MinIdleSession           int                `json:"min_idle_session,omitempty"`
-	ClientMetadata           string             `json:"client_metadata,omitempty"`
+	ClientMetadata           *string            `json:"client_metadata,omitempty"`
 	DisableReuse             bool               `json:"disable_reuse,omitempty"`
 }
