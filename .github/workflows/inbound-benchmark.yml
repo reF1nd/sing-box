@@ -1,0 +1,145 @@
+name: Inbound benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label (use the custom label for a Linux self-hosted runner)
+        required: true
+        default: ubuntu-24.04
+        type: choice
+        options:
+          - ubuntu-24.04
+          - inbound-benchmark
+      duration:
+        description: Measurement duration per scenario
+        required: true
+        default: 5s
+        type: string
+      warmup:
+        description: Warm-up duration per scenario
+        required: true
+        default: 1s
+        type: string
+      repetitions:
+        description: Repetitions per inbound
+        required: true
+        default: 3
+        type: number
+      concurrency:
+        description: Parallel connections or UDP flows
+        required: true
+        default: 16
+        type: number
+      tun_auto_redirect:
+        description: Enable auto_redirect for the TUN variant
+        required: true
+        default: true
+        type: boolean
+      tun_stack:
+        description: Stack used by the TUN variant
+        required: true
+        default: system
+        type: choice
+        options:
+          - system
+          - gvisor
+          - mixed
+      profile_seconds:
+        description: Connected eBPF UDP profile duration in seconds (0 disables profiling)
+        required: true
+        default: 10
+        type: number
+
+concurrency:
+  group: inbound-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Transparent inbound benchmark
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.25.12
+
+      - name: Install Linux dependencies
+        if: inputs.runner == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang curl ethtool gcc iproute2 iptables iputils-ping jq libc6-dev \
+            linux-libc-dev make nftables procps util-linux
+
+      - name: Verify self-hosted dependencies
+        if: inputs.runner == 'inbound-benchmark'
+        run: |
+          for command in \
+            clang curl ethtool gcc go ip iptables jq make mountpoint nft ping python3 \
+            realpath setpriv shuf ss sysctl; do
+            command -v "$command"
+          done
+
+      - name: Build benchmark binaries
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          mkdir -p build/inbound-benchmark
+          make -C common/ebpf generate
+          go build -trimpath -tags with_ebpf,with_gvisor \
+            -o build/inbound-benchmark/sing-box ./cmd/sing-box
+          go build -trimpath -tags with_ebpf,with_gvisor,with_inbound_benchmark_profile \
+            -o build/inbound-benchmark/sing-box-profile ./cmd/sing-box
+          go build -trimpath \
+            -o build/inbound-benchmark/interception-bench \
+            ./cmd/internal/interception_bench
+
+      - name: Run benchmark
+        id: benchmark
+        continue-on-error: true
+        run: |
+          sudo env "PATH=$PATH" bash .github/benchmark/run-inbound-benchmark.sh \
+            --sing-box "$PWD/build/inbound-benchmark/sing-box" \
+            --benchmark "$PWD/build/inbound-benchmark/interception-bench" \
+            --output "$PWD/build/inbound-benchmark/results" \
+            --duration '${{ inputs.duration }}' \
+            --warmup '${{ inputs.warmup }}' \
+            --repetitions '${{ inputs.repetitions }}' \
+            --concurrency '${{ inputs.concurrency }}' \
+            --tun-auto-redirect '${{ inputs.tun_auto_redirect }}' \
+            --tun-stack '${{ inputs.tun_stack }}' \
+            --profile-sing-box "$PWD/build/inbound-benchmark/sing-box-profile" \
+            --profile-seconds '${{ inputs.profile_seconds }}'
+
+      - name: Summarize benchmark
+        if: always()
+        run: |
+          python3 .github/benchmark/summarize.py \
+            build/inbound-benchmark/results \
+            > build/inbound-benchmark/summary.md
+          cat build/inbound-benchmark/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: inbound-benchmark-${{ github.run_id }}
+          path: |
+            build/inbound-benchmark/results
+            build/inbound-benchmark/summary.md
+          if-no-files-found: error
+
+      - name: Check benchmark result
+        if: always()
+        env:
+          BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
+        run: |
+          test "$BENCHMARK_OUTCOME" = success
