@@ -15478,6 +15478,18 @@
       },
       "additionalProperties": false
     },
+    "OverrideAnyTLSOptions": {
+      "type": "object",
+      "properties": {
+        "client_metadata": {
+          "type": "string"
+        },
+        "disable_reuse": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "OverrideDialerOptions": {
       "type": "object",
       "properties": {
@@ -15881,6 +15893,9 @@
             },
             "override_tls": {
               "$ref": "#/$defs/OverrideTLSOptions"
+            },
+            "override_anytls": {
+              "$ref": "#/$defs/OverrideAnyTLSOptions"
             }
           },
           "required": [
@@ -15925,6 +15940,9 @@
                 },
                 "override_tls": {
                   "$ref": "#/$defs/OverrideTLSOptions"
+                },
+                "override_anytls": {
+                  "$ref": "#/$defs/OverrideAnyTLSOptions"
                 }
               },
               "required": [
@@ -15970,6 +15988,9 @@
                 },
                 "override_tls": {
                   "$ref": "#/$defs/OverrideTLSOptions"
+                },
+                "override_anytls": {
+                  "$ref": "#/$defs/OverrideAnyTLSOptions"
                 }
               },
               "required": [
@@ -16016,6 +16037,9 @@
                 },
                 "override_tls": {
                   "$ref": "#/$defs/OverrideTLSOptions"
+                },
+                "override_anytls": {
+                  "$ref": "#/$defs/OverrideAnyTLSOptions"
                 }
               },
               "required": [
