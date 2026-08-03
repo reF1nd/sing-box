@@ -315,7 +315,7 @@ func TestParseSubscriptionHysteria2DisableSNIOverride(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			outbounds, endpoints, err := ParseSubscription(t.Context(), tc.link, nil, tc.override, "p")
+			outbounds, endpoints, err := ParseSubscription(t.Context(), tc.link, nil, tc.override, nil, "p")
 			require.NoError(t, err)
 			require.Empty(t, endpoints)
 			require.Len(t, outbounds, 1)
