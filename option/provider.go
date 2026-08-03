@@ -52,6 +52,7 @@ type ProviderLocalOptions struct {
 
 	OverrideDialer *OverrideDialerOptions `json:"override_dialer,omitempty"`
 	OverrideTLS    *OverrideTLSOptions    `json:"override_tls,omitempty"`
+	OverrideAnyTLS *OverrideAnyTLSOptions `json:"override_anytls,omitempty"`
 }
 
 type ProviderRemoteOptions struct {
@@ -67,6 +68,7 @@ type ProviderRemoteOptions struct {
 
 	OverrideDialer *OverrideDialerOptions `json:"override_dialer,omitempty"`
 	OverrideTLS    *OverrideTLSOptions    `json:"override_tls,omitempty"`
+	OverrideAnyTLS *OverrideAnyTLSOptions `json:"override_anytls,omitempty"`
 }
 
 type ProviderInlineOptions struct {
@@ -107,6 +109,11 @@ type OverrideDialerOptions struct {
 
 	// Deprecated: migrated to domain resolver
 	DomainStrategy *DomainStrategy `json:"domain_strategy,omitempty"`
+}
+
+type OverrideAnyTLSOptions struct {
+	ClientMetadata *string `json:"client_metadata,omitempty"`
+	DisableReuse   *bool   `json:"disable_reuse,omitempty"`
 }
 
 type OverrideTLSOptions struct {

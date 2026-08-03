@@ -20,7 +20,8 @@
             "timeout": "",
           },
           "override_dialer": {},
-          "override_tls": {}
+          "override_tls": {},
+          "override_anytls": {}
         }
       ]
     }
@@ -47,7 +48,8 @@
           "download_detour": "",
           "update_interval": "",
           "override_dialer": {},
-          "override_tls": {}
+          "override_tls": {},
+          "override_anytls": {}
         }
       ]
     }
@@ -98,6 +100,10 @@
 ##### override_tls
 
 覆写订阅内容的 TLS 字段, 参阅 [TLS 字段覆写](/zh/configuration/provider/override_tls/)。
+
+##### override_anytls
+
+覆写订阅内容的 AnyTLS 字段，参阅 [AnyTLS 字段覆写](/zh/configuration/provider/override_anytls/)。
 
 ### 本地字段
 

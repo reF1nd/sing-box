@@ -182,6 +182,7 @@ nav:
           - configuration/provider/index.md
           - Dialer Fields Override: configuration/provider/override_dialer.md
           - TLS Fields Override: configuration/provider/override_tls.md
+          - AnyTLS Fields Override: configuration/provider/override_anytls.md
       - Service:
           - configuration/service/index.md
           - DERP: configuration/service/derp.md
@@ -291,6 +292,7 @@ plugins:
             Provider: 提供者
             Dialer Fields Override: 拨号字段覆写
             TLS Fields Override: TLS 字段覆写
+            AnyTLS Fields Override: AnyTLS 字段覆写
 
             Manual: 手册
       reconfigure_material: true
