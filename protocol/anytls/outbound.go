@@ -41,6 +41,7 @@ type Outbound struct {
 	clientOptions anytls.ClientConfig
 	client        *anytls.Client
 	uotClient     *uot.Client
+	disableReuse  bool
 	logger        log.ContextLogger
 }
 
@@ -48,10 +49,11 @@ var _ adapter.InterfaceUpdateListener = (*Outbound)(nil)
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.AnyTLSOutboundOptions) (adapter.Outbound, error) {
 	outbound := &Outbound{
-		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeAnyTLS, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
-		ctx:     ctx,
-		server:  options.ServerOptions.Build(),
-		logger:  logger,
+		Adapter:      outbound.NewAdapterWithDialerOptions(C.TypeAnyTLS, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
+		ctx:          ctx,
+		server:       options.ServerOptions.Build(),
+		disableReuse: options.DisableReuse,
+		logger:       logger,
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
@@ -125,7 +127,7 @@ func (h *Outbound) dialOut(ctx context.Context) (net.Conn, error) {
 }
 
 func (h *Outbound) MultiplexEnabled() bool {
-	return true
+	return !h.disableReuse
 }
 
 func (h *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
