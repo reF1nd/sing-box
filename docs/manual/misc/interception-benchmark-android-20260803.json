@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "date": "2026-08-03",
+  "source_tree_before_history_squash": "55095cf9",
+  "device": {
+    "model": "OPPO PKX110",
+    "android_version": "16",
+    "sdk": 36,
+    "architecture": "arm64",
+    "kernel": "6.6.89-android15-8-g7e1f3c083cc6-abogki467167594-4k"
+  },
+  "build_tags": [
+    "with_ebpf",
+    "with_gvisor"
+  ],
+  "settings": {
+    "duration_seconds": 5,
+    "warmup_seconds": 1,
+    "repetitions": 5,
+    "concurrency": 16,
+    "payload_bytes": 1200,
+    "variant_order": "rotating",
+    "tun_stack": "system",
+    "tun_auto_redirect": true,
+    "topology": "private mount, cgroup, and network namespaces with two local veth pairs"
+  },
+  "medians": {
+    "direct": {
+      "tcp_short_ops_per_second": 9648,
+      "tcp_upload_bits_per_second": 6725000000,
+      "tcp_download_bits_per_second": 83952000000,
+      "udp_connected_packets_per_second": 53161,
+      "udp_unconnected_packets_per_second": 51815
+    },
+    "ebpf": {
+      "tcp_short_ops_per_second": 8704,
+      "tcp_short_direct_ratio": 0.902,
+      "tcp_upload_bits_per_second": 6536000000,
+      "tcp_upload_direct_ratio": 0.972,
+      "tcp_download_bits_per_second": 65632000000,
+      "tcp_download_direct_ratio": 0.782,
+      "udp_connected_packets_per_second": 21877,
+      "udp_connected_direct_ratio": 0.412,
+      "udp_unconnected_packets_per_second": 22621,
+      "udp_unconnected_direct_ratio": 0.437
+    },
+    "redirect": {
+      "tcp_short_ops_per_second": 8749,
+      "tcp_short_direct_ratio": 0.907,
+      "tcp_upload_bits_per_second": 6398000000,
+      "tcp_upload_direct_ratio": 0.951,
+      "tcp_download_bits_per_second": 65872000000,
+      "tcp_download_direct_ratio": 0.785,
+      "udp_connected_packets_per_second": null,
+      "udp_unconnected_packets_per_second": null
+    },
+    "tproxy": {
+      "tcp_short_ops_per_second": 9162,
+      "tcp_short_direct_ratio": 0.950,
+      "tcp_upload_bits_per_second": 5493000000,
+      "tcp_upload_direct_ratio": 0.817,
+      "tcp_download_bits_per_second": 68198000000,
+      "tcp_download_direct_ratio": 0.812,
+      "udp_connected_packets_per_second": 22558,
+      "udp_connected_direct_ratio": 0.424,
+      "udp_unconnected_packets_per_second": 22326,
+      "udp_unconnected_direct_ratio": 0.431
+    },
+    "tun": {
+      "tcp_short_ops_per_second": 3924,
+      "tcp_short_direct_ratio": 0.407,
+      "tcp_upload_bits_per_second": 524809000,
+      "tcp_upload_direct_ratio": 0.078,
+      "tcp_download_bits_per_second": 280913000,
+      "tcp_download_direct_ratio": 0.003,
+      "udp_connected_packets_per_second": 22573,
+      "udp_connected_direct_ratio": 0.425,
+      "udp_unconnected_packets_per_second": 22291,
+      "udp_unconnected_direct_ratio": 0.430
+    }
+  },
+  "validation": {
+    "measured_run_errors": 0,
+    "minimum_cpu_related_temperature_celsius": 36.4,
+    "maximum_cpu_related_temperature_celsius": 73.4
+  },
+  "scope": [
+    "local cgroup interception",
+    "synthetic same-device veth throughput"
+  ],
+  "not_measured": [
+    "shared_network",
+    "Wi-Fi tethering",
+    "cellular throughput",
+    "physical NIC throughput",
+    "hardware tethering offload"
+  ]
+}
