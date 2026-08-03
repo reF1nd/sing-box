@@ -19,3 +19,8 @@ func TestClientMetadataOrDefault(t *testing.T) {
 	customMetadata := "custom"
 	require.Equal(t, customMetadata, clientMetadataOrDefault(&customMetadata))
 }
+
+func TestMultiplexEnabled(t *testing.T) {
+	require.True(t, (&Outbound{}).MultiplexEnabled())
+	require.False(t, (&Outbound{disableReuse: true}).MultiplexEnabled())
+}
