@@ -177,8 +177,8 @@ github.com/prometheus-community/pro-bing v0.4.0 h1:YMbv+i08gQz97OZZBwLyvmmQEEzyf
 github.com/prometheus-community/pro-bing v0.4.0/go.mod h1:b7wRYZtCcPmt4Sz319BykUU241rWLe1VFXyiyWK/dH4=
 github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
-github.com/reF1nd/sing-anytls v0.0.14-0.20260721174145-21bcd8c411da h1:DbR1uFBetguoQODA5uYREjBPoQJpBpB52Y6UCKQvzXM=
-github.com/reF1nd/sing-anytls v0.0.14-0.20260721174145-21bcd8c411da/go.mod h1:7rjN6IukwysmdusYsrV51Fgu1uW6vsrdd6ctjnEAln8=
+github.com/reF1nd/sing-anytls v0.0.14-0.20260803151749-763fb5bccb9d h1:OWBTSd6aF96N0c/f4zUYxqTz/0pMGfLtZIoFGN2K4C0=
+github.com/reF1nd/sing-anytls v0.0.14-0.20260803151749-763fb5bccb9d/go.mod h1:7rjN6IukwysmdusYsrV51Fgu1uW6vsrdd6ctjnEAln8=
 github.com/reF1nd/sing-snell v0.0.0-20260830022900-9f5971f89117 h1:6p8x/GZSsueghjACRwrq+1QuLq8pwUYOMXipM1iUu/c=
 github.com/reF1nd/sing-snell v0.0.0-20260830022900-9f5971f89117/go.mod h1:KVhUab4T1LXivZtOPzhqEJo29araU9mp9YtMeiGPY8k=
 github.com/reF1nd/sing-tun v0.8.16-0.20260831161244-537826ed63cd h1:wDGU9kQzVulsUCDl6A4unO4oBNQ/htJV0D9SneZIx3M=

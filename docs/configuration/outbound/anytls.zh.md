@@ -63,6 +63,8 @@ AnyTLS 密码。
 
 参阅 [AnyTLS 客户端元数据](/zh/manual/misc/anytls-client-metadata/)。
 
+未配置时使用内置客户端元数据。显式配置为空字符串时发送空客户端元数据。
+
 #### disable_reuse
 
 禁用 TLS 连接复用。默认值：false。
