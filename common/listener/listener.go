@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/common/settings"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -31,9 +32,12 @@ type Listener struct {
 	oobPacketHandler         adapter.OOBPacketHandler
 	threadUnsafePacketWriter bool
 	disablePacketOutput      bool
+	disableConnectionLog     bool
+	disableListenerLog       bool
 	setSystemProxy           bool
 	systemProxySOCKS         bool
 	tproxy                   bool
+	socketControl            control.Func
 
 	tcpListener          net.Listener
 	systemProxy          settings.SystemProxy
@@ -54,9 +58,12 @@ type Options struct {
 	OOBPacketHandler         adapter.OOBPacketHandler
 	ThreadUnsafePacketWriter bool
 	DisablePacketOutput      bool
+	DisableConnectionLog     bool
+	DisableListenerLog       bool
 	SetSystemProxy           bool
 	SystemProxySOCKS         bool
 	TProxy                   bool
+	SocketControl            control.Func
 }
 
 func New(
@@ -72,9 +79,12 @@ func New(
 		oobPacketHandler:         options.OOBPacketHandler,
 		threadUnsafePacketWriter: options.ThreadUnsafePacketWriter,
 		disablePacketOutput:      options.DisablePacketOutput,
+		disableConnectionLog:     options.DisableConnectionLog,
+		disableListenerLog:       options.DisableListenerLog,
 		setSystemProxy:           options.SetSystemProxy,
 		systemProxySOCKS:         options.SystemProxySOCKS,
 		tproxy:                   options.TProxy,
+		socketControl:            options.SocketControl,
 	}
 }
 

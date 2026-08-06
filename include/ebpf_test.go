@@ -1,0 +1,124 @@
+package include
+
+import (
+	"context"
+	"net/netip"
+	"testing"
+	"time"
+
+	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common/json"
+)
+
+func TestEBPFInboundMinimalOptions(t *testing.T) {
+	ctx := Context(context.Background())
+	var inboundOptions option.Inbound
+	if err := json.UnmarshalContext(ctx, []byte(`{"type":"ebpf","tag":"ebpf-in"}`), &inboundOptions); err != nil {
+		t.Fatal(err)
+	}
+	if inboundOptions.Type != "ebpf" || inboundOptions.Tag != "ebpf-in" {
+		t.Fatalf("unexpected inbound header: %+v", inboundOptions)
+	}
+	if _, loaded := inboundOptions.Options.(*option.EBPFInboundOptions); !loaded {
+		t.Fatalf("unexpected eBPF options type: %T", inboundOptions.Options)
+	}
+}
+
+func TestEBPFInboundRuntimeOptions(t *testing.T) {
+	ctx := Context(context.Background())
+	var inboundOptions option.Inbound
+	if err := json.UnmarshalContext(ctx, []byte(`{
+		"type": "ebpf",
+		"udp_timeout": "45s",
+		"dns_mode": "off",
+		"network": "tcp"
+	}`), &inboundOptions); err != nil {
+		t.Fatal(err)
+	}
+	ebpfOptions, loaded := inboundOptions.Options.(*option.EBPFInboundOptions)
+	if !loaded {
+		t.Fatalf("unexpected eBPF options type: %T", inboundOptions.Options)
+	}
+	if time.Duration(ebpfOptions.UDPTimeout) != 45*time.Second {
+		t.Fatalf("unexpected UDP timeout: %v", time.Duration(ebpfOptions.UDPTimeout))
+	}
+	if ebpfOptions.DNSMode != "off" {
+		t.Fatalf("unexpected DNS mode: %s", ebpfOptions.DNSMode)
+	}
+	network := ebpfOptions.Network.Build()
+	if len(network) != 1 || network[0] != "tcp" {
+		t.Fatalf("unexpected network: %v", network)
+	}
+}
+
+func TestEBPFInboundRejectsListenFields(t *testing.T) {
+	ctx := Context(context.Background())
+	for name, content := range map[string]string{
+		"listen":      `{"type":"ebpf","listen":"0.0.0.0"}`,
+		"listen_port": `{"type":"ebpf","listen_port":5588}`,
+		"detour":      `{"type":"ebpf","detour":"other-in"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			var inboundOptions option.Inbound
+			if err := json.UnmarshalContext(ctx, []byte(content), &inboundOptions); err == nil {
+				t.Fatal("expected removed eBPF listen field to be rejected")
+			}
+		})
+	}
+}
+
+func TestEBPFInboundRedirectAddresses(t *testing.T) {
+	ctx := Context(context.Background())
+	var inboundOptions option.Inbound
+	if err := json.UnmarshalContext(ctx, []byte(`{
+		"type": "ebpf",
+		"redirect_address": [
+			"127.128.0.0/9",
+			"fd53:696e:672d:626f::/64"
+		],
+		"bypass_rule_set": [
+			"geoip-cn"
+		]
+	}`), &inboundOptions); err != nil {
+		t.Fatal(err)
+	}
+	ebpfOptions, loaded := inboundOptions.Options.(*option.EBPFInboundOptions)
+	if !loaded {
+		t.Fatalf("unexpected eBPF options type: %T", inboundOptions.Options)
+	}
+	if len(ebpfOptions.RedirectAddress) != 2 {
+		t.Fatalf("unexpected redirect addresses: %v", ebpfOptions.RedirectAddress)
+	}
+	if ebpfOptions.RedirectAddress[0] != netip.MustParsePrefix("127.128.0.0/9") ||
+		ebpfOptions.RedirectAddress[1] != netip.MustParsePrefix("fd53:696e:672d:626f::/64") {
+		t.Fatalf("unexpected redirect addresses: %v", ebpfOptions.RedirectAddress)
+	}
+	if len(ebpfOptions.BypassRuleSet) != 1 || ebpfOptions.BypassRuleSet[0] != "geoip-cn" {
+		t.Fatalf("unexpected bypass rule-set: %v", ebpfOptions.BypassRuleSet)
+	}
+}
+
+func TestEBPFInboundSharedNetworkOptions(t *testing.T) {
+	ctx := Context(context.Background())
+	var inboundOptions option.Inbound
+	if err := json.UnmarshalContext(ctx, []byte(`{
+		"type": "ebpf",
+		"cgroup_path": "/sys/fs/cgroup/test.slice",
+		"shared_network": {
+			"enabled": true,
+			"include_interface": ["wlan2"]
+		}
+	}`), &inboundOptions); err != nil {
+		t.Fatal(err)
+	}
+	ebpfOptions, loaded := inboundOptions.Options.(*option.EBPFInboundOptions)
+	if !loaded {
+		t.Fatalf("unexpected eBPF options type: %T", inboundOptions.Options)
+	}
+	if ebpfOptions.CgroupPath != "/sys/fs/cgroup/test.slice" ||
+		!ebpfOptions.SharedNetwork.Enabled ||
+		len(ebpfOptions.SharedNetwork.IncludeInterface) != 1 ||
+		ebpfOptions.SharedNetwork.IncludeInterface[0] != "wlan2" {
+		t.Fatalf("unexpected eBPF shared-network options: %+v", ebpfOptions)
+	}
+}

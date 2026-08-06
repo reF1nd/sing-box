@@ -1,0 +1,57 @@
+name: Build Android eBPF
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goarch: arm64
+            compiler: aarch64-linux-android35-clang
+          - goarch: arm
+            goarm: "7"
+            compiler: armv7a-linux-androideabi35-clang
+          - goarch: amd64
+            compiler: x86_64-linux-android35-clang
+          - goarch: "386"
+            compiler: i686-linux-android35-clang
+    env:
+      TAGS: with_gvisor,with_quic,with_dhcp,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0,with_provider,with_ebpf
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.25.12
+
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r29
+
+      - name: Build
+        env:
+          CGO_ENABLED: "1"
+          GOOS: android
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.compiler }}
+          BPF_CLANG: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android35-clang
+        run: |
+          make build
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: sing-box-android-${{ matrix.goarch }}-with-ebpf
+          path: sing-box
