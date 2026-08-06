@@ -276,12 +276,14 @@ func parseVMessLink(link string) (option.Outbound, error) {
 		UTLS:    &option.OutboundUTLSOptions{},
 		Reality: &option.OutboundRealityOptions{},
 	}
+	TLSOptions.ServerName = proxy["add"]
 	for key, value := range proxy {
 		switch key {
 		case "ps":
 			outbound.Tag = value
 		case "add":
 			options.Server = value
+		case "sni":
 			TLSOptions.ServerName = value
 		case "port":
 			options.ServerPort = StringToType[uint16](value)
@@ -642,6 +644,8 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 			options.UpMbps, _ = strconv.Atoi(value)
 		case "down":
 			options.DownMbps, _ = strconv.Atoi(value)
+		case "mport":
+			options.ServerPorts = clashPorts(value)
 		case "obfs":
 			if value == "salamander" {
 				Obfs.Type = "salamander"
@@ -649,6 +653,10 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 			}
 		case "obfs-password":
 			Obfs.Password = value
+		case "sni":
+			TLSOptions.ServerName = value
+		case "pinSHA256":
+			TLSOptions.CertificatePinSHA256 = value
 		case "insecure", "skip-cert-verify":
 			if value == "1" || value == "true" {
 				TLSOptions.Insecure = true
