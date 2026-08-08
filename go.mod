@@ -10,7 +10,7 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/creack/pty v1.1.24
 	github.com/cretz/bine v0.2.0
-	github.com/database64128/tfo-go/v2 v2.3.3
+	github.com/database64128/tfo-go/v2 v2.4.2
 	github.com/dblohm7/wingoes v0.0.0-20260526185140-fb298caac7ca
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/render v1.0.3
