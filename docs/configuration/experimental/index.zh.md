@@ -12,6 +12,7 @@
   "experimental": {
     "cache_file": {},
     "clash_api": {},
+    "connection_history": {},
     "v2ray_api": {}
   }
 }
@@ -23,4 +24,5 @@
 |--------------|--------------------------|
 | `cache_file` | [缓存文件](./cache-file/)     |
 | `clash_api`  | [Clash API](./clash-api/) |
+| `connection_history` | [连接历史](./connection-history/) |
 | `v2ray_api`  | [V2Ray API](./v2ray-api/) |

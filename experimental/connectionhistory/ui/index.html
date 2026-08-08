@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Connection History</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="product">sing-box</p>
+        <h1>Connection History</h1>
+      </div>
+      <div class="controls">
+        <label>
+          <span>Range</span>
+          <select id="range">
+            <option value="1">1 hour</option>
+            <option value="24" selected>24 hours</option>
+            <option value="168">7 days</option>
+            <option value="720">30 days</option>
+          </select>
+        </label>
+        <label class="token-field">
+          <span>API token</span>
+          <input id="token" type="password" autocomplete="current-password">
+        </label>
+        <label class="auto-refresh">
+          <input id="auto-refresh" type="checkbox" checked>
+          <span>Auto refresh</span>
+        </label>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="metrics" aria-label="Summary">
+        <article>
+          <span>Traffic</span>
+          <strong id="total-traffic">-</strong>
+          <small id="traffic-split">-</small>
+        </article>
+        <article>
+          <span>Connections</span>
+          <strong id="connections">-</strong>
+          <small>Selected range</small>
+        </article>
+        <article>
+          <span>Active</span>
+          <strong id="active">-</strong>
+          <small>Right now</small>
+        </article>
+        <article>
+          <span>Database</span>
+          <strong id="database-size">-</strong>
+          <small id="queue-status">-</small>
+        </article>
+      </section>
+
+      <section class="trend-band">
+        <div class="section-heading">
+          <div>
+            <span>Traffic trend</span>
+            <strong id="trend-total">-</strong>
+          </div>
+          <p id="status" role="status">Ready</p>
+        </div>
+        <svg id="trend" viewBox="0 0 1000 240" preserveAspectRatio="none" aria-label="Traffic trend chart"></svg>
+        <div class="legend">
+          <span><i class="download"></i>Download</span>
+          <span><i class="upload"></i>Upload</span>
+        </div>
+      </section>
+
+      <section class="data-band">
+        <nav class="tabs" aria-label="History views">
+          <button class="active" data-view="connections" type="button">Connections</button>
+          <button data-view="domains" type="button">Domains</button>
+          <button data-view="ips" type="button">IPs</button>
+          <button data-view="outbounds" type="button">Outbounds</button>
+          <button data-view="rules" type="button">Rules</button>
+          <button data-view="sources" type="button">Sources</button>
+        </nav>
+        <div class="table-tools">
+          <label>
+            <span class="visually-hidden">Search</span>
+            <input id="search" type="search" placeholder="Search">
+          </label>
+          <span id="result-count">0 results</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+        <footer class="pagination">
+          <button id="previous" type="button">Previous</button>
+          <span id="page">Page 1</span>
+          <button id="next" type="button">Next</button>
+        </footer>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
