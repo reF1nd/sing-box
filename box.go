@@ -28,6 +28,7 @@ import (
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/cachefile"
+	"github.com/sagernet/sing-box/experimental/connectionhistory"
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -176,6 +177,7 @@ func New(options Options) (*Box, error) {
 	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
 		needV2RayAPI = true
 	}
+	needConnectionHistory := experimentalOptions.ConnectionHistory != nil && experimentalOptions.ConnectionHistory.Enabled
 	needAPIService := common.Any(options.Services, func(it option.Service) bool {
 		return it.Type == C.TypeAPI
 	})
@@ -260,8 +262,9 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
 	}
-	if needClashAPI || needAPIService {
-		trafficManager := trafficcontrol.NewManager(outboundManager)
+	var trafficManager *trafficcontrol.Manager
+	if needClashAPI || needAPIService || needConnectionHistory {
+		trafficManager = trafficcontrol.NewManager(outboundManager)
 		service.MustRegisterPtr(ctx, trafficManager)
 		router.AppendTracker(trafficManager)
 		internalServices = append(internalServices, trafficManager)
@@ -458,6 +461,19 @@ func New(options Options) (*Box, error) {
 		cacheFile := cachefile.New(ctx, logFactory.NewLogger("cache-file"), common.PtrValueOrDefault(experimentalOptions.CacheFile))
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 		internalServices = append(internalServices, cacheFile)
+	}
+	if needConnectionHistory {
+		historyService, historyErr := connectionhistory.New(
+			ctx,
+			logFactory.NewLogger("connection-history"),
+			trafficManager,
+			*experimentalOptions.ConnectionHistory,
+		)
+		if historyErr != nil {
+			return nil, E.Cause(historyErr, "create connection history")
+		}
+		service.MustRegister[connectionhistory.Service](ctx, historyService)
+		internalServices = append(internalServices, historyService)
 	}
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
