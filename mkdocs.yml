@@ -79,6 +79,8 @@ nav:
       - Misc:
           - TunnelVision: manual/misc/tunnelvision.md
           - AnyTLS client metadata: manual/misc/anytls-client-metadata.md
+          - eBPF inbound comparison: manual/misc/ebpf-inbound-comparison.md
+          - Transparent inbound benchmark: manual/misc/interception-benchmark.md
   - Configuration:
       - configuration/index.md
       - JSON Schema: configuration/schema.md
@@ -177,6 +179,7 @@ nav:
           - AnyTLS: configuration/inbound/anytls.md
           - Snell: configuration/inbound/snell.md
           - Tun: configuration/inbound/tun.md
+          - eBPF: configuration/inbound/ebpf.md
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
           - Cloudflared: configuration/inbound/cloudflared.md
