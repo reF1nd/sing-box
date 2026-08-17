@@ -36,6 +36,12 @@ type NetworkManager interface {
 	ResetNetwork()
 }
 
+type SocketProtectManager interface {
+	RegisterSocketProtectFunc(protectFunc control.Func) error
+	UnregisterSocketProtectFunc()
+	SocketProtectFunc() control.Func
+}
+
 type NetworkOptions struct {
 	BindInterface        string
 	RoutingMark          uint32

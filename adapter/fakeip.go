@@ -14,6 +14,12 @@ type FakeIPStore interface {
 	Reset() error
 }
 
+// FakeIPRangeProvider exposes configured allocation ranges without coupling
+// consumers to a concrete FakeIP store implementation.
+type FakeIPRangeProvider interface {
+	FakeIPRanges() (inet4Range netip.Prefix, inet6Range netip.Prefix)
+}
+
 type FakeIPStorage interface {
 	FakeIPMetadata() *FakeIPMetadata
 	FakeIPSaveMetadata(metadata *FakeIPMetadata) error

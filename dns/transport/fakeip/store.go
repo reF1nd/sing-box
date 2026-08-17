@@ -12,6 +12,7 @@ import (
 )
 
 var _ adapter.FakeIPStore = (*Store)(nil)
+var _ adapter.FakeIPRangeProvider = (*Store)(nil)
 
 type Store struct {
 	ctx        context.Context
@@ -87,6 +88,10 @@ func (s *Store) Start() error {
 
 func (s *Store) Contains(address netip.Addr) bool {
 	return s.inet4Range.Contains(address) || s.inet6Range.Contains(address)
+}
+
+func (s *Store) FakeIPRanges() (netip.Prefix, netip.Prefix) {
+	return s.inet4Range, s.inet6Range
 }
 
 func (s *Store) Close() error {
