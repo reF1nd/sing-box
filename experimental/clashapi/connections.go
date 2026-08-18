@@ -68,10 +68,10 @@ func (c connectionObject) MarshalJSON() ([]byte, error) {
 	}
 	var processPath string
 	if c.Metadata.ProcessInfo != nil {
-		if len(c.Metadata.ProcessInfo.ProcessPaths) > 0 {
-			processPath = c.Metadata.ProcessInfo.ProcessPaths[0]
-		} else if len(c.Metadata.ProcessInfo.PackageNames) > 0 {
+		if len(c.Metadata.ProcessInfo.PackageNames) > 0 {
 			processPath = c.Metadata.ProcessInfo.PackageNames[0]
+		} else if len(c.Metadata.ProcessInfo.ProcessPaths) > 0 {
+			processPath = c.Metadata.ProcessInfo.ProcessPaths[0]
 		}
 		if processPath == "" {
 			if c.Metadata.ProcessInfo.UserId != -1 {
