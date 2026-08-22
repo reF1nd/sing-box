@@ -73,6 +73,11 @@
 
     当内容只有一项时，可以忽略 JSON 数组 [] 标签
 
+!!! info "可观测性 API"
+
+    启用[实验性可观测性](observability.md)后，专用的 `/observability/v1`
+    HTTP API 会挂载到该 Controller，并使用相同的 `secret` 保护。
+
 ### Fields
 
 #### external_controller

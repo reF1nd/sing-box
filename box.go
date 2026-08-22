@@ -29,6 +29,7 @@ import (
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/cachefile"
 	"github.com/sagernet/sing-box/experimental/deprecated"
+	"github.com/sagernet/sing-box/experimental/observability"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/direct"
@@ -177,6 +178,7 @@ func New(options Options) (*Box, error) {
 	if experimentalOptions.V2RayAPI != nil && experimentalOptions.V2RayAPI.Listen != "" {
 		needV2RayAPI = true
 	}
+	needObservability := experimentalOptions.Observability != nil && experimentalOptions.Observability.Enabled
 	needAPIService := common.Any(options.Services, func(it option.Service) bool {
 		return it.Type == C.TypeAPI
 	})
@@ -264,8 +266,9 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize router")
 	}
-	if needClashAPI || needAPIService {
-		trafficManager := trafficcontrol.NewManager(outboundManager)
+	var trafficManager *trafficcontrol.Manager
+	if needClashAPI || needAPIService || needObservability {
+		trafficManager = trafficcontrol.NewManager(outboundManager)
 		service.MustRegisterPtr(ctx, trafficManager)
 		router.AppendTracker(trafficManager)
 		internalServices = append(internalServices, trafficManager)
@@ -462,6 +465,19 @@ func New(options Options) (*Box, error) {
 		cacheFile := cachefile.New(ctx, logFactory.NewLogger("cache-file"), common.PtrValueOrDefault(experimentalOptions.CacheFile))
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 		internalServices = append(internalServices, cacheFile)
+	}
+	if needObservability {
+		observabilityService, observabilityErr := observability.New(
+			ctx,
+			logFactory.NewLogger("observability"),
+			trafficManager,
+			*experimentalOptions.Observability,
+		)
+		if observabilityErr != nil {
+			return nil, E.Cause(observabilityErr, "create observability service")
+		}
+		service.MustRegister[observability.Service](ctx, observabilityService)
+		internalServices = append(internalServices, observabilityService)
 	}
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)

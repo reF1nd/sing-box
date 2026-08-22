@@ -128,6 +128,7 @@ nav:
           - configuration/experimental/index.md
           - Cache File: configuration/experimental/cache-file.md
           - Clash API: configuration/experimental/clash-api.md
+          - Observability: configuration/experimental/observability.md
           - V2Ray API: configuration/experimental/v2ray-api.md
       - Shared:
           - Listen Fields: configuration/shared/listen.md
