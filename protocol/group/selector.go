@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/interrupt"
+	"github.com/sagernet/sing-box/common/trafficcontrol"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -201,19 +202,21 @@ func (s *Selector) SelectOutbound(tag string) bool {
 }
 
 func (s *Selector) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	conn, err := s.selected.Load().DialContext(ctx, network, destination)
+	selected := s.selected.Load()
+	conn, err := selected.DialContext(ctx, network, destination)
 	if err != nil {
 		return nil, err
 	}
-	return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsResourceDownloadFromContext(ctx)), nil
+	return s.interruptGroup.NewConn(trafficcontrol.TrackOutboundConn(conn, s, selected), interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsResourceDownloadFromContext(ctx)), nil
 }
 
 func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	conn, err := s.selected.Load().ListenPacket(ctx, destination)
+	selected := s.selected.Load()
+	conn, err := selected.ListenPacket(ctx, destination)
 	if err != nil {
 		return nil, err
 	}
-	return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsResourceDownloadFromContext(ctx)), nil
+	return s.interruptGroup.NewPacketConn(trafficcontrol.TrackOutboundPacketConn(conn, s, selected), interrupt.IsExternalConnectionFromContext(ctx), interrupt.IsResourceDownloadFromContext(ctx)), nil
 }
 
 func (s *Selector) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -222,7 +225,7 @@ func (s *Selector) NewConnection(ctx context.Context, conn net.Conn, metadata ad
 	if outboundHandler, isHandler := selected.(adapter.ConnectionHandler); isHandler {
 		// Handler delegation bypasses DialContext, so track the incoming connection instead.
 		conn = s.interruptGroup.NewConn(conn, true, interrupt.IsResourceDownloadFromContext(ctx))
-		outboundHandler.NewConnection(ctx, conn, metadata, onClose)
+		outboundHandler.NewConnection(ctx, trafficcontrol.TrackOutboundHandlerConn(conn, s, selected), metadata, onClose)
 	} else {
 		s.connection.NewConnection(ctx, s, conn, metadata, onClose)
 	}
@@ -234,7 +237,7 @@ func (s *Selector) NewPacketConnection(ctx context.Context, conn N.PacketConn, m
 	if outboundHandler, isHandler := selected.(adapter.PacketConnectionHandler); isHandler {
 		// Handler delegation bypasses ListenPacket, so track the incoming connection instead.
 		conn = bufio.NewPacketConn(s.interruptGroup.NewPacketConn(bufio.NewNetPacketConn(conn), true, interrupt.IsResourceDownloadFromContext(ctx)))
-		outboundHandler.NewPacketConnection(ctx, conn, metadata, onClose)
+		outboundHandler.NewPacketConnection(ctx, trafficcontrol.TrackOutboundHandlerPacketConn(conn, s, selected), metadata, onClose)
 	} else {
 		s.connection.NewPacketConnection(ctx, s, conn, metadata, onClose)
 	}
