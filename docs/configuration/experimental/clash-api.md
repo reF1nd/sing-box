@@ -73,6 +73,12 @@
 
     You can ignore the JSON Array [] tag when the content is only one item
 
+!!! info "Observability API"
+
+    When [experimental observability](observability.md) is enabled, its dedicated
+    `/observability/v1` HTTP API is mounted on this controller and protected by
+    the same `secret`.
+
 ### Fields
 
 #### external_controller

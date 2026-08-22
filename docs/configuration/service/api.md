@@ -16,6 +16,10 @@ The server also accepts [gRPC-Web](https://github.com/grpc/grpc/blob/master/doc/
 including the WebSocket transport of [@improbable-eng/grpc-web](https://github.com/improbable-eng/grpc-web)
 for bidirectional streaming methods.
 
+When [experimental observability](/configuration/experimental/observability/) is enabled,
+the dedicated `/observability/v1` HTTP API is also mounted on this listener and uses the
+same `secret` and TLS configuration.
+
 ### Structure
 
 ```json

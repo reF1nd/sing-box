@@ -5180,6 +5180,9 @@
         "clash_api": {
           "$ref": "#/$defs/ClashAPIOptions"
         },
+        "observability": {
+          "$ref": "#/$defs/ObservabilityOptions"
+        },
         "v2ray_api": {
           "$ref": "#/$defs/V2RayAPIOptions"
         },
@@ -10607,6 +10610,27 @@
         },
         "token": {
           "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ObservabilityOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "recent_connections": {
+          "type": "integer"
+        },
+        "recent_ttl": {
+          "$ref": "#/$defs/Duration"
+        },
+        "top_k_size": {
+          "type": "integer"
+        },
+        "expose_sensitive": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

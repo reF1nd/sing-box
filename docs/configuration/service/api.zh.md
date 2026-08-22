@@ -13,6 +13,9 @@ sing-box API 服务是用于观察与控制正在运行的 sing-box 实例的 gR
 服务器同时接受 [gRPC-Web](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-WEB.md) 请求,
 包括用于双向流方法的 [@improbable-eng/grpc-web](https://github.com/improbable-eng/grpc-web) WebSocket 传输。
 
+启用[实验性可观测性](/zh/configuration/experimental/observability/)后，专用的
+`/observability/v1` HTTP API 也会挂载到该监听器，并复用相同的 `secret` 和 TLS 配置。
+
 ### 结构
 
 ```json
