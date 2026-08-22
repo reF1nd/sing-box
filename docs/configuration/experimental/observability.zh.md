@@ -213,3 +213,63 @@ topk(10, rate(singbox_outbound_download_bytes_total[5m]))
 长期 retention 由 Prometheus 负责，并会处理 sing-box 重启后的 counter reset。
 Prometheus 不可用时会丢失对应采样，这是设计选择，不会让监控故障阻塞代理流量。
 
+## Grafana Dashboard
+
+项目提供了可直接导入的完整 Dashboard JSON：
+
+[下载 sing-box Observability Dashboard](../../assets/observability/sing-box-grafana-dashboard.json)
+
+需要 Grafana `11.6` 或更高版本，以及 Infinity data source 插件 `4.0` 或更高
+版本。Dashboard 有意使用两个数据源：
+
+- Prometheus 提供可长期保留的时序、速率、区间增量和抓取健康状态；
+- Infinity 调用专用 API，提供当前状态、活跃连接、有界的近期连接和 Top-K。
+
+### 安装和配置 Infinity
+
+在 Grafana 所在设备安装插件，然后重启 Grafana：
+
+```bash
+grafana cli plugins install yesoreyeram-infinity-datasource
+```
+
+进入 **Connections > Data sources > Add new data source > Infinity**，填写：
+
+| 设置 | 值 |
+|------|----|
+| Base URL | `http://127.0.0.1:9090/observability/v1` |
+| Authentication | Bearer Token |
+| Bearer token | `clash_api.secret` 或原生 API 的 `secret` |
+| Allowed hosts | 如果显示此项，填写 Base URL 使用的 scheme 和 host |
+
+Token 应保存在 data source 的安全认证字段中，不要写入 Dashboard JSON。
+Infinity 请求由 Grafana 服务端发起，而不是浏览器发起。因此只有 Grafana 和
+sing-box 位于同一 network namespace 时才能使用 `127.0.0.1`。使用 Docker、
+另一台主机或不同 Android namespace 时，应填写 Grafana 进程实际可访问的地址，
+并通过防火墙限制访问范围。
+
+导入 Dashboard 前先点击 **Save & test**。
+
+### 导入
+
+1. 在 Grafana 打开 **Dashboards > New > Import**。
+2. 上传 `sing-box-grafana-dashboard.json`。
+3. 选择负责抓取 sing-box 的 Prometheus data source。
+4. 选择上一步配置的 Infinity data source，然后点击 **Import**。
+
+Dashboard 默认显示最近 6 小时并每 30 秒刷新，包含运行状态总览、全局流量、
+连接活动、出站链排行、入站和网络维度、URLTest 延迟、Prometheus 抓取诊断、
+运行时状态、活跃连接、近期关闭连接和 Top-K 表格。
+
+顶部变量可以选择 Prometheus instance、速率计算区间、API 查询窗口、表格行数
+和 Top-K 维度。`API Window` 不得超过 `recent_ttl`，`Top Limit` 不得超过
+`top_k_size`。`rule`、`domain`、`destination_ip`、`source`、`process` 和
+`user` 维度只有在开启 `expose_sensitive` 后才会返回内容。
+
+Prometheus 面板跟随 Dashboard 时间范围，并按 Prometheus 配置的 retention 长期
+保存。Infinity 表格只是 sing-box 有界内存连接环的实时快照；调整 Grafana 时间
+范围不会延长表格历史，sing-box 重启后这些数据会清空。
+
+开启 `expose_sensitive` 后，实时表格可能包含 IP、域名、进程名、用户和匹配规则。
+请只允许可信用户访问 Grafana 和 API，始终保留认证，并在流量跨设备或不可信网络
+时优先使用 TLS。

@@ -236,3 +236,68 @@ Prometheus owns the long-term retention and handles counter resets after a
 sing-box restart. If Prometheus is unavailable, samples are missed; this is
 intentional and keeps monitoring failures from blocking proxy traffic.
 
+## Grafana dashboard
+
+A complete dashboard is available as a directly importable JSON file:
+
+[Download the sing-box Observability dashboard](../../assets/observability/sing-box-grafana-dashboard.json)
+
+It requires Grafana `11.6` or later and the Infinity data source plugin `4.0`
+or later. The dashboard deliberately uses two data sources:
+
+- Prometheus supplies durable time series, rates, increases and scrape health;
+- Infinity calls the dedicated API for current status, active connections,
+  bounded recent connections and Top-K results.
+
+### Install and configure Infinity
+
+Install the plugin on the Grafana server, then restart Grafana:
+
+```bash
+grafana cli plugins install yesoreyeram-infinity-datasource
+```
+
+In **Connections > Data sources > Add new data source > Infinity**, configure:
+
+| Setting | Value |
+|---------|-------|
+| Base URL | `http://127.0.0.1:9090/observability/v1` |
+| Authentication | Bearer Token |
+| Bearer token | the value of `clash_api.secret` or the native API `secret` |
+| Allowed hosts | the scheme and host used by the Base URL, if this field is shown |
+
+Store the token in the data source's secure authentication field; do not add it
+to the dashboard JSON. Infinity requests originate from the Grafana server, not
+the browser. Therefore `127.0.0.1` works only when Grafana and sing-box share the
+same network namespace. For Docker, another host, or another Android namespace,
+use an address that the Grafana process can reach and restrict it with a firewall.
+
+Click **Save & test** before importing the dashboard.
+
+### Import
+
+1. Open **Dashboards > New > Import** in Grafana.
+2. Upload `sing-box-grafana-dashboard.json`.
+3. Select the Prometheus data source that scrapes sing-box.
+4. Select the Infinity data source configured above, then click **Import**.
+
+The dashboard defaults to a six-hour range and a 30-second refresh. It includes
+runtime overview, global traffic, connection activity, outbound-chain rankings,
+inbound and network breakdowns, URLTest latency, Prometheus scrape diagnostics,
+runtime status, active connections, recent closed connections and Top-K tables.
+
+Dashboard variables control the selected Prometheus instance, rate interval,
+API query window, row limits and Top-K dimension. `API Window` must not exceed
+`recent_ttl`; `Top Limit` must not exceed `top_k_size`. The `rule`, `domain`,
+`destination_ip`, `source`, `process` and `user` dimensions only contain values
+when `expose_sensitive` is enabled.
+
+Prometheus panels follow the dashboard time range and remain available for the
+retention period configured in Prometheus. Infinity tables are live snapshots of
+sing-box's bounded in-memory ring; changing the Grafana time range does not extend
+their history, and the data is cleared when sing-box restarts.
+
+When `expose_sensitive` is enabled, the live tables may contain IP addresses,
+domains, process names, users and matched rules. Limit Grafana and API access to
+trusted users, keep authentication enabled, and prefer TLS when traffic crosses a
+device or untrusted network.
