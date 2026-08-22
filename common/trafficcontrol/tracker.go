@@ -79,9 +79,17 @@ func (t TrackerMetadata) Chains() []string {
 func (m *Manager) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) net.Conn {
 	upload := new(atomic.Int64)
 	download := new(atomic.Int64)
+	trackerMetadata := m.newTrackerMetadata(metadata, matchedRule, matchOutbound, upload, download)
+	trafficCounters := m.trafficCounters(trackerMetadata)
+	uploadCounters := []*atomic.Int64{upload}
+	downloadCounters := []*atomic.Int64{download}
+	if trafficCounters != nil {
+		uploadCounters = append(uploadCounters, &trafficCounters.UploadBytes)
+		downloadCounters = append(downloadCounters, &trafficCounters.DownloadBytes)
+	}
 	tracker := &connTracker{
-		ExtendedConn: bufio.NewInt64CounterConn(conn, []*atomic.Int64{upload}, []*atomic.Int64{download}),
-		metadata:     m.newTrackerMetadata(metadata, matchedRule, matchOutbound, upload, download),
+		ExtendedConn: bufio.NewInt64CounterConn(conn, uploadCounters, downloadCounters),
+		metadata:     trackerMetadata,
 		manager:      m,
 	}
 	m.join(tracker)
@@ -91,9 +99,17 @@ func (m *Manager) RoutedConnection(ctx context.Context, conn net.Conn, metadata 
 func (m *Manager) RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) N.PacketConn {
 	upload := new(atomic.Int64)
 	download := new(atomic.Int64)
+	trackerMetadata := m.newTrackerMetadata(metadata, matchedRule, matchOutbound, upload, download)
+	trafficCounters := m.trafficCounters(trackerMetadata)
+	uploadCounters := []*atomic.Int64{upload}
+	downloadCounters := []*atomic.Int64{download}
+	if trafficCounters != nil {
+		uploadCounters = append(uploadCounters, &trafficCounters.UploadBytes)
+		downloadCounters = append(downloadCounters, &trafficCounters.DownloadBytes)
+	}
 	tracker := &packetConnTracker{
-		PacketConn: bufio.NewInt64CounterPacketConn(conn, []*atomic.Int64{upload}, nil, []*atomic.Int64{download}, nil),
-		metadata:   m.newTrackerMetadata(metadata, matchedRule, matchOutbound, upload, download),
+		PacketConn: bufio.NewInt64CounterPacketConn(conn, uploadCounters, nil, downloadCounters, nil),
+		metadata:   trackerMetadata,
 		manager:    m,
 	}
 	m.join(tracker)
@@ -101,9 +117,11 @@ func (m *Manager) RoutedPacketConnection(ctx context.Context, conn N.PacketConn,
 }
 
 func (m *Manager) RoutedFlow(ctx context.Context, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) tun.FlowTracker {
+	trackerMetadata := m.newTrackerMetadata(metadata, matchedRule, matchOutbound, new(atomic.Int64), new(atomic.Int64))
 	return &flowTracker{
-		metadata: m.newTrackerMetadata(metadata, matchedRule, matchOutbound, new(atomic.Int64), new(atomic.Int64)),
-		manager:  m,
+		metadata:        trackerMetadata,
+		manager:         m,
+		trafficCounters: m.trafficCounters(trackerMetadata),
 	}
 }
 
@@ -181,9 +199,10 @@ var (
 )
 
 type flowTracker struct {
-	metadata TrackerMetadata
-	manager  *Manager
-	handle   tun.FlowHandle
+	metadata        TrackerMetadata
+	manager         *Manager
+	handle          tun.FlowHandle
+	trafficCounters *TrafficCounters
 }
 
 func (t *flowTracker) Metadata() *TrackerMetadata {
@@ -197,10 +216,16 @@ func (t *flowTracker) AttachFlow(handle tun.FlowHandle) {
 
 func (t *flowTracker) CountForward(n int) {
 	t.metadata.Upload.Add(int64(n))
+	if t.trafficCounters != nil {
+		t.trafficCounters.UploadBytes.Add(int64(n))
+	}
 }
 
 func (t *flowTracker) CountReverse(n int) {
 	t.metadata.Download.Add(int64(n))
+	if t.trafficCounters != nil {
+		t.trafficCounters.DownloadBytes.Add(int64(n))
+	}
 }
 
 func (t *flowTracker) FlowEstablished() {
