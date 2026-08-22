@@ -12,6 +12,7 @@
   "experimental": {
     "cache_file": {},
     "clash_api": {},
+    "observability": {},
     "v2ray_api": {}
   }
 }
@@ -23,4 +24,5 @@
 |--------------|--------------------------|
 | `cache_file` | [缓存文件](./cache-file/)     |
 | `clash_api`  | [Clash API](./clash-api/) |
+| `observability` | [可观测性](observability.md) |
 | `v2ray_api`  | [V2Ray API](./v2ray-api/) |

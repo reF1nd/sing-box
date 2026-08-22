@@ -11,12 +11,14 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/daemon"
+	"github.com/sagernet/sing-box/experimental/observability"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
+	"github.com/sagernet/sing/service"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c" //nolint:staticcheck
@@ -76,6 +78,10 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	}
 	s.startedService = daemon.NewAttachedService(s.ctx)
 	s.grpcServer = daemon.NewServer(s.startedService, s.options.Secret)
+	var observabilityHandler http.Handler
+	if observabilityService := service.FromContext[observability.Service](s.ctx); observabilityService != nil {
+		observabilityHandler = authenticateObservability(s.options.Secret, http.StripPrefix("/observability/v1", observabilityService.Handler()))
+	}
 	if s.dashboard != nil {
 		err := s.dashboard.start()
 		if err != nil {
@@ -84,7 +90,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	}
 	s.httpServer = &http.Server{
 		//nolint:staticcheck
-		Handler: h2c.NewHandler(newHTTPHandler(s.logger, s.grpcServer, s.options, s.dashboard), new(http2.Server)),
+		Handler: h2c.NewHandler(newHTTPHandler(s.logger, s.grpcServer, s.options, s.dashboard, observabilityHandler), new(http2.Server)),
 		BaseContext: func(net.Listener) context.Context {
 			return s.ctx
 		},
@@ -115,6 +121,18 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		}
 	}()
 	return nil
+}
+
+func authenticateObservability(secret string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if secret == "" || request.Header.Get("Authorization") == "Bearer "+secret {
+			next.ServeHTTP(writer, request)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusUnauthorized)
+		_, _ = writer.Write([]byte("{\"error\":{\"code\":\"unauthorized\",\"message\":\"unauthorized\"}}\n"))
+	})
 }
 
 func (s *Service) Close() error {
