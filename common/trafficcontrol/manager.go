@@ -2,6 +2,7 @@ package trafficcontrol
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -27,7 +28,22 @@ type ConnectionEvent struct {
 	ClosedAt time.Time
 }
 
-const closedConnectionsLimit = 1000
+type TrafficCounters struct {
+	UploadBytes   atomic.Int64
+	DownloadBytes atomic.Int64
+}
+
+type ConnectionObserver interface {
+	TrafficCounters(metadata TrackerMetadata) *TrafficCounters
+	ConnectionOpened(metadata TrackerMetadata)
+	ConnectionClosed(metadata TrackerMetadata)
+}
+
+type connectionObserverHolder struct {
+	observer ConnectionObserver
+}
+
+const defaultClosedConnectionsLimit = 1000
 
 var (
 	_ adapter.ConnectionTracker = (*Manager)(nil)
@@ -38,19 +54,24 @@ type Manager struct {
 	outbound adapter.OutboundManager
 
 	connections             compatible.Map[uuid.UUID, Tracker]
+	pendingConnections      compatible.Map[uuid.UUID, Tracker]
 	closedConnectionsAccess sync.Mutex
 	closedConnections       list.List[TrackerMetadata]
 	closedUploadTotal       int64
 	closedDownloadTotal     int64
+	closedConnectionsLimit  int
+	closedConnectionsTTL    time.Duration
 
 	eventSubscriber *observable.Subscriber[ConnectionEvent]
 	eventObserver   *observable.Observer[ConnectionEvent]
+	observer        atomic.Pointer[connectionObserverHolder]
 }
 
 func NewManager(outbound adapter.OutboundManager) *Manager {
 	return &Manager{
-		outbound:        outbound,
-		eventSubscriber: observable.NewSubscriber[ConnectionEvent](256),
+		outbound:               outbound,
+		closedConnectionsLimit: defaultClosedConnectionsLimit,
+		eventSubscriber:        observable.NewSubscriber[ConnectionEvent](256),
 	}
 }
 
@@ -62,7 +83,7 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage == adapter.StartStateInitialize {
 		m.eventObserver = observable.NewObserver(m.eventSubscriber, 64)
 		scope.Add(m.eventObserver.Close)
-		cleaner := cleanup.Add(m.Clear)
+		cleaner := cleanup.Add(m.cleanupClosedConnections)
 		scope.Add(func() error {
 			cleaner.Close()
 			return nil
@@ -79,9 +100,51 @@ func (m *Manager) UnSubscribeEvents(subscription observable.Subscription[Connect
 	m.eventObserver.UnSubscribe(subscription)
 }
 
+func (m *Manager) SetConnectionObserver(observer ConnectionObserver) {
+	if observer == nil {
+		m.observer.Store(nil)
+	} else {
+		m.observer.Store(&connectionObserverHolder{observer: observer})
+	}
+}
+
+func (m *Manager) SetClosedConnectionsLimit(limit int) {
+	if limit < 0 {
+		limit = 0
+	}
+	m.closedConnectionsAccess.Lock()
+	m.closedConnectionsLimit = limit
+	for m.closedConnections.Len() > limit {
+		evicted := m.closedConnections.PopFront()
+		m.closedUploadTotal += evicted.Upload.Load()
+		m.closedDownloadTotal += evicted.Download.Load()
+	}
+	m.closedConnectionsAccess.Unlock()
+}
+
+// SetClosedConnectionsTTL protects recent history from GC cleanup. A non-positive
+// TTL preserves the default behavior of clearing all closed connections on GC.
+func (m *Manager) SetClosedConnectionsTTL(ttl time.Duration) {
+	m.closedConnectionsAccess.Lock()
+	m.closedConnectionsTTL = ttl
+	m.closedConnectionsAccess.Unlock()
+}
+
+func (m *Manager) trafficCounters(metadata TrackerMetadata) *TrafficCounters {
+	observer := m.observer.Load()
+	if observer == nil {
+		return nil
+	}
+	return observer.observer.TrafficCounters(metadata)
+}
+
 func (m *Manager) join(tracker Tracker) {
 	metadata := tracker.Metadata()
 	m.connections.Store(metadata.ID, tracker)
+	observer := m.observer.Load()
+	if observer != nil {
+		observer.observer.ConnectionOpened(*metadata)
+	}
 	m.eventSubscriber.Emit(ConnectionEvent{
 		Type:     ConnectionEventNew,
 		ID:       metadata.ID,
@@ -98,15 +161,24 @@ func (m *Manager) leave(tracker Tracker) {
 		m.closedConnectionsAccess.Unlock()
 		return
 	}
-	metadata.ClosedAt = closedAt
 	metadataCopy := *metadata
-	if m.closedConnections.Len() >= closedConnectionsLimit {
+	metadataCopy.ClosedAt = closedAt
+	if m.closedConnectionsLimit > 0 && m.closedConnections.Len() >= m.closedConnectionsLimit {
 		evicted := m.closedConnections.PopFront()
 		m.closedUploadTotal += evicted.Upload.Load()
 		m.closedDownloadTotal += evicted.Download.Load()
 	}
-	m.closedConnections.PushBack(metadataCopy)
+	if m.closedConnectionsLimit > 0 {
+		m.closedConnections.PushBack(metadataCopy)
+	} else {
+		m.closedUploadTotal += metadataCopy.Upload.Load()
+		m.closedDownloadTotal += metadataCopy.Download.Load()
+	}
 	m.closedConnectionsAccess.Unlock()
+	observer := m.observer.Load()
+	if observer != nil {
+		observer.observer.ConnectionClosed(metadataCopy)
+	}
 	m.eventSubscriber.Emit(ConnectionEvent{
 		Type:     ConnectionEventClosed,
 		ID:       metadata.ID,
@@ -169,6 +241,11 @@ func (m *Manager) Connection(id uuid.UUID) Tracker {
 }
 
 func (m *Manager) CloseAllConnections() {
+	// Dialing connections have no final attribution yet, but must still close.
+	m.pendingConnections.Range(func(_ uuid.UUID, tracker Tracker) bool {
+		tracker.Close()
+		return true
+	})
 	m.connections.Range(func(_ uuid.UUID, tracker Tracker) bool {
 		tracker.Close()
 		return true
@@ -183,4 +260,23 @@ func (m *Manager) Clear() {
 		m.closedDownloadTotal += element.Value.Download.Load()
 	}
 	m.closedConnections.Init()
+}
+
+func (m *Manager) cleanupClosedConnections() {
+	m.cleanupClosedConnectionsAt(time.Now())
+}
+
+func (m *Manager) cleanupClosedConnectionsAt(now time.Time) {
+	m.closedConnectionsAccess.Lock()
+	defer m.closedConnectionsAccess.Unlock()
+	cutoff := now.Add(-m.closedConnectionsTTL)
+	for element := m.closedConnections.Front(); element != nil; {
+		next := element.Next()
+		if m.closedConnectionsTTL <= 0 || element.Value.ClosedAt.Before(cutoff) {
+			evicted := m.closedConnections.Remove(element)
+			m.closedUploadTotal += evicted.Upload.Load()
+			m.closedDownloadTotal += evicted.Download.Load()
+		}
+		element = next
+	}
 }
