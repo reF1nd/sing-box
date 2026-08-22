@@ -19,6 +19,9 @@ sing-box API 服务是用于观察与控制正在运行的 sing-box 实例的 gR
 program 和 map 时添加 `--deep`。这只会按请求检查可见的 sing-ebpf 所有资源，不是
 周期性健康检查。
 
+启用[实验性可观测性](/zh/configuration/experimental/observability/)后，专用的
+`/observability/v1` HTTP API 也会挂载到该监听器，并复用相同的 `secret` 和 TLS 配置。
+
 ### 结构
 
 ```json

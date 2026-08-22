@@ -23,6 +23,10 @@ lightweight runtime state. Add `--deep` when program and map enumeration is
 needed; this is an on-demand inspection of visible sing-ebpf-owned resources,
 not a periodic health check.
 
+When [experimental observability](/configuration/experimental/observability/) is enabled,
+the dedicated `/observability/v1` HTTP API is also mounted on this listener and uses the
+same `secret` and TLS configuration.
+
 ### Structure
 
 ```json
