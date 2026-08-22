@@ -23,6 +23,10 @@ Runtime results include attachments, recovery state, UDP NAT, active programs,
 map occupancy, and data-plane failure counters. Expensive program/map
 enumeration runs only for an explicit query.
 
+When [experimental observability](/configuration/experimental/observability/) is enabled,
+the dedicated `/observability/v1` HTTP API is also mounted on this listener and uses the
+same `secret` and TLS configuration.
+
 ### Structure
 
 ```json
