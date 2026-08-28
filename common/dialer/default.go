@@ -69,6 +69,9 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		networkFallbackDelay   time.Duration
 		autoDetectBindFunc     control.Func
 	)
+	socketProtectFunc := adapter.EBPFSocketProtectionControl(ctx)
+	dialer.Control = control.Append(dialer.Control, socketProtectFunc)
+	listener.Control = control.Append(listener.Control, socketProtectFunc)
 	if networkManager != nil {
 		interfaceFinder = networkManager.InterfaceFinder()
 	} else {

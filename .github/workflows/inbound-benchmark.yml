@@ -1,0 +1,182 @@
+name: Inbound benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label (use the custom label for a Linux self-hosted runner)
+        required: true
+        default: ubuntu-24.04
+        type: choice
+        options:
+          - ubuntu-24.04
+          - inbound-benchmark
+      duration:
+        description: Measurement duration per scenario
+        required: true
+        default: 5s
+        type: string
+      warmup:
+        description: Warm-up duration per scenario
+        required: true
+        default: 1s
+        type: string
+      repetitions:
+        description: Repetitions per inbound
+        required: true
+        default: 3
+        type: number
+      concurrency:
+        description: Parallel connections or UDP flows
+        required: true
+        default: 16
+        type: number
+      tcp_payload_size:
+        description: TCP upload frame size in bytes
+        required: true
+        default: 32768
+        type: number
+      udp_payload_size:
+        description: UDP datagram size in bytes
+        required: true
+        default: 1200
+        type: number
+      family:
+        description: Address family used by the isolated topology
+        required: true
+        default: ipv4
+        type: choice
+        options:
+          - ipv4
+          - ipv6
+      ebpf_policy_prefixes:
+        description: Non-matching CIDRs used to stress eBPF bypass policy lookup (0 disables)
+        required: true
+        default: 0
+        type: number
+      variants:
+        description: Comma-separated variants
+        required: true
+        default: direct,ebpf-local,ebpf-shared,redirect,tproxy,tun-mixed,tun-mixed-auto-redirect
+        type: string
+      scenarios:
+        description: Comma-separated scenarios or all
+        required: true
+        default: all
+        type: string
+      profile_seconds:
+        description: Connected eBPF UDP profile duration in seconds (0 disables profiling)
+        required: true
+        default: 10
+        type: number
+
+concurrency:
+  group: inbound-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Transparent inbound benchmark
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install Linux dependencies
+        if: inputs.runner == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            curl ethtool iproute2 iptables iputils-ping jq nftables procps util-linux
+
+      - name: Verify self-hosted dependencies
+        if: inputs.runner == 'inbound-benchmark'
+        run: |
+          for command in \
+            curl ethtool go ip ip6tables iptables jq mountpoint nft ping python3 \
+            realpath setpriv shuf ss sysctl; do
+            command -v "$command"
+          done
+
+      - name: Build benchmark binaries
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p build/inbound-benchmark
+          go build -trimpath -tags with_ebpf,with_gvisor \
+            -o build/inbound-benchmark/sing-box ./cmd/sing-box
+          go build -trimpath -tags with_ebpf,with_gvisor,ebpf_debug \
+            -o build/inbound-benchmark/sing-box-ebpf-debug ./cmd/sing-box
+          go build -trimpath \
+            -o build/inbound-benchmark/interception-bench \
+            ./cmd/internal/interception_bench
+
+      - name: Run benchmark
+        id: benchmark
+        continue-on-error: true
+        env:
+          BENCHMARK_CONCURRENCY: ${{ inputs.concurrency }}
+          BENCHMARK_DURATION: ${{ inputs.duration }}
+          BENCHMARK_EBPF_POLICY_PREFIXES: ${{ inputs.ebpf_policy_prefixes }}
+          BENCHMARK_FAMILY: ${{ inputs.family }}
+          BENCHMARK_PROFILE_SECONDS: ${{ inputs.profile_seconds }}
+          BENCHMARK_REPETITIONS: ${{ inputs.repetitions }}
+          BENCHMARK_SCENARIOS: ${{ inputs.scenarios }}
+          BENCHMARK_TCP_PAYLOAD_SIZE: ${{ inputs.tcp_payload_size }}
+          BENCHMARK_UDP_PAYLOAD_SIZE: ${{ inputs.udp_payload_size }}
+          BENCHMARK_VARIANTS: ${{ inputs.variants }}
+          BENCHMARK_WARMUP: ${{ inputs.warmup }}
+        run: |
+          sudo env \
+            "PATH=$PATH" \
+            "SING_BOX_BENCHMARK_COMMIT=$GITHUB_SHA" \
+            bash .github/benchmark/run-inbound-benchmark.sh \
+            --sing-box "$PWD/build/inbound-benchmark/sing-box" \
+            --debug-sing-box "$PWD/build/inbound-benchmark/sing-box-ebpf-debug" \
+            --benchmark "$PWD/build/inbound-benchmark/interception-bench" \
+            --output "$PWD/build/inbound-benchmark/results" \
+            --duration "$BENCHMARK_DURATION" \
+            --warmup "$BENCHMARK_WARMUP" \
+            --repetitions "$BENCHMARK_REPETITIONS" \
+            --concurrency "$BENCHMARK_CONCURRENCY" \
+            --tcp-payload-size "$BENCHMARK_TCP_PAYLOAD_SIZE" \
+            --udp-payload-size "$BENCHMARK_UDP_PAYLOAD_SIZE" \
+            --family "$BENCHMARK_FAMILY" \
+            --ebpf-policy-prefixes "$BENCHMARK_EBPF_POLICY_PREFIXES" \
+            --variants "$BENCHMARK_VARIANTS" \
+            --scenarios "$BENCHMARK_SCENARIOS" \
+            --profile-seconds "$BENCHMARK_PROFILE_SECONDS"
+
+      - name: Summarize benchmark
+        if: always()
+        run: |
+          python3 .github/benchmark/summarize.py \
+            build/inbound-benchmark/results \
+            > build/inbound-benchmark/summary.md
+          cat build/inbound-benchmark/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: inbound-benchmark-${{ github.run_id }}
+          path: |
+            build/inbound-benchmark/results
+            build/inbound-benchmark/summary.md
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Check benchmark result
+        if: always()
+        env:
+          BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
+        run: |
+          test "$BENCHMARK_OUTCOME" = success

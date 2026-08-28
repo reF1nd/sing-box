@@ -363,27 +363,31 @@ func (t *Endpoint) start() error {
 		t.systemDialer = systemDialer
 		t.server.Tun = wgTunDevice
 	}
+	socketProtectFunc := adapter.EBPFSocketProtectionControl(t.ctx)
 	if t.network.AutoRedirectOutputMark() != 0 {
-		netns.SetControlFunc(t.network.AutoRedirectOutputMarkFunc())
+		netns.SetControlFunc(control.Append(socketProtectFunc, t.network.AutoRedirectOutputMarkFunc()))
 	} else if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
 		if t.platformInterface.UsePlatformAutoDetectInterfaceControl() {
-			netns.SetControlFunc(func(network, address string, conn syscall.RawConn) error {
+			netns.SetControlFunc(control.Append(socketProtectFunc, func(network, address string, conn syscall.RawConn) error {
 				return control.Raw(conn, func(fileDescriptor uintptr) error {
 					return t.platformInterface.AutoDetectInterfaceControl(int(fileDescriptor))
 				})
-			})
+			}))
 		} else {
 			// NEPacketTunnelProvider sockets are excluded from tunnel routes by
 			// NECP; the empty override only suppresses tailscale's own
 			// default-interface bind, which would select the sing-box utun.
-			netns.SetControlFunc(func(string, string, syscall.RawConn) error {
+			netns.SetControlFunc(control.Append(socketProtectFunc, func(string, string, syscall.RawConn) error {
 				return nil
-			})
+			}))
 		}
 	} else {
 		bindFunc := t.network.AutoDetectInterfaceFunc()
+		combinedControl := control.Append(socketProtectFunc, bindFunc)
+		if combinedControl != nil {
+			netns.SetControlFunc(combinedControl)
+		}
 		if bindFunc != nil {
-			netns.SetControlFunc(bindFunc)
 			netns.SetListenPacketFunc(t.listenPacket)
 		}
 	}
@@ -392,7 +396,10 @@ func (t *Endpoint) start() error {
 
 func (t *Endpoint) listenPacket(ctx context.Context, network string, address string) (nettype.PacketConn, error) {
 	listenConfig := net.ListenConfig{
-		Control: control.Append(t.network.AutoDetectInterfaceFunc(), control.DisableUDPNetReset()),
+		Control: control.Append(
+			control.Append(adapter.EBPFSocketProtectionControl(t.ctx), t.network.AutoDetectInterfaceFunc()),
+			control.DisableUDPNetReset(),
+		),
 	}
 	packetConn, err := listenConfig.ListenPacket(ctx, network, address)
 	if err != nil {
