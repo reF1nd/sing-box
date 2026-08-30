@@ -56,6 +56,7 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 | `with_clash_api`                   | :material-check:     | Build with Clash API support, see [Experimental](/configuration/experimental#clash-api-fields).                                                                                                                                                                                                                                |
 | `with_v2ray_api`                   | :material-close:️    | Build with V2Ray API support, see [Experimental](/configuration/experimental#v2ray-api-fields).                                                                                                                                                                                                                                |
 | `with_gvisor`                      | :material-check:     | Build with gVisor support, see [Tun inbound](/configuration/inbound/tun#stack) and [WireGuard outbound](/configuration/outbound/wireguard#system_interface).                                                                                                                                                                   |
+| `with_ebpf`                        | :material-close:     | Build the pure-Go runtime for the experimental eBPF inbound on Linux or Android. See [eBPF inbound](/configuration/inbound/ebpf/).                                                                                                                                                                                             |
 | `with_embedded_tor` (CGO required) | :material-close:️    | Build with embedded Tor support, see [Tor outbound](/configuration/outbound/tor/).                                                                                                                                                                                                                                             |
 | `with_tailscale`                   | :material-check:     | Build with Tailscale support, see [Tailscale endpoint](/configuration/endpoint/tailscale).                                                                                                                                                                                                                                     |
 | `with_ccm`                         | :material-check:     | Build with Claude Code Multiplexer service support.                                                                                                                                                                                                                                                                            |
@@ -66,6 +67,20 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 | `tfogo_checklinkname0`             | :material-check:     | Companion to `badlinkname`. Go 1.23+ enforces `go:linkname` restrictions via the linker; this tag signals the build uses `-checklinkname=0` to bypass that enforcement.                                                                                                                                                       |
 
 It is not recommended to change the default build tag list unless you really know what you are adding.
+
+### eBPF object generation
+
+The `with_ebpf` runtime is pure Go. Building sing-box with this tag does not
+require cgo or an Android NDK. Maintainers who change the native BPF sources
+must regenerate the embedded objects with Android NDK r29 Clang 21:
+
+```sh
+ANDROID_NDK_HOME=/usr/share/android-ndk-r29 make ebpf_generate
+make ebpf_check
+```
+
+The generation Makefile runs the `bpf2go` Go tool on the build host, so a final
+`GOOS`/`GOARCH` cross-build does not change the generator's executable format.
 
 ## :material-wrench: Linker Flags
 

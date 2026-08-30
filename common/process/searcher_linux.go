@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -86,18 +87,23 @@ func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, sou
 	} else {
 		processInfo.ProcessPath = processPath
 	}
-	if s.packageManager != nil {
-		appID := uid % 100000
-		var packageNames []string
-		if sharedPackage, loaded := s.packageManager.SharedPackageByID(appID); loaded {
-			packageNames = append(packageNames, sharedPackage)
-		}
-		if packages, loaded := s.packageManager.PackagesByID(appID); loaded {
-			packageNames = append(packageNames, packages...)
-		}
-		processInfo.AndroidPackageNames = common.Uniq(packageNames)
-	}
+	completeProcessInfo(processInfo, s.packageManager)
 	return processInfo, nil
+}
+
+// FindProcessInfoByPID resolves process metadata without scanning socket file
+// descriptors across procfs. The caller already established socket ownership.
+func FindProcessInfoByPID(processID uint32, userID uint32, packageManager tun.PackageManager) (*adapter.ConnectionOwner, error) {
+	processInfo := &adapter.ConnectionOwner{
+		ProcessID: processID,
+		UserId:    int32(userID),
+	}
+	processPath, err := os.Readlink(filepath.Join(pathProc, strconv.FormatUint(uint64(processID), 10), "exe"))
+	if err == nil {
+		processInfo.ProcessPath = processPath
+	}
+	completeProcessInfo(processInfo, packageManager)
+	return processInfo, err
 }
 
 func (s *linuxSearcher) resolveSocketByNetlink(network string, source netip.AddrPort, destination netip.AddrPort) (inode, uid uint32, err error) {
