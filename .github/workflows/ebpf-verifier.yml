@@ -1,0 +1,75 @@
+name: Verify eBPF program loading
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/ebpf-verifier.yml'
+      - 'box.go'
+      - 'option/ebpf.go'
+      - 'common/dialer/default.go'
+      - 'common/dialer/ebpf_self_bypass_*.go'
+      - 'common/ebpf/**'
+      - 'common/listener/listener_tcp.go'
+      - 'common/listener/listener_udp.go'
+      - 'protocol/ebpf/**'
+      - 'protocol/tailscale/endpoint.go'
+      - 'route/network*.go'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Linux kernel verifier
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.6
+
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r29
+
+      - name: Generate eBPF objects with NDK r29 Clang 21
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version | tee verifier.log
+          make -C common/ebpf check
+          go clean -cache
+
+      - name: Test sing-box integration
+        run: |
+          go test -tags with_ebpf \
+            ./adapter ./common/dialer ./common/listener ./common/ebpf ./protocol/ebpf .
+          go test -run '^$' -tags with_ebpf,with_gvisor ./protocol/tailscale
+
+      - name: Load program matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env \
+            "PATH=$PATH" \
+            SING_BOX_EBPF_INTEGRATION=1 \
+            go test -v -count=1 \
+              -run '^Test(TCProgramRun|MapBatch|LRUFallbackBounded)Integration$' \
+              -tags with_ebpf,ebpf_integration \
+              ./common/ebpf 2>&1 | tee -a verifier.log
+
+      - name: Upload verifier log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ebpf-verifier
+          path: verifier.log
+          if-no-files-found: warn
+          retention-days: 14
