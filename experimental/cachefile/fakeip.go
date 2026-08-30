@@ -1,6 +1,7 @@
 package cachefile
 
 import (
+	"errors"
 	"net/netip"
 	"os"
 
@@ -199,14 +200,16 @@ func (c *CacheFile) FakeIPReset() error {
 	}
 	c.pendingAccess.Unlock()
 	return c.batch(func(tx *bbolt.Tx) error {
-		err := tx.DeleteBucket(bucketFakeIP)
-		if err != nil {
-			return err
+		// Buckets are created lazily, so a database that only ever held IPv4
+		// records has no domain6 bucket. Deleting a missing bucket reports
+		// ErrBucketNotFound, which would roll the whole batch back and leave
+		// every stale mapping in place, so tolerate it per bucket.
+		for _, bucket := range [][]byte{bucketFakeIP, bucketFakeIPDomain4, bucketFakeIPDomain6} {
+			err := tx.DeleteBucket(bucket)
+			if err != nil && !errors.Is(err, bbolt.ErrBucketNotFound) {
+				return err
+			}
 		}
-		err = tx.DeleteBucket(bucketFakeIPDomain4)
-		if err != nil {
-			return err
-		}
-		return tx.DeleteBucket(bucketFakeIPDomain6)
+		return nil
 	})
 }
