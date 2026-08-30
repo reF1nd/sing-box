@@ -1,0 +1,11 @@
+generator: Android NDK r29 Clang 21
+targets: bpfel,bpfeb
+cflags: -mcpu=v1 -O2 -g0 -ffreestanding -mllvm -disable-block-placement -mllvm -disable-branch-fold -nostdinc -Inative -isystem <clang-resource>/include -isystem <ndk-sysroot>/usr/include -isystem <ndk-sysroot>/usr/include/aarch64-linux-android
+include_environment: cleared
+bpf2go: v0.22.1-0.20260724091036-00feb08ae4e5
+clang: Android (13989888, +pgo, +bolt, +lto, +mlgo, based on r563880c) clang version 21.0.0 (https://android.googlesource.com/toolchain/llvm-project 5e96669f06077099aa41290cdb4c5e6fa0f59349)
+acef2ae96d9657f06d0533ced13e39509f624074cbcf46197c2ed9909c5844b1  native/bpf_compat.h
+6056c5f34750f2d6d85ae1da2bfd96861c10c84558924723d0153627592f4ed7  native/private_address.h
+5047305086c55a071f70d592fadce7f3cba6130f337170af216e85c7e7db31e0  native/tc.bpf.c
+36b5df90d2226cb1caa827c841547d6d22294c6460cbbcf6dea5373c6f7b2e24  internal/bpfgen/tc_bpfeb.o
+1e73b6f54195918f75ca539e693554d5eae33e60ffef7ff0a124f6cebeea283b  internal/bpfgen/tc_bpfel.o

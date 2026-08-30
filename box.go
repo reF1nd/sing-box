@@ -248,6 +248,9 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize network manager")
 	}
+	if err = dialer.PrepareEBPFSelfBypass(networkManager, options.Inbounds); err != nil {
+		return nil, E.Cause(err, "prepare eBPF self-bypass")
+	}
 	service.MustRegister[adapter.NetworkManager](ctx, networkManager)
 	connectionManager := route.NewConnectionManager(logFactory.NewLogger("connection"))
 	service.MustRegister[adapter.ConnectionManager](ctx, connectionManager)
