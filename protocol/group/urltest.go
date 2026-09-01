@@ -220,6 +220,10 @@ func (s *URLTest) URLTest(ctx context.Context) (map[string]uint16, error) {
 	return s.group.URLTest(ctx)
 }
 
+func (s *URLTest) urlTest(ctx context.Context, force bool) (map[string]uint16, error) {
+	return s.group.urlTest(ctx, force)
+}
+
 func (s *URLTest) CheckOutbounds() {
 	s.group.CheckOutbounds(s.ctx, true)
 }
@@ -572,11 +576,65 @@ type urlTestResult struct {
 	err   error
 }
 
+type urlTestSessionKey struct {
+	tag  string
+	link string
+}
+
+type urlTestSessionCall struct {
+	done   chan struct{}
+	result urlTestResult
+}
+
+type urlTestSession struct {
+	access sync.Mutex
+	calls  map[urlTestSessionKey]*urlTestSessionCall
+}
+
+type urlTestSessionContextKey struct{}
+
+type recursiveURLTestGroup interface {
+	adapter.OutboundGroup
+	urlTest(ctx context.Context, force bool) (map[string]uint16, error)
+}
+
+func urlTestSessionFromContext(ctx context.Context) (context.Context, *urlTestSession) {
+	if session, loaded := ctx.Value(urlTestSessionContextKey{}).(*urlTestSession); loaded {
+		return ctx, session
+	}
+	session := &urlTestSession{calls: make(map[urlTestSessionKey]*urlTestSessionCall)}
+	return context.WithValue(ctx, urlTestSessionContextKey{}, session), session
+}
+
+func (s *urlTestSession) test(ctx context.Context, key urlTestSessionKey, test func() urlTestResult) (result urlTestResult) {
+	s.access.Lock()
+	call, loaded := s.calls[key]
+	if !loaded {
+		call = &urlTestSessionCall{done: make(chan struct{})}
+		s.calls[key] = call
+	}
+	s.access.Unlock()
+	if loaded {
+		select {
+		case <-call.done:
+			return call.result
+		case <-ctx.Done():
+			return urlTestResult{err: ctx.Err()}
+		}
+	}
+	defer func() {
+		call.result = result
+		close(call.done)
+	}()
+	return test()
+}
+
 type urlTestBatch struct {
 	ctx      context.Context
 	outbound adapter.OutboundManager
 	history  *urltest.HistoryStorage
 	logger   log.Logger
+	session  *urlTestSession
 	batch    *batch.Batch[any]
 	checked  map[string]bool
 	groups   []adapter.OutboundGroup
@@ -585,12 +643,14 @@ type urlTestBatch struct {
 }
 
 func URLTestOutbounds(ctx context.Context, outboundManager adapter.OutboundManager, history *urltest.HistoryStorage, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, force bool) map[string]uint16 {
+	ctx, session := urlTestSessionFromContext(ctx)
 	b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
 	testBatch := &urlTestBatch{
 		ctx:      ctx,
 		outbound: outboundManager,
 		history:  history,
 		logger:   logger,
+		session:  session,
 		batch:    b,
 		checked:  make(map[string]bool),
 		result:   make(map[string]uint16),
@@ -613,11 +673,11 @@ func (b *urlTestBatch) test(outbounds []adapter.Outbound, link string, interval 
 			continue
 		}
 		switch nested := detour.(type) {
-		case *URLTest:
+		case recursiveURLTestGroup:
 			b.checked[tag] = true
 			b.groups = append(b.groups, nested)
 			b.batch.Go(tag, func() (any, error) {
-				nestedResult, _ := nested.group.urlTest(b.ctx, force)
+				nestedResult, _ := nested.urlTest(b.ctx, force)
 				b.access.Lock()
 				maps.Copy(b.result, nestedResult)
 				b.access.Unlock()
@@ -637,19 +697,21 @@ func (b *urlTestBatch) test(outbounds []adapter.Outbound, link string, interval 
 			}
 			b.checked[tag] = true
 			b.batch.Go(tag, func() (any, error) {
-				testCtx, cancel := context.WithTimeout(b.ctx, C.TCPTimeout)
-				defer cancel()
-				testChan := make(chan urlTestResult, 1)
-				go func() {
-					delay, testErr := urltest.URLTest(testCtx, link, detour)
-					testChan <- urlTestResult{delay, testErr}
-				}()
-				var testResult urlTestResult
-				select {
-				case testResult = <-testChan:
-				case <-testCtx.Done():
-					testResult.err = testCtx.Err()
-				}
+				testResult := b.session.test(b.ctx, urlTestSessionKey{tag: tag, link: link}, func() urlTestResult {
+					testCtx, cancel := context.WithTimeout(b.ctx, C.TCPTimeout)
+					defer cancel()
+					testChan := make(chan urlTestResult, 1)
+					go func() {
+						delay, testErr := urltest.URLTest(testCtx, link, detour)
+						testChan <- urlTestResult{delay, testErr}
+					}()
+					select {
+					case testResult := <-testChan:
+						return testResult
+					case <-testCtx.Done():
+						return urlTestResult{err: testCtx.Err()}
+					}
+				})
 				if testResult.err != nil {
 					b.logger.Debug("outbound ", tag, " unavailable: ", testResult.err)
 					b.history.DeleteURLTestHistory(tag)
