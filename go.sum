@@ -231,6 +231,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
+github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a h1:9bnRAsAjqDSQkGLjjd64rvzAir42v5lH16aJDFg8TEU=
+github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a/go.mod h1:VRKLnj0ObEsN228h+zuzf91p+6sjtYE8SBaLPVsBy5o=
 github.com/reF1nd/sing-tun v0.9.7-0.20261005104437-f4f5a75b5d62 h1:z+fEqIx2UATfZ/tYjYONzr8r9c/bu8R8D1RG/jmFM4A=
 github.com/reF1nd/sing-tun v0.9.7-0.20261005104437-f4f5a75b5d62/go.mod h1:liMb9HPIWcFWqF6VJ/ttIY8fTSRPdRltBeSeEcXt1Dk=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
@@ -320,8 +322,6 @@ github.com/sagernet/quic-go v0.61.0-sing-box-mod.9 h1:Lojx77uC63TxZO38Z1OSo6aOoB
 github.com/sagernet/quic-go v0.61.0-sing-box-mod.9/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
 github.com/sagernet/sing v0.9.7-0.20260929150544-6f21f2425a95 h1:taM2SOI5HK/Ubpi3FO0Bc7bKHsFVdGe4YS/jjXD4kAM=
 github.com/sagernet/sing v0.9.7-0.20260929150544-6f21f2425a95/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
-github.com/sagernet/sing-anytls v0.0.0-20260928104022-580984e4d8cb h1:n4sF2zv0CR1gcb4awh61t11t0FZmcP40x5enB8HARjE=
-github.com/sagernet/sing-anytls v0.0.0-20260928104022-580984e4d8cb/go.mod h1:VRKLnj0ObEsN228h+zuzf91p+6sjtYE8SBaLPVsBy5o=
 github.com/sagernet/sing-cloudflared v0.1.4-0.20261002084126-c1255ae368f2 h1:+AfbAXGEV8tezIYHeShzwHm7IMUE5kYGVFLo0ly7W24=
 github.com/sagernet/sing-cloudflared v0.1.4-0.20261002084126-c1255ae368f2/go.mod h1:XEqEDYRCAYLaoPjZ1ifVWJg5iWAJHL2gOAXe/PM28Cg=
 github.com/sagernet/sing-mux v0.3.10-0.20260929204512-caf09fe32475 h1:aG0DqHEOjax7DyfE1GTAXZotOg3QGVCz3/8rCSua2kg=
