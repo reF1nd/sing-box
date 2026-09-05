@@ -36,35 +36,37 @@ var (
 )
 
 type Router struct {
-	ctx                   context.Context
-	logger                logger.ContextLogger
-	transport             adapter.DNSTransportManager
-	outbound              adapter.OutboundManager
-	powerManager          *powerreport.Manager
-	client                adapter.DNSClient
-	rawRules              []option.DNSRule
-	rules                 []adapter.DNSRule
-	defaultDomainStrategy C.DomainStrategy
-	dnsReverseMapping     *freelru.Cache[netip.Addr, string]
-	platformInterface     adapter.PlatformInterface
-	legacyDNSMode         bool
-	rulesAccess           sync.RWMutex
-	started               bool
-	closing               bool
-	defaultRejectRcode    int
+	ctx                    context.Context
+	logger                 logger.ContextLogger
+	transport              adapter.DNSTransportManager
+	outbound               adapter.OutboundManager
+	powerManager           *powerreport.Manager
+	client                 adapter.DNSClient
+	rawRules               []option.DNSRule
+	rules                  []adapter.DNSRule
+	defaultDomainStrategy  C.DomainStrategy
+	dnsReverseMapping      *freelru.Cache[netip.Addr, string]
+	platformInterface      adapter.PlatformInterface
+	legacyDNSMode          bool
+	rulesAccess            sync.RWMutex
+	started                bool
+	closing                bool
+	defaultRejectRcode     int
+	allowResolverDiscovery bool
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOptions) (*Router, error) {
 	router := &Router{
-		ctx:                   ctx,
-		logger:                logFactory.NewLogger("dns"),
-		transport:             service.FromContext[adapter.DNSTransportManager](ctx),
-		outbound:              service.FromContext[adapter.OutboundManager](ctx),
-		powerManager:          service.FromContext[*powerreport.Manager](ctx),
-		rawRules:              make([]option.DNSRule, 0, len(options.Rules)),
-		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
-		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
-		defaultRejectRcode:    options.DefaultRejectRcode.Build(),
+		ctx:                    ctx,
+		logger:                 logFactory.NewLogger("dns"),
+		transport:              service.FromContext[adapter.DNSTransportManager](ctx),
+		outbound:               service.FromContext[adapter.OutboundManager](ctx),
+		powerManager:           service.FromContext[*powerreport.Manager](ctx),
+		rawRules:               make([]option.DNSRule, 0, len(options.Rules)),
+		rules:                  make([]adapter.DNSRule, 0, len(options.Rules)),
+		defaultDomainStrategy:  C.DomainStrategy(options.Strategy),
+		defaultRejectRcode:     options.DefaultRejectRcode.Build(),
+		allowResolverDiscovery: options.AllowResolverDiscovery,
 	}
 	if options.DNSClientOptions.IndependentCache {
 		deprecated.Report(ctx, deprecated.OptionIndependentDNSCache)
@@ -1089,7 +1091,7 @@ func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsEx
 			Question: message.Question,
 		}, nil
 	}
-	if isResolverDiscoveryQuery(message.Question[0]) {
+	if !r.allowResolverDiscovery && isResolverDiscoveryQuery(message.Question[0]) {
 		r.logger.DebugContext(ctx, "rejected resolver discovery query ", FormatQuestion(message.Question[0].String()))
 		return nil, &mDNS.Msg{
 			MsgHdr: mDNS.MsgHdr{

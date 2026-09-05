@@ -34,6 +34,7 @@ icon: material/alert-decagram
     "optimistic": false, // or {}
     "timeout": "",
     "reverse_mapping": false,
+    "allow_resolver_discovery": false,
     "client_subnet": "",
     "fakeip": {}
   }
@@ -133,6 +134,17 @@ Stores a reverse mapping of IP addresses after responding to a DNS query in orde
 
 Since this process relies on the act of resolving domain names by an application before making a request, it can be
 problematic in environments such as macOS, where DNS is proxied and cached by the system.
+
+#### allow_resolver_discovery
+
+Allow resolver discovery queries to follow the normal DNS rules and server selection.
+
+Disabled by default. When disabled, SVCB queries whose names start with `_dns.`
+(case-insensitive), such as `_dns.resolver.arpa.`, receive an empty successful
+response (`NOERROR`) before DNS rules or upstream servers are consulted.
+
+Set to `true` to remove this built-in rejection. DNS rules can still reject these
+queries. Other query types and names are unaffected.
 
 #### client_subnet
 
