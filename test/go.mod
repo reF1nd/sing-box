@@ -5,6 +5,7 @@ go 1.25.5
 require github.com/sagernet/sing-box v0.0.0
 
 replace (
+	github.com/sagernet/sing-anytls => github.com/reF1nd/sing-anytls v0.0.0-20260905062301-7eeaaeb4fb19
 	github.com/sagernet/sing-box => ../
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.4-0.20260915103927-7512d34d3229
 )
