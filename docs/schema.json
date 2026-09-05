@@ -870,6 +870,9 @@
         "default_reject_rcode": {
           "$ref": "#/$defs/DNSRejectRCode"
         },
+        "allow_resolver_discovery": {
+          "type": "boolean"
+        },
         "strategy": {
           "$ref": "#/$defs/DomainStrategy"
         },
