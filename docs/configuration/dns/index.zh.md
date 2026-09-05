@@ -34,6 +34,7 @@ icon: material/alert-decagram
     "optimistic": false, // or {}
     "timeout": "",
     "reverse_mapping": false,
+    "allow_resolver_discovery": false,
     "client_subnet": "",
     "fakeip": {}
   }
@@ -131,6 +132,17 @@ LRU 缓存容量。
 在响应 DNS 查询后存储 IP 地址的反向映射以为路由目的提供域名。
 
 由于此过程依赖于应用程序在发出请求之前解析域名的行为，因此在 macOS 等 DNS 由系统代理和缓存的环境中可能会出现问题。
+
+#### allow_resolver_discovery
+
+允许解析器发现查询按正常的 DNS 规则和服务器选择流程处理。
+
+默认关闭。关闭时，以 `_dns.` 开头（不区分大小写）的 SVCB 查询，
+例如 `_dns.resolver.arpa.`，会在匹配 DNS 规则或查询上游服务器之前收到
+空的成功响应（`NOERROR`）。
+
+设为 `true` 可取消这层内置拒绝，DNS 规则仍可拒绝此类查询。
+其他查询类型和名称不受影响。
 
 #### client_subnet
 
