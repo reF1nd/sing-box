@@ -16,11 +16,12 @@ import (
 )
 
 type RawDNSOptions struct {
-	Servers            []DNSServerOptions `json:"servers,omitempty"`
-	Rules              []DNSRule          `json:"rules,omitempty"`
-	Final              string             `json:"final,omitempty" reference:"dns_server"`
-	ReverseMapping     bool               `json:"reverse_mapping,omitempty"`
-	DefaultRejectRcode *DNSRejectRCode    `json:"default_reject_rcode,omitempty"`
+	Servers                []DNSServerOptions `json:"servers,omitempty"`
+	Rules                  []DNSRule          `json:"rules,omitempty"`
+	Final                  string             `json:"final,omitempty" reference:"dns_server"`
+	ReverseMapping         bool               `json:"reverse_mapping,omitempty"`
+	DefaultRejectRcode     *DNSRejectRCode    `json:"default_reject_rcode,omitempty"`
+	AllowResolverDiscovery bool               `json:"allow_resolver_discovery,omitempty"`
 	DNSClientOptions
 }
 
