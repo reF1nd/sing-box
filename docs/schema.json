@@ -6236,6 +6236,15 @@
                   }
                 }
               ]
+            },
+            "fallback": {
+              "$ref": "#/$defs/ServerOptions"
+            },
+            "fallback_for_alpn": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/ServerOptions"
+              }
             }
           },
           "required": [
@@ -11556,6 +11565,9 @@
             },
             "client_metadata": {
               "type": "string"
+            },
+            "disable_reuse": {
+              "type": "boolean"
             }
           },
           "required": [
