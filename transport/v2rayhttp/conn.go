@@ -13,7 +13,6 @@ import (
 
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/baderror"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -160,16 +159,16 @@ func (c *HTTP2Conn) Read(b []byte) (n int, err error) {
 	if c.reader == nil {
 		<-c.create
 		if c.err != nil {
-			return 0, c.err
+			return 0, WrapHTTP2Error(c.err)
 		}
 	}
 	n, err = c.reader.Read(b)
-	return n, baderror.WrapH2(err)
+	return n, WrapHTTP2Error(err)
 }
 
 func (c *HTTP2Conn) Write(b []byte) (n int, err error) {
 	n, err = c.writer.Write(b)
-	return n, baderror.WrapH2(err)
+	return n, WrapHTTP2Error(err)
 }
 
 func (c *HTTP2Conn) Close() error {
@@ -206,7 +205,7 @@ type ServerHTTPConn struct {
 }
 
 func (c *ServerHTTPConn) Write(b []byte) (n int, err error) {
-	n, err = c.writer.Write(b)
+	n, err = c.HTTP2Conn.Write(b)
 	if err == nil {
 		c.Flusher.Flush()
 	}
