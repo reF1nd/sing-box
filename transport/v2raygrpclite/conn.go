@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/baderror"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/varbin"
@@ -57,7 +57,7 @@ func (c *GunConn) setup(reader io.Reader, err error) {
 
 func (c *GunConn) Read(b []byte) (n int, err error) {
 	n, err = c.read(b)
-	return n, baderror.WrapH2(err)
+	return n, v2rayhttp.WrapHTTP2Error(err)
 }
 
 func (c *GunConn) read(b []byte) (n int, err error) {
@@ -109,7 +109,7 @@ func (c *GunConn) Write(b []byte) (n int, err error) {
 	common.Must1(buffer.Write(b))
 	_, err = c.writer.Write(buffer.Bytes())
 	if err != nil {
-		return 0, baderror.WrapH2(err)
+		return 0, v2rayhttp.WrapHTTP2Error(err)
 	}
 	if c.flusher != nil {
 		c.flusher.Flush()
@@ -128,7 +128,7 @@ func (c *GunConn) WriteBuffer(buffer *buf.Buffer) error {
 	binary.PutUvarint(header[6:], uint64(dataLen))
 	err := common.Error(c.writer.Write(buffer.Bytes()))
 	if err != nil {
-		return baderror.WrapH2(err)
+		return v2rayhttp.WrapHTTP2Error(err)
 	}
 	if c.flusher != nil {
 		c.flusher.Flush()
