@@ -142,3 +142,16 @@ func TestParseHysteria2LinkOptions(t *testing.T) {
 	require.Equal(t, "example.com", options.TLS.ServerName)
 	require.Equal(t, "AA:BB", options.TLS.CertificatePinSHA256)
 }
+
+func TestParseVLESSLinkWSEarlyData(t *testing.T) {
+	link := "vless://11111111-1111-1111-1111-111111111111@example.com:443?type=ws&security=tls&host=example.com&path=%2F%3Fproxyip%3Dproxyip.example.com%26ed%3D2560#test"
+	outbound, err := ParseSubscriptionLink(link)
+	require.NoError(t, err)
+
+	options := outbound.Options.(*option.VLESSOutboundOptions)
+	require.NotNil(t, options.Transport)
+	require.Equal(t, "ws", options.Transport.Type)
+	require.Equal(t, "/?proxyip=proxyip.example.com", options.Transport.WebsocketOptions.Path)
+	require.Equal(t, uint32(2560), options.Transport.WebsocketOptions.MaxEarlyData)
+	require.Equal(t, "Sec-WebSocket-Protocol", options.Transport.WebsocketOptions.EarlyDataHeaderName)
+}
