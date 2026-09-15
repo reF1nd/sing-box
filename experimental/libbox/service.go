@@ -55,7 +55,7 @@ func (w *platformInterfaceWrapper) UsePlatformInterface() bool {
 	return true
 }
 
-func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions, androidVPNRouteBypass bool) (tun.Tun, error) {
 	if len(options.IncludeUID) > 0 || len(options.ExcludeUID) > 0 {
 		return nil, E.New("platform: unsupported uid options")
 	}
@@ -66,7 +66,12 @@ func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformO
 	if err != nil {
 		return nil, err
 	}
-	tunFd, err := w.iif.OpenTun(&tunOptions{options, routeRanges, platformOptions})
+	tunFd, err := w.iif.OpenTun(&tunOptions{
+		Options:               options,
+		routeRanges:           routeRanges,
+		TunPlatformOptions:    platformOptions,
+		androidVPNRouteBypass: androidVPNRouteBypass,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +333,11 @@ func (w *bridgeSessionWrapper) Close() error {
 
 func (w *platformInterfaceWrapper) UsePlatformAutoRedirect() bool {
 	return w.iif.UsePlatformAutoRedirect()
+}
+
+func (w *platformInterfaceWrapper) CreateAutoRedirectListener(inet6 bool) (int, error) {
+	fd, err := w.iif.CreateAutoRedirectListener(inet6)
+	return int(fd), err
 }
 
 func (w *platformInterfaceWrapper) CreateAutoRedirect(options adapter.AutoRedirectOptions) (adapter.AutoRedirectSession, error) {

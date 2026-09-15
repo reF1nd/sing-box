@@ -85,7 +85,7 @@ func (s *platformInterfaceStub) UsePlatformInterface() bool {
 	return false
 }
 
-func (s *platformInterfaceStub) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (s *platformInterfaceStub) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions, androidVPNRouteBypass bool) (tun.Tun, error) {
 	return nil, os.ErrInvalid
 }
 
@@ -202,6 +202,10 @@ func (s *platformInterfaceStub) CreateBridge(options adapter.BridgeOptions) (ada
 
 func (s *platformInterfaceStub) UsePlatformAutoRedirect() bool {
 	return false
+}
+
+func (s *platformInterfaceStub) CreateAutoRedirectListener(inet6 bool) (int, error) {
+	return -1, os.ErrInvalid
 }
 
 func (s *platformInterfaceStub) CreateAutoRedirect(options adapter.AutoRedirectOptions) (adapter.AutoRedirectSession, error) {

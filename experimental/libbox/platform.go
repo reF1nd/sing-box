@@ -30,6 +30,8 @@ type PlatformInterface interface {
 	UsePlatformBridge() bool
 	CreateBridge(options *BridgeOptions) (BridgeSession, error)
 	UsePlatformAutoRedirect() bool
+	// CreateAutoRedirectListener returns a listening socket owned by the caller.
+	CreateAutoRedirectListener(inet6 bool) (int32, error)
 	CreateAutoRedirect(options []byte, handler AutoRedirectHandler) (AutoRedirectSession, error)
 }
 
