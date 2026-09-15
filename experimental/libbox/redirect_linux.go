@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/common/srs"
 	"github.com/sagernet/sing-box/log"
@@ -20,7 +21,30 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"golang.org/x/sys/unix"
 )
+
+// NewAutoRedirectListener must run in the root service. The caller owns the
+// returned descriptor and transfers it to the app through Binder.
+func NewAutoRedirectListener(inet6 bool, socketContext string) (int32, error) {
+	address := "0.0.0.0:0"
+	if inet6 {
+		address = "[::]:0"
+	}
+	listenConfig := net.ListenConfig{KeepAlive: 10 * time.Minute}
+	listener, err := withSocketCreateContext(socketContext, func() (net.Listener, error) {
+		return listenConfig.Listen(context.Background(), "tcp", address)
+	})
+	if err != nil {
+		return -1, err
+	}
+	defer listener.Close()
+	fd, err := control.Conn0(listener.(*net.TCPListener), func(fd uintptr) (int, error) {
+		return unix.FcntlInt(fd, unix.F_DUPFD_CLOEXEC, 0)
+	})
+	return int32(fd), err
+}
 
 func NewAutoRedirectService(options []byte, handler AutoRedirectHandler) (AutoRedirectSession, error) {
 	tunOptions, tableName, redirectPort, err := decodeAutoRedirectOptions(options)
