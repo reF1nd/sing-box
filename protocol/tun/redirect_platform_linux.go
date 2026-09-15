@@ -3,6 +3,7 @@
 package tun
 
 import (
+	"net"
 	"net/netip"
 	"os"
 	"sync"
@@ -37,10 +38,18 @@ func (r *platformAutoRedirect) Start() error {
 	if listenAddress.Is6() {
 		redirectServer.SetExternalTransparent()
 	}
-	err := redirectServer.Start()
+	// Android isolates loopback traffic between users. The root service must
+	// create the listener so cloned/work-profile apps can reach it; passing an
+	// app-owned socket to root to configure it does not change its identity.
+	fd, err := r.inbound.platformInterface.CreateAutoRedirectListener(listenAddress.Is6())
 	if err != nil {
-		return E.Cause(err, "start redirect server")
+		return E.Cause(err, "create redirect listener")
 	}
+	listener, err := autoRedirectListenerFromFD(fd)
+	if err != nil {
+		return E.Cause(err, "adopt redirect listener")
+	}
+	redirectServer.StartWithListener(listener)
 	session, err := r.inbound.platformInterface.CreateAutoRedirect(adapter.AutoRedirectOptions{
 		TunOptions:                     &r.inbound.tunOptions,
 		TableName:                      "sing-box",
@@ -58,6 +67,26 @@ func (r *platformAutoRedirect) Start() error {
 	r.session = session
 	r.sessionAccess.Unlock()
 	return nil
+}
+
+// autoRedirectListenerFromFD consumes fd on both success and failure.
+func autoRedirectListenerFromFD(fd int) (*net.TCPListener, error) {
+	file := os.NewFile(uintptr(fd), "redirect-listener")
+	if file == nil {
+		return nil, os.ErrInvalid
+	}
+	defer file.Close()
+	// FileListener duplicates fd; the temporary file must still be closed.
+	listener, err := net.FileListener(file)
+	if err != nil {
+		return nil, err
+	}
+	tcpListener, loaded := listener.(*net.TCPListener)
+	if !loaded {
+		_ = listener.Close()
+		return nil, E.New("redirect listener is not TCP")
+	}
+	return tcpListener, nil
 }
 
 func (r *platformAutoRedirect) routeAddressSetFileDescriptor() (int, error) {
