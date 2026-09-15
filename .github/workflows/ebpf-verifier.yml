@@ -1,0 +1,83 @@
+name: Verify eBPF program loading
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ebpf-verifier.yml'
+      - 'box.go'
+      - 'cmd/sing-box/cmd_tools_ebpf.go'
+      - 'constant/proxy.go'
+      - 'option/ebpf.go'
+      - 'common/dialer/**'
+      - 'common/listener/**'
+      - 'common/process/**'
+      - 'common/udpio/**'
+      - 'dns/transport/fakeip/store_ebpf.go'
+      - 'experimental/clashapi/ebpf*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'include/ebpf*.go'
+      - 'protocol/ebpf/**'
+      - 'protocol/tailscale/endpoint.go'
+      - 'route/network*.go'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Linux kernel verifier
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.8
+
+      - name: Test sing-box integration
+        run: |
+          go test -tags with_ebpf \
+            ./adapter ./common/dialer ./common/listener ./protocol/ebpf .
+          go test -run '^$' -tags with_ebpf,with_gvisor ./protocol/tailscale
+
+      # protocol/ebpf's own real-kernel tests (network namespaces, real TC
+      # attachments, real packets) are gated at runtime by os.Geteuid() == 0,
+      # not by a build tag, so the unprivileged "Test sing-box integration"
+      # step above only ever exercises their skip path. Without a privileged
+      # run of this package specifically, netns/TCX/real-ping/real-repair
+      # coverage never actually executes in CI at all.
+      #
+      # SING_BOX_EBPF_REQUIRE_TCX=1 turns every TCX attachment test's
+      # fallback-to-clsact-or-skip path into a hard failure instead (see
+      # requireOrSkipTCX in tc_fakeip_icmp_tcx_netns_test.go). ubuntu-24.04's
+      # kernel (6.8+, TCX has shipped since 6.6) is expected to support TCX,
+      # so on this specific runner a TCX test quietly degrading to clsact --
+      # or skipping outright -- is a regression to catch, not a legitimate
+      # environment limitation to route around. This is deliberately not set
+      # for any environment whose kernel is not already known to support
+      # TCX; those still skip cleanly with the variable unset.
+      - name: Run protocol/ebpf real-kernel tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env \
+            "PATH=$PATH" \
+            SING_BOX_EBPF_INTEGRATION=1 \
+            SING_BOX_EBPF_REQUIRE_TCX=1 \
+            go test -v -count=1 -race \
+              -tags with_ebpf,ebpf_integration \
+              ./protocol/ebpf 2>&1 | tee verifier.log
+
+      - name: Upload verifier log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ebpf-verifier
+          path: verifier.log
+          if-no-files-found: warn
+          retention-days: 14

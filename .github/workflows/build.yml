@@ -76,7 +76,20 @@ jobs:
       - name: Calculate version
         if: github.event_name != 'workflow_dispatch'
         run: |-
-          go run -v ./cmd/internal/read_tag --ci --nightly
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            go run -v ./cmd/internal/read_tag --ci --nightly
+          elif [[ "$GITHUB_REF_NAME" == "stable" ]]; then
+            base_version="$(awk '/^#### [0-9]+\.[0-9]+\.[0-9]+/ { print $2; exit }' docs/changelog.md)"
+            if [[ -z "$base_version" ]]; then
+              echo "unable to determine stable version from docs/changelog.md" >&2
+              exit 1
+            fi
+            version="$base_version-$(git rev-parse --short HEAD)"
+            echo "version=$version" >> "$GITHUB_ENV"
+          else
+            echo "no reachable version tag" >&2
+            exit 1
+          fi
       - name: Set outputs
         id: outputs
         run: |-
