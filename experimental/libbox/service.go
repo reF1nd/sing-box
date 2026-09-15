@@ -57,7 +57,7 @@ func (w *platformInterfaceWrapper) UsePlatformInterface() bool {
 	return true
 }
 
-func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions, androidVPNRouteBypass bool) (tun.Tun, error) {
 	if len(options.IncludeUID) > 0 || len(options.ExcludeUID) > 0 {
 		return nil, E.New("platform: unsupported uid options")
 	}
@@ -68,7 +68,12 @@ func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformO
 	if err != nil {
 		return nil, err
 	}
-	tunFd, err := w.iif.OpenTun(&tunOptions{options, routeRanges, platformOptions})
+	tunFd, err := w.iif.OpenTun(&tunOptions{
+		Options:               options,
+		routeRanges:           routeRanges,
+		TunPlatformOptions:    platformOptions,
+		androidVPNRouteBypass: androidVPNRouteBypass,
+	})
 	if err != nil {
 		return nil, err
 	}

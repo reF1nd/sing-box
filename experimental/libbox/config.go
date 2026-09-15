@@ -85,7 +85,7 @@ func (s *platformInterfaceStub) UsePlatformInterface() bool {
 	return false
 }
 
-func (s *platformInterfaceStub) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (s *platformInterfaceStub) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions, androidVPNRouteBypass bool) (tun.Tun, error) {
 	return nil, os.ErrInvalid
 }
 

@@ -69,7 +69,7 @@ func (p *windowsPlatformInterface) UsePlatformInterface() bool {
 	return false
 }
 
-func (p *windowsPlatformInterface) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error) {
+func (p *windowsPlatformInterface) OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions, androidVPNRouteBypass bool) (tun.Tun, error) {
 	return nil, os.ErrInvalid
 }
 

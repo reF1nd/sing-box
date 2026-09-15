@@ -16,7 +16,7 @@ type PlatformInterface interface {
 	AutoDetectInterfaceControl(fd int) error
 
 	UsePlatformInterface() bool
-	OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
+	OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions, androidVPNRouteBypass bool) (tun.Tun, error)
 	ProcessPlatformOptions(options option.TunPlatformOptions) error
 
 	UsePlatformDefaultInterfaceMonitor() bool
