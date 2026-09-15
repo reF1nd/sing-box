@@ -22,6 +22,7 @@ type TunOptions interface {
 	GetDNSServerAddress() (StringIterator, error)
 	GetMTU() int32
 	GetAutoRoute() bool
+	GetAndroidVPNRouteBypass() bool
 	GetStrictRoute() bool
 	GetInet4RouteAddress() RoutePrefixIterator
 	GetInet6RouteAddress() RoutePrefixIterator
@@ -113,6 +114,10 @@ func (o *tunOptions) GetMTU() int32 {
 
 func (o *tunOptions) GetAutoRoute() bool {
 	return o.AutoRoute
+}
+
+func (o *tunOptions) GetAndroidVPNRouteBypass() bool {
+	return o.AndroidVPNRouteBypass
 }
 
 func (o *tunOptions) GetStrictRoute() bool {

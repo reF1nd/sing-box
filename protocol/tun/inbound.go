@@ -272,6 +272,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 		inbound.tunOptions.AutoRedirectMarkMode = true
 		usePlatformAutoRedirect := platformInterface != nil && platformInterface.UsePlatformAutoRedirect()
+		inbound.platformOptions.AndroidVPNRouteBypass = C.IsAndroid && usePlatformAutoRedirect &&
+			(len(inbound.routeRuleSet) > 0 || len(inbound.routeExcludeRuleSet) > 0)
 		if usePlatformAutoRedirect {
 			inbound.autoRedirect, err = newPlatformAutoRedirect(inbound)
 		} else {
