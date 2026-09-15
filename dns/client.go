@@ -360,11 +360,14 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 		case <-ctx.Done():
 			return nil, nil, exchangeDone, ctx.Err()
 		}
+		// A shared result belongs to the environment where its query started.
+		if c.newCacheKey(transport, question, message, options) != operation.cacheKey {
+			continue
+		}
 		if loadedPending.err != nil {
 			return nil, nil, exchangeDone, loadedPending.err
 		}
 		if loadedPending.response != nil {
-			operation.cacheKey = c.newCacheKey(transport, question, message, options)
 			return c.continueExchange(ctx, transport, operation, loadedPending.response)
 		}
 	}
@@ -482,15 +485,15 @@ func (c *Client) ExchangeAsync(ctx context.Context, transport adapter.DNSTranspo
 				callback(nil, waitErr)
 				return
 			}
+			// Retry under the current key instead of relabeling an old result.
+			if c.newCacheKey(transport, operation.question, operation.message, options) != operation.cacheKey || pending.response == nil && pending.err == nil {
+				c.ExchangeAsync(ctx, transport, message, options, responseChecker, callback)
+				return
+			}
 			if pending.err != nil {
 				callback(nil, pending.err)
 				return
 			}
-			if pending.response == nil {
-				c.ExchangeAsync(ctx, transport, message, options, responseChecker, callback)
-				return
-			}
-			operation.cacheKey = c.newCacheKey(transport, operation.question, operation.message, options)
 			_, sharedResponse, _, sharedErr := c.continueExchange(ctx, transport, operation, pending.response)
 			callback(sharedResponse, sharedErr)
 		})
