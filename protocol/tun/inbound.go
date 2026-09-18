@@ -374,7 +374,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				t.tunOptions.NetNs = manager.ResolvePath(t.tunOptions.NetNs)
 			}
 		}
-		if t.platformInterface == nil || C.IsWindows {
+		if t.platformInterface == nil || !t.platformInterface.UsePlatformInterface() {
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
 				if len(ipSets) == 0 {
