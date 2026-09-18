@@ -394,7 +394,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 			routeAddressSet        []*netipx.IPSet
 			routeExcludeAddressSet []*netipx.IPSet
 		)
-		if t.autoRedirect != nil || t.platformInterface == nil || C.IsWindows {
+		if t.autoRedirect != nil || t.platformInterface == nil || !t.platformInterface.UsePlatformInterface() {
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
 				if len(ipSets) == 0 {
