@@ -35,14 +35,16 @@ import (
 var _ adapter.NetworkManager = (*NetworkManager)(nil)
 
 type NetworkManager struct {
-	ctx                     context.Context
-	logger                  logger.ContextLogger
-	router                  adapter.Router
-	interfaceFinder         *control.DefaultInterfaceFinder
-	networkInterfaces       common.TypedValue[[]adapter.NetworkInterface]
-	autoDetectInterface     bool
-	defaultOptions          adapter.NetworkOptions
-	autoRedirectOutputMark  uint32
+	ctx                    context.Context
+	logger                 logger.ContextLogger
+	router                 adapter.Router
+	interfaceFinder        *control.DefaultInterfaceFinder
+	networkInterfaces      common.TypedValue[[]adapter.NetworkInterface]
+	autoDetectInterface    bool
+	defaultOptions         adapter.NetworkOptions
+	autoRedirectOutputMark uint32
+	//nolint:unused // accessed by the with_ebpf Linux and Android implementation
+	ebpfSelfBypass          ebpfSelfBypassState
 	networkMonitor          tun.NetworkUpdateMonitor
 	interfaceMonitor        tun.DefaultInterfaceMonitor
 	packageManager          tun.PackageManager

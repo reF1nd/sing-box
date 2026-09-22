@@ -32,6 +32,7 @@ type Instance struct {
 	pauseManager          pause.Manager
 	urlTestHistoryStorage *urltest.HistoryStorage
 	outboundManager       adapter.OutboundManager
+	inboundManager        adapter.InboundManager
 	endpointManager       adapter.EndpointManager
 	logFactory            log.Factory
 }
@@ -138,6 +139,7 @@ func (s *StartedService) newInstance(ctx context.Context, profileContent string,
 	i.pauseManager = service.FromContext[pause.Manager](ctx)
 	i.cacheFile = service.FromContext[adapter.CacheFile](ctx)
 	i.outboundManager = service.FromContext[adapter.OutboundManager](ctx)
+	i.inboundManager = service.FromContext[adapter.InboundManager](ctx)
 	i.endpointManager = service.FromContext[adapter.EndpointManager](ctx)
 	i.logFactory = boxInstance.LogFactory()
 	log.SetStdLogger(boxInstance.LogFactory().Logger())
@@ -154,6 +156,7 @@ func attachInstance(ctx context.Context) *Instance {
 		cacheFile:             service.FromContext[adapter.CacheFile](ctx),
 		urlTestHistoryStorage: service.PtrFromContext[urltest.HistoryStorage](ctx),
 		outboundManager:       service.FromContext[adapter.OutboundManager](ctx),
+		inboundManager:        service.FromContext[adapter.InboundManager](ctx),
 		endpointManager:       service.FromContext[adapter.EndpointManager](ctx),
 		logFactory:            service.FromContext[log.Factory](ctx),
 	}

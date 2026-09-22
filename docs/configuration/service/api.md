@@ -16,6 +16,13 @@ The server also accepts [gRPC-Web](https://github.com/grpc/grpc/blob/master/doc/
 including the WebSocket transport of [@improbable-eng/grpc-web](https://github.com/improbable-eng/grpc-web)
 for bidirectional streaming methods.
 
+The bundled `sing-box api` client can query this service. For a running eBPF
+inbound, `sing-box api ebpf` provides runtime diagnostics; this is separate
+from the kernel capability probe provided by `sing-box tools ebpf status`.
+Runtime results include attachments, recovery state, UDP NAT, active programs,
+map occupancy, and data-plane failure counters. Expensive program/map
+enumeration runs only for an explicit query.
+
 ### Structure
 
 ```json

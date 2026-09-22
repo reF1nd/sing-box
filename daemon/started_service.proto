@@ -27,6 +27,7 @@ service StartedService {
   rpc CloseAllConnections(google.protobuf.Empty) returns(google.protobuf.Empty) {}
   rpc GetDeprecatedWarnings(google.protobuf.Empty) returns(DeprecatedWarnings) {}
   rpc GetStartedAt(google.protobuf.Empty) returns(StartedAt) {}
+  rpc GetEBPFDiagnostics(google.protobuf.Empty) returns(EBPFDiagnosticsResponse) {}
 
   rpc SubscribeOutbounds(google.protobuf.Empty) returns (stream OutboundList) {}
   rpc StartNetworkQualityTest(NetworkQualityTestRequest) returns (stream NetworkQualityTestProgress) {}
@@ -805,4 +806,152 @@ message Notification {
 message NotificationCancel {
   string identifier = 1;
   int32 typeID = 2;
+}
+
+message EBPFDiagnosticsResponse {
+  repeated EBPFInboundDiagnostics inbounds = 1;
+  EBPFKernelRuntimeDiagnostics kernelRuntime = 2;
+  int32 schemaVersion = 3;
+}
+
+message EBPFKernelRuntimeDiagnostics {
+  int64 observedAt = 1;
+  repeated EBPFProgramDiagnostics programs = 2;
+  string programsError = 3;
+  EBPFMapOccupancyDiagnostics mapOccupancy = 4;
+}
+
+message EBPFProgramDiagnostics {
+  uint32 id = 1;
+  string name = 2;
+  string type = 3;
+  int32 mapCount = 4;
+  repeated uint32 mapIDs = 5;
+}
+
+message EBPFMapOccupancyDiagnostics {
+  string status = 1;
+  repeated EBPFMapDiagnostics maps = 2;
+  string error = 3;
+}
+
+message EBPFMapDiagnostics {
+  uint32 id = 1;
+  string name = 2;
+  string type = 3;
+  uint32 maxEntries = 4;
+  uint32 keySize = 5;
+  uint32 valueSize = 6;
+  uint32 flags = 7;
+  uint32 entries = 8;
+  bool supported = 9;
+  string error = 10;
+}
+
+message EBPFInboundDiagnostics {
+  int32 schemaVersion = 1;
+  int64 observedAt = 2;
+  string tag = 3;
+  string state = 4;
+  bool localEnabled = 5;
+  string localDataPlane = 6;
+  bool sharedEnabled = 7;
+  string sharedDataPlane = 8;
+  bool fakeIPICMPReply = 9;
+  repeated EBPFAttachmentDiagnostics attachments = 10;
+  string lastError = 11;
+  optional int64 lastErrorAt = 12;
+  optional int64 lastRecoveryAt = 13;
+  bool recoveryPending = 14;
+  bool recoveryUnrecoverable = 15;
+  optional int64 nextRetryAt = 16;
+  int64 udpSessionCount = 23;
+  EBPFUDPReplySocketDiagnostics udpReplySockets = 24;
+  EBPFCounters counters = 25;
+  EBPFUDPNATDiagnostics udpNAT = 26;
+  EBPFBypassRuleSetDiagnostics localBypassRuleSet = 27;
+  EBPFBypassRuleSetDiagnostics sharedBypassRuleSet = 28;
+  string localCgroupAttachMode = 29;
+  string localUdpCleanupMode = 30;
+  string localUdpUserspaceCleanupMode = 31;
+  string localUdpStorageMode = 32;
+  string localUdpTimeMode = 33;
+  string tcBackendMode = 34;
+  string tcListenerLookupMode = 35;
+  string tcAttachmentMode = 36;
+  string tcDeliveryInterface = 37;
+  int32 tcDeliveryInterfaceIndex = 38;
+  uint32 tcRoutingMark = 39;
+  int32 tcRoutingTable = 40;
+  int32 tcRoutingPriority = 41;
+  int32 tcAttachmentCount = 42;
+  int32 tcRetiredAttachmentCount = 43;
+  int32 tcRetiredDeliveryCount = 44;
+  bool tcRequiresRebuild = 45;
+  string tcHealthStatus = 46;
+  optional int64 tcLastHealthCheckAt = 47;
+  optional int64 tcLastReconcileAt = 48;
+  uint64 tcNetworkGeneration = 49;
+}
+
+message EBPFAttachmentDiagnostics {
+  string interfaceName = 1;
+  int32 interfaceIndex = 2;
+  string role = 3;
+  string framing = 4;
+  string mechanism = 5;
+  bool icmpEchoReply = 6;
+}
+
+message EBPFBypassRuleSetBackendState {
+  uint64 version = 1;
+  bool known = 2;
+}
+
+message EBPFBypassRuleSetDiagnostics {
+  bool consistent = 1;
+  bool pending = 2;
+  uint64 policyVersion = 3;
+  uint64 expectedPolicyVersion = 4;
+  uint64 retryCount = 5;
+  map<string, EBPFBypassRuleSetBackendState> backendState = 6;
+}
+
+message EBPFUDPReplySocketDiagnostics {
+  int64 count = 1;
+  int64 peak = 2;
+  int64 evicted = 3;
+  int64 capacityRejected = 4;
+}
+
+message EBPFCounters {
+  uint64 assignmentLookupFailures = 1;
+  uint64 tcSocketLookupFailures = 2;
+  uint64 tcSKAssignFailures = 3;
+  uint64 tcAssignmentUpdateFailures = 4;
+  uint64 tcLocalFragmentPasses = 5;
+  uint64 tcSharedFragmentPasses = 6;
+  uint64 tokenReservationFailures = 7;
+  uint64 rewriteFailures = 8;
+  reserved 9, 10;
+  uint64 sharedIngressFragmentPasses = 11;
+  uint64 sharedEgressFragmentPasses = 12;
+  uint64 sharedReconcileFailures = 13;
+  uint64 recoveryAttempts = 14;
+  uint64 recoverySuccesses = 15;
+  uint64 recoveryFailures = 16;
+  uint64 fakeIPICMPReplies = 17;
+  uint64 fakeIPICMPPassThrough = 18;
+  uint64 fakeIPICMPRewriteFailureDrops = 19;
+}
+
+message EBPFUDPNATDiagnostics {
+  int64 activeSessions = 1;
+  uint64 createdSessions = 2;
+  uint64 capacityEvictions = 3;
+  uint64 queueDrops = 4;
+  uint64 socketReleaseEvents = 5;
+  uint64 socketReleaseMatched = 6;
+  uint64 pendingReleaseCapacityRejected = 7;
+  uint64 releaseNotificationDrops = 8;
 }
