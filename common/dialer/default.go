@@ -141,6 +141,7 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		markFunc := networkManager.AutoRedirectOutputMarkFunc()
 		dialer.Control = control.Append(dialer.Control, markFunc)
 		listenConfig.Control = control.Append(listenConfig.Control, markFunc)
+		dialer.Control, listenConfig.Control = appendEBPFSelfBypass(networkManager, dialer.Control, listenConfig.Control)
 	}
 	if options.ReuseAddr {
 		listenConfig.Control = control.Append(listenConfig.Control, control.ReuseAddr())

@@ -252,6 +252,9 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize network manager")
 	}
+	if err = dialer.PrepareEBPFSelfBypass(networkManager, options.Inbounds); err != nil {
+		return nil, E.Cause(err, "prepare eBPF self-bypass")
+	}
 	service.MustRegister[adapter.NetworkManager](ctx, networkManager)
 	// Must register after ConnectionManager: the Apple HTTP engine's proxy bridge reads it from the context when Manager.Start resolves the default client.
 	httpClientManager := httpclient.NewManager(ctx, logFactory.NewLogger("httpclient"), options.HTTPClients, routeOptions.DefaultHTTPClient)

@@ -54,11 +54,20 @@ func isNeighborDNSRule(rule option.DefaultDNSRule) bool {
 }
 
 func isWIFIRule(rule option.DefaultRule) bool {
-	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
+	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0 || C.IsAndroid && isWIFINetworkType(rule.NetworkType)
 }
 
 func isWIFIDNSRule(rule option.DefaultDNSRule) bool {
-	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
+	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0 || C.IsAndroid && isWIFINetworkType(rule.NetworkType)
+}
+
+func isWIFINetworkType(networkType []option.InterfaceType) bool {
+	for _, interfaceType := range networkType {
+		if interfaceType.Build() == C.InterfaceTypeWIFI {
+			return true
+		}
+	}
+	return false
 }
 
 func hasLocalNeighborDNSServer(servers []option.DNSServerOptions) bool {
