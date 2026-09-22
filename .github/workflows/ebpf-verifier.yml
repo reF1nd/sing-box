@@ -1,0 +1,73 @@
+name: Verify eBPF integration
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ebpf-verifier.yml'
+      - 'adapter/ebpf.go'
+      - 'box.go'
+      - 'cmd/sing-box/cmd_api_ebpf.go'
+      - 'cmd/sing-box/cmd_tools_ebpf.go'
+      - 'constant/proxy.go'
+      - 'option/ebpf.go'
+      - 'common/dialer/**'
+      - 'common/listener/**'
+      - 'common/process/**'
+      - 'common/udpio/**'
+      - 'daemon/instance.go'
+      - 'daemon/started_service*.go'
+      - 'daemon/started_service.proto'
+      - 'dns/transport/fakeip/store_ebpf.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'include/ebpf*.go'
+      - 'protocol/ebpf/**'
+      - 'protocol/tailscale/endpoint.go'
+      - 'route/network*.go'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Linux integration
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.8
+
+      - name: Test sing-box integration
+        run: |
+          go test -tags with_ebpf \
+            ./adapter ./common/dialer ./common/listener ./protocol/ebpf .
+          go test -run '^$' -tags with_ebpf,with_gvisor ./protocol/tailscale
+
+      # sing-ebpf owns verifier, program-run, attachment and packet-path tests.
+      # This repository owns the sing-box integration around that library.
+      # Run this package as root so its namespace and route-conflict tests do
+      # not silently take their unprivileged skip paths.
+      - name: Run privileged sing-box integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo env \
+            "PATH=$PATH" \
+            go test -v -count=1 -race \
+              -tags with_ebpf \
+              ./protocol/ebpf 2>&1 | tee verifier.log
+
+      - name: Upload verifier log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ebpf-verifier
+          path: verifier.log
+          if-no-files-found: warn
+          retention-days: 14
