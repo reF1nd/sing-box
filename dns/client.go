@@ -293,17 +293,17 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 		disableCache:    disableCache,
 	}
 	if !disableCache {
-		cacheKey := c.newCacheKey(transport, question, message, options)
-		operation.cacheKey = cacheKey
-		exchangeKey := dnsExchangeKey{dnsCacheKey: cacheKey, timeout: options.Timeout}
-		cond, loaded := c.cacheLock.LoadOrStore(exchangeKey, make(chan struct{}))
-		if !loaded {
-			operation.releaseCond = func() {
-				c.cacheLock.Delete(exchangeKey)
-				close(cond)
-			}
-		}
 		for {
+			cacheKey := c.newCacheKey(transport, question, message, options)
+			operation.cacheKey = cacheKey
+			exchangeKey := dnsExchangeKey{dnsCacheKey: cacheKey, timeout: options.Timeout}
+			cond, loaded := c.cacheLock.LoadOrStore(exchangeKey, make(chan struct{}))
+			if !loaded {
+				operation.releaseCond = func() {
+					c.cacheLock.Delete(exchangeKey)
+					close(cond)
+				}
+			}
 			response, ttl, isStale := c.loadResponse(cacheKey)
 			if response != nil {
 				if isStale && !options.DisableOptimisticCache {
@@ -334,9 +334,7 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 			if err != nil {
 				return nil, nil, exchangeDone, err
 			}
-			cacheKey = c.newCacheKey(transport, question, message, options)
-			operation.cacheKey = cacheKey
-			loaded = false
+			// Rejoin deduplication under the current environment before retrying.
 		}
 	}
 
