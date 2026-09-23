@@ -108,19 +108,31 @@ func (s *Store) Start() error {
 	if metadata != nil && metadata.Inet4Range == s.inet4.addressRange && metadata.Inet6Range == s.inet6.addressRange {
 		s.inet4.current = metadata.Inet4Current
 		s.inet6.current = metadata.Inet6Current
+		s.inet4.reservedEnd = s.inet4.current
+		s.inet6.reservedEnd = s.inet6.current
 	} else {
-		if s.inet4.addressRange.IsValid() {
-			s.inet4.current = s.inet4.addressRange.Addr().Next()
+		s.resetPools()
+		if err := storage.FakeIPReset(); err != nil {
+			return E.Cause(err, "reset fakeip storage")
 		}
-		if s.inet6.addressRange.IsValid() {
-			s.inet6.current = s.inet6.addressRange.Addr().Next()
-		}
-		_ = storage.FakeIPReset()
 	}
-	s.inet4.reservedEnd = s.inet4.current
-	s.inet6.reservedEnd = s.inet6.current
 	s.storage = storage
 	return nil
+}
+
+func (p *addressPool) reset() {
+	p.reservedCount = 0
+	if p.addressRange.IsValid() {
+		p.current = p.addressRange.Addr().Next()
+	} else {
+		p.current = netip.Addr{}
+	}
+	p.reservedEnd = p.current
+}
+
+func (s *Store) resetPools() {
+	s.inet4.reset()
+	s.inet6.reset()
 }
 
 func (s *Store) Contains(address netip.Addr) bool {
@@ -202,10 +214,19 @@ func (s *Store) Lookup(address netip.Addr) (string, bool) {
 	return s.storage.FakeIPLoad(address)
 }
 
+// Reset drops all mappings and restarts allocation from the beginning of the ranges.
 func (s *Store) Reset() error {
 	s.addressAccess.Lock()
 	defer s.addressAccess.Unlock()
-	s.inet4.resetReservation()
-	s.inet6.resetReservation()
-	return s.storage.FakeIPReset()
+	err := s.storage.FakeIPReset()
+	if err != nil {
+		return err
+	}
+	s.resetPools()
+	return s.storage.FakeIPSaveMetadata(&adapter.FakeIPMetadata{
+		Inet4Range:   s.inet4.addressRange,
+		Inet6Range:   s.inet6.addressRange,
+		Inet4Current: s.inet4.current,
+		Inet6Current: s.inet6.current,
+	})
 }
