@@ -73,16 +73,20 @@ func (s *Store) Start() error {
 		s.inet4Current = metadata.Inet4Current
 		s.inet6Current = metadata.Inet6Current
 	} else {
-		if s.inet4Range.IsValid() {
-			s.inet4Current = s.inet4Range.Addr().Next()
-		}
-		if s.inet6Range.IsValid() {
-			s.inet6Current = s.inet6Range.Addr().Next()
-		}
+		s.resetCurrent()
 		_ = storage.FakeIPReset()
 	}
 	s.storage = storage
 	return nil
+}
+
+func (s *Store) resetCurrent() {
+	if s.inet4Range.IsValid() {
+		s.inet4Current = s.inet4Range.Addr().Next()
+	}
+	if s.inet6Range.IsValid() {
+		s.inet6Current = s.inet6Range.Addr().Next()
+	}
 }
 
 func (s *Store) Contains(address netip.Addr) bool {
@@ -156,6 +160,16 @@ func (s *Store) Lookup(address netip.Addr) (string, bool) {
 	return s.storage.FakeIPLoad(address)
 }
 
+// Reset drops all mappings and restarts allocation from the beginning of the ranges.
 func (s *Store) Reset() error {
-	return s.storage.FakeIPReset()
+	s.addressAccess.Lock()
+	defer s.addressAccess.Unlock()
+	err := s.storage.FakeIPReset()
+	if err != nil {
+		return err
+	}
+	s.resetCurrent()
+	// Leave metadata persistence to normal allocation and Close. Persisting the
+	// initial cursor here could reassign saved addresses after an unclean restart.
+	return nil
 }
