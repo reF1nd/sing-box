@@ -1,20 +1,62 @@
-//go:build !ios
-
 package clashapi
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"net/http"
+
+	"github.com/sagernet/sing/common/json"
 
 	"github.com/go-chi/render"
 )
 
+const maxReloadRequestBodyBytes = 64 * 1024
+
+// reload is compatible with PUT /configs of mihomo, except that only reloading
+// the configuration files sing-box was started with is supported.
 func reload(server *Server) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Path    string `json:"path"`
+			Payload string `json:"payload"`
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxReloadRequestBodyBytes)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+				render.Status(r, http.StatusRequestEntityTooLarge)
+				render.JSON(w, r, newError("request body too large"))
+				return
+			}
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, ErrBadRequest)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			err = json.Unmarshal(body, &request)
+			if err != nil {
+				render.Status(r, http.StatusBadRequest)
+				render.JSON(w, r, ErrBadRequest)
+				return
+			}
+		}
+		if request.Path != "" || request.Payload != "" {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, newError("only reloading the configuration files sing-box was started with is supported"))
+			return
+		}
+		err = server.configChecker().CheckConfig()
+		if err != nil {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, newError(err.Error()))
+			return
+		}
 		render.NoContent(w, r)
 		if err := http.NewResponseController(w).Flush(); err != nil {
 			return
 		}
-		server.logger.Warn("sing-box reloading configuration...")
+		server.logger.Warn("sing-box reloading...")
 		server.router.Reload()
 	}
 }
