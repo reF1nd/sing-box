@@ -27,10 +27,11 @@ func NewProcessItem(processNameList []string) *ProcessItem {
 }
 
 func (r *ProcessItem) Match(metadata *adapter.InboundContext) bool {
-	if metadata.ProcessInfo == nil {
+	processInfo := metadata.ResolveProcessInfo()
+	if processInfo == nil {
 		return false
 	}
-	return slices.ContainsFunc(metadata.ProcessInfo.ProcessPaths, func(processPath string) bool {
+	return slices.ContainsFunc(processInfo.ProcessPaths, func(processPath string) bool {
 		return r.processMap[filepath.Base(processPath)]
 	})
 }
