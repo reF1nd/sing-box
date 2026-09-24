@@ -2,10 +2,13 @@ package local
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 
 	mDNS "github.com/miekg/dns"
 )
+
+var errResolvedUnavailable = errors.New("resolved interface unavailable")
 
 type ResolvedResolver interface {
 	Start() error
@@ -13,5 +16,6 @@ type ResolvedResolver interface {
 	Reset()
 	Environment() []string
 	ServerAddresses() []netip.Addr
+	Fallback() bool
 	ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error))
 }
