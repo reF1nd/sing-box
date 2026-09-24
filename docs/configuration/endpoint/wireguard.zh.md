@@ -72,6 +72,8 @@
 
 当 `system` 为 true 时，默认启用。
 
+此选项控制系统接口。连接对端所用 UDP socket 的 GSO 参阅 [拨号字段](/zh/configuration/shared/dial/#udp_gso) 中的 `udp_gso`。
+
 #### mtu
 
 WireGuard MTU。
