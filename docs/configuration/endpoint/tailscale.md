@@ -174,6 +174,8 @@ Try to enable generic segmentation offload.
 
 Enabled by default when `system_interface` is true.
 
+This controls the system interface. For the UDP sockets used to reach peers, see `udp_gso` in [Dial Fields](/configuration/shared/dial/#udp_gso).
+
 #### system_interface_mtu
 
 !!! question "Since sing-box 1.13.0"
@@ -261,7 +263,7 @@ When not set, the default DNS is used.
 
 !!! note
 
-    Dial Fields in Tailscale endpoints only control how it connects to the control plane and have nothing to do with actual connections.
+    Dial Fields in Tailscale endpoints only control how it connects to the control plane and have nothing to do with actual connections, except `udp_gso`, which also controls the magicsock and peer relay UDP sockets.
 
 See [Dial Fields](/configuration/shared/dial/) for details.
 

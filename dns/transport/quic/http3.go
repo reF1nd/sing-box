@@ -147,7 +147,7 @@ func (t *HTTP3Transport) newTransport() *http3.Transport {
 			if dialErr != nil {
 				return nil, dialErr
 			}
-			quicConn, dialErr := sQUIC.DialEarly(ctx, conn, t.tlsConfig, cfg)
+			quicConn, dialErr := sQUIC.DialEarly(ctx, conn, t.tlsConfig, sQUIC.ConfigWithGSO(sQUIC.ConfigWithGSO(cfg, t.dialer), conn))
 			if dialErr != nil {
 				conn.Close()
 				return nil, dialErr

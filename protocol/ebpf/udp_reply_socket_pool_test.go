@@ -8,10 +8,17 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
+	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/sagernet/sing/common/buf"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 )
 
 func newLoopbackUDPSocket(netip.AddrPort) (*net.UDPConn, func(), error) {
@@ -291,6 +298,85 @@ func TestUDPReplySocketPoolReusesBatchWriter(t *testing.T) {
 	}
 	if first.writer == nil || first.writer != second.writer {
 		t.Fatal("reply socket pool did not retain its packet batch writer")
+	}
+}
+
+func TestUDPReplyBatchWriterRespectsGSOPolicy(t *testing.T) {
+	receiver, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = receiver.Close() })
+	if err = receiver.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	target := M.SocksaddrFromNetIP(receiver.LocalAddr().(*net.UDPAddr).AddrPort())
+
+	for _, disabled := range []bool{false, true} {
+		socket, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = socket.Close() })
+		writer := newUDPReplyBatchWriter(socket, disabled)
+		if N.IsGSODisabled(writer) != disabled {
+			t.Fatalf("reply batch writer GSO policy lost: disabled=%v got=%v", disabled, N.IsGSODisabled(writer))
+		}
+		buffers := []*buf.Buffer{
+			buf.As([]byte("batch-a")).ToOwned(),
+			buf.As([]byte("batch-b")).ToOwned(),
+		}
+		if err = writer.WritePacketBatch(buffers, []M.Socksaddr{target, target}); err != nil {
+			t.Fatalf("WritePacketBatch(disabled=%v): %v", disabled, err)
+		}
+		received := make(map[string]bool, 2)
+		packet := make([]byte, 32)
+		for range 2 {
+			n, _, readErr := receiver.ReadFromUDPAddrPort(packet)
+			if readErr != nil {
+				t.Fatalf("ReadFromUDPAddrPort(disabled=%v): %v", disabled, readErr)
+			}
+			received[string(packet[:n])] = true
+		}
+		if !received["batch-a"] || !received["batch-b"] {
+			t.Fatalf("unexpected received payloads (disabled=%v): %v", disabled, received)
+		}
+	}
+}
+
+func TestUDPReplySocketPoolRespectsGlobalGSODisable(t *testing.T) {
+	const childEnv = "SING_BOX_TEST_EBPF_REPLY_GSO_CHILD"
+	if mode := os.Getenv(childEnv); mode != "" {
+		var pool udpReplySocketPool
+		t.Cleanup(func() { _ = pool.close() })
+
+		entry, release, err := pool.get(destinationOnShard(&pool, 2, 0), newLoopbackUDPSocket)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer release()
+
+		wantDisabled := mode == "true"
+		if N.IsGSODisabled(entry.writer) != wantDisabled {
+			t.Fatalf("pool reply batch writer GSO disabled = %v, want %v (SING_BOX_DISABLE_GSO=%q)", N.IsGSODisabled(entry.writer), wantDisabled, os.Getenv("SING_BOX_DISABLE_GSO"))
+		}
+		return
+	}
+
+	baseEnv := make([]string, 0, len(os.Environ())+2)
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "SING_BOX_DISABLE_GSO=") || strings.HasPrefix(entry, childEnv+"=") {
+			continue
+		}
+		baseEnv = append(baseEnv, entry)
+	}
+	for _, mode := range []string{"false", "true"} {
+		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestUDPReplySocketPoolRespectsGlobalGSODisable$")
+		cmd.Env = append(append([]string(nil), baseEnv...), "SING_BOX_DISABLE_GSO="+mode, childEnv+"="+mode)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("global SING_BOX_DISABLE_GSO=%s check failed: %v\n%s", mode, err, output)
+		}
 	}
 }
 

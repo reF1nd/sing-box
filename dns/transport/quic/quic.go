@@ -118,9 +118,9 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 				ctx,
 				rawConn,
 				t.tlsConfig,
-				&quic.Config{
+				sQUIC.ConfigWithGSO(&quic.Config{
 					InitialPacketSize: 1200,
-				},
+				}, t.dialer),
 			)
 			if err != nil {
 				rawConn.Close()

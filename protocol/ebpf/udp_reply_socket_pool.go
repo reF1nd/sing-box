@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/sing-box/common/udpgso"
 	"github.com/sagernet/sing/common/bufio"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -183,7 +184,7 @@ func (p *udpReplySocketPool) get(
 	entry := &udpReplySocketEntry{
 		source:            source,
 		conn:              socket,
-		writer:            bufio.NewPacketBatchWriter(bufio.NewPacketConn(socket)),
+		writer:            newUDPReplyBatchWriter(socket, udpgso.Disabled(nil)),
 		cleanup:           cleanup,
 		scheduledLastUsed: now,
 		heapIndex:         -1,
@@ -207,6 +208,13 @@ func (p *udpReplySocketPool) get(
 	p.addCount(1)
 	p.requestSweep()
 	return entry, releaseUDPReplySocketEntry(entry), nil
+}
+
+func newUDPReplyBatchWriter(socket *net.UDPConn, disableGSO bool) N.PacketBatchWriter {
+	if disableGSO {
+		return bufio.NewPacketBatchWriter(bufio.NewUDPConnWithoutGSO(socket))
+	}
+	return bufio.NewPacketBatchWriter(bufio.NewPacketConn(socket))
 }
 
 func (p *udpReplySocketPool) socketCapacity() int64 {
