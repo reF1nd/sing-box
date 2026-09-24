@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -50,6 +51,9 @@ type Router struct {
 	pauseManager      pause.Manager
 	trackers          []adapter.ConnectionTracker
 	platformInterface adapter.PlatformInterface
+
+	processLookupMode      process.LookupMode
+	processCacheGeneration atomic.Uint64
 
 	quicSniffCache             *expiringmap.Map[quicSniffCacheKey, string]
 	defaultDomainMatchStrategy C.DomainMatchStrategy
@@ -216,6 +220,9 @@ func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 					}
 				} else {
 					r.processSearcher = searcher
+					if C.IsAndroid {
+						r.processLookupMode = process.LookupOwner
+					}
 				}
 			}
 		}
@@ -276,6 +283,7 @@ func (r *Router) NeighborResolver() adapter.NeighborResolver {
 }
 
 func (r *Router) ResetNetwork() {
+	r.processCacheGeneration.Add(1)
 	r.httpClientManager.ResetNetwork()
 	r.dns.ResetNetwork()
 	if r.processCache != nil {
