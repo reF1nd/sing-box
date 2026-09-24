@@ -89,6 +89,7 @@ type ListenOptions struct {
 	TCPKeepAliveCount    int                `json:"tcp_keep_alive_count,omitempty"`
 	TCPFastOpen          bool               `json:"tcp_fast_open,omitempty"`
 	TCPMultiPath         bool               `json:"tcp_multi_path,omitempty"`
+	UDPGSO               *bool              `json:"udp_gso,omitempty"`
 	UDPFragment          *bool              `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault   bool               `json:"-"`
 	UDPTimeout           UDPTimeoutCompat   `json:"udp_timeout,omitempty"`

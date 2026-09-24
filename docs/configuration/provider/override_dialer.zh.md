@@ -11,6 +11,7 @@
   "connect_timeout": "5s",
   "tcp_fast_open": false,
   "tcp_multi_path": false,
+  "udp_gso": true,
   "udp_fragment": false,
   "domain_resolver": "", // 或 {}
   "network_strategy": "default",
@@ -30,4 +31,4 @@
 
 ### 字段
 
-`detour` `bind_interface` `inet4_bind_address` `inet6_bind_address` `routing_mark` `reuse_addr` `connect_timeout` `tcp_fast_open` `tcp_multi_path` `udp_fragment` `domain_resolver` `network_strategy` `network_type` `fallback_network_type` `fallback_delay` `tcp_keep_alive` `tcp_keep_alive_interval` `tcp_keep_alive_count` `disable_tcp_keep_alive` `domain_strategy` 详情参阅 [拨号字段](/zh/configuration/shared/dial)。
+`detour` `bind_interface` `inet4_bind_address` `inet6_bind_address` `routing_mark` `reuse_addr` `connect_timeout` `tcp_fast_open` `tcp_multi_path` `udp_gso` `udp_fragment` `domain_resolver` `network_strategy` `network_type` `fallback_network_type` `fallback_delay` `tcp_keep_alive` `tcp_keep_alive_interval` `tcp_keep_alive_count` `disable_tcp_keep_alive` `domain_strategy` 详情参阅 [拨号字段](/zh/configuration/shared/dial)。
