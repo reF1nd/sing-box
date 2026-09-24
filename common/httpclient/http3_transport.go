@@ -47,7 +47,7 @@ func newHTTP3RoundTripper(
 	if baseTLSConfig != nil {
 		handshakeTimeout = baseTLSConfig.HandshakeTimeout()
 	}
-	quicConfig := NewQUICConfig(options)
+	quicConfig := qtls.ConfigWithGSO(NewQUICConfig(options), rawDialer)
 	if handshakeTimeout > 0 {
 		quicConfig.HandshakeIdleTimeout = handshakeTimeout
 	}
@@ -65,6 +65,7 @@ func newHTTP3RoundTripper(
 				return nil, err
 			}
 			var quicConn *quic.Conn
+			quicConfig = qtls.ConfigWithGSO(quicConfig, conn)
 			if baseTLSConfig != nil {
 				quicConn, err = qtls.DialEarly(ctx, conn, prepareTLSConfig(baseTLSConfig, destination, []string{http3.NextProtoH3}), quicConfig)
 			} else {

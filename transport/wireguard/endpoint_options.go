@@ -27,6 +27,7 @@ type EndpointOptions struct {
 	InterfaceFinder   control.InterfaceFinder
 	EgressPoolOptions tun.UDPEgressPoolOptions
 	Dialer            N.Dialer
+	DisableUDPGSO     bool
 	CreateDialer      func(interfaceName string) N.Dialer
 	Tag               string
 	Name              string

@@ -72,6 +72,8 @@ Try to enable generic segmentation offload.
 
 Enabled by default when `system` is true.
 
+This controls the system interface. For the UDP socket used to reach peers, see `udp_gso` in [Dial Fields](/configuration/shared/dial/#udp_gso).
+
 #### mtu
 
 WireGuard MTU.

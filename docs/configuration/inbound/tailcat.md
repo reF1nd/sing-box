@@ -93,6 +93,6 @@ See [HTTP Client](/configuration/shared/http-client/) for details.
 
 !!! note
 
-    Dial Fields in Tailcat inbounds only control how it connects to DERP servers and have nothing to do with actual connections.
+    Dial Fields in Tailcat inbounds only control how it connects to DERP servers and have nothing to do with actual connections, except `udp_gso`, which also controls the magicsock UDP sockets.
 
 See [Dial Fields](/configuration/shared/dial/) for details.

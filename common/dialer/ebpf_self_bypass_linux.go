@@ -121,6 +121,8 @@ func (c *selfBypassConn) Close() error {
 	return c.closeErr
 }
 
+func (c *selfBypassConn) DisableGSO() bool { return N.IsGSODisabled(c.Conn) }
+
 func (c *selfBypassConn) SyscallConn() (syscall.RawConn, error) { return c.rawConn, nil }
 
 // Only I/O may unwrap this adapter. The original owner must still close the
@@ -146,6 +148,8 @@ func (c *selfBypassPacketConn) Close() error {
 	})
 	return c.closeErr
 }
+
+func (c *selfBypassPacketConn) DisableGSO() bool { return N.IsGSODisabled(c.PacketConn) }
 
 func (c *selfBypassPacketConn) SyscallConn() (syscall.RawConn, error) { return c.rawConn, nil }
 

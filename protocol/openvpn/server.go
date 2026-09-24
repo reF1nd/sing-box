@@ -232,24 +232,22 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage, scope *adapter.Scope) e
 		if err == nil {
 			tuneOpenVPNUDPSocket(packetConn)
 			networkManager := service.FromContext[adapter.NetworkManager](s.ctx)
-			if wildcardUDP {
-				if err = dialer.RegisterEBPFSelfBypassPacketConn(networkManager, packetConn); err != nil {
+			udpConn := s.listener.UDPConn()
+			if wildcardUDP && udpConn != nil {
+				if err = dialer.RegisterEBPFSelfBypassPacketConn(networkManager, udpConn); err != nil {
 					_ = s.listener.Close()
 					return err
 				}
-				if udpConn, ok := packetConn.(*net.UDPConn); ok {
-					if rawConn, rawErr := udpConn.SyscallConn(); rawErr == nil {
-						if cleanup := dialer.EBPFSelfBypassCleanup(networkManager, rawConn); cleanup != nil {
-							scope.Add(func() error {
-								cleanup()
-								return nil
-							})
-						}
+				if rawConn, rawErr := udpConn.SyscallConn(); rawErr == nil {
+					if cleanup := dialer.EBPFSelfBypassCleanup(networkManager, rawConn); cleanup != nil {
+						scope.Add(func() error {
+							cleanup()
+							return nil
+						})
 					}
 				}
 			}
 			if egressEnabled {
-				udpConn := packetConn.(*net.UDPConn)
 				egressTracker := dialer.NewEBPFSelfBypassSocketTracker(networkManager)
 				egressPool := tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
 					Logger:           s.logger,
