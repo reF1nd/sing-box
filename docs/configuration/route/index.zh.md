@@ -124,6 +124,11 @@ icon: material/alert-decagram
 
 在没有 `process_name`、`process_path`、`package_name`、`user` 或 `user_id` 规则时启用进程搜索以输出日志。
 
+Android 命令行模式优先通过 socket UID 识别应用包名。仅为日志或包名/用户规则进行查询时，
+不会为已识别的应用强制扫描进程文件描述符；可执行文件路径可能为空。
+`process_name`、`process_path` 和 `process_path_regex` 规则在需要匹配路径时仍会查询完整路径。
+无法映射包名的原生进程使用短期缓存补充路径信息。
+
 #### find_neighbor
 
 !!! question "自 sing-box 1.14.0 起"

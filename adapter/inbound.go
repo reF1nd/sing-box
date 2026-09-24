@@ -102,6 +102,7 @@ type InboundContext struct {
 	SourceGeoIPCode                     string
 	GeoIPCode                           string
 	ProcessInfo                         *ConnectionOwner
+	ProcessInfoResolver                 func() *ConnectionOwner `json:"-"`
 	SourceMACAddress                    net.HardwareAddr
 	SourceHostname                      string
 	QueryType                           uint16
@@ -122,6 +123,17 @@ type InboundContext struct {
 	DestinationPortMatch         bool
 	DeferredIPCIDRMatchGroups    uint8
 	IgnoreDestinationIPCIDRMatch bool
+}
+
+// ResolveProcessInfo upgrades a UID/package lookup only when a path matcher
+// needs it, without mutating the metadata or its cached owner. The resolver is
+// shared safely by copies of the connection metadata.
+// Inbound/platform-provided owners without a resolver remain authoritative.
+func (c *InboundContext) ResolveProcessInfo() *ConnectionOwner {
+	if c.ProcessInfoResolver != nil {
+		return c.ProcessInfoResolver()
+	}
+	return c.ProcessInfo
 }
 
 func (c *InboundContext) ResetRuleCache() {
