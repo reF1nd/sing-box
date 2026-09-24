@@ -108,6 +108,7 @@ type AbstractDialerOptions struct {
 	TCPKeepAliveCount          int                               `json:"tcp_keep_alive_count,omitempty"`
 	TCPKeepAliveSystemDefaults bool                              `json:"-"`
 	UDPBindPort                uint16                            `json:"-"`
+	UDPGSO                     *bool                             `json:"udp_gso,omitempty"`
 	UDPFragment                *bool                             `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault         bool                              `json:"-"`
 	DomainResolver             *DomainResolveOptions             `json:"domain_resolver,omitempty"`

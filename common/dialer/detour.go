@@ -16,6 +16,7 @@ type DirectDialer interface {
 }
 
 type DetourDialer struct {
+	disableGSO              bool
 	outboundManager         adapter.OutboundManager
 	detour                  string
 	defaultOutbound         bool
@@ -87,3 +88,5 @@ func (d *DetourDialer) Upstream() any {
 	detour, _ := d.Dialer()
 	return detour
 }
+
+func (d *DetourDialer) DisableGSO() bool { return d.disableGSO }

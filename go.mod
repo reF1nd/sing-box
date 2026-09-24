@@ -89,7 +89,10 @@ require (
 )
 
 replace (
+	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.61.0-sing-box-mod.9.0.20261005174648-9adfe6790e84
+	github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261005174720-97b52bac92a7
 	github.com/sagernet/sing-anytls => github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a
+	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261005175038-460c79e81113
 	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20260929062538-94040c75f854
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.7-0.20261009120252-3a38f1971879
 	github.com/sagernet/wireguard-go => github.com/reF1nd/wireguard-go v0.0.8-0.20261005151230-5fa91e620316

@@ -191,6 +191,9 @@ func overrideDialerOption(options option.DialerOptions, overrideDialerOptions *o
 	if overrideDialerOptions.TCPKeepAliveInterval != nil {
 		options.TCPKeepAliveInterval = *overrideDialerOptions.TCPKeepAliveInterval
 	}
+	if overrideDialerOptions.UDPGSO != nil {
+		options.UDPGSO = overrideDialerOptions.UDPGSO
+	}
 	if overrideDialerOptions.UDPFragment != nil {
 		options.UDPFragment = overrideDialerOptions.UDPFragment
 	}
