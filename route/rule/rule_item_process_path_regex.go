@@ -39,11 +39,12 @@ func NewProcessPathRegexItem(expressions []string) (*ProcessPathRegexItem, error
 }
 
 func (r *ProcessPathRegexItem) Match(metadata *adapter.InboundContext) bool {
-	if metadata.ProcessInfo == nil {
+	processInfo := metadata.ResolveProcessInfo()
+	if processInfo == nil {
 		return false
 	}
 	for _, matcher := range r.matchers {
-		if slices.ContainsFunc(metadata.ProcessInfo.ProcessPaths, matcher.MatchString) {
+		if slices.ContainsFunc(processInfo.ProcessPaths, matcher.MatchString) {
 			return true
 		}
 	}
