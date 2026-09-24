@@ -43,6 +43,7 @@ icon: material/new-box
   "tcp_keep_alive": "",
   "tcp_keep_alive_interval": "",
   "tcp_keep_alive_count": 0,
+  "udp_gso": true,
   "udp_fragment": false,
   "udp_timeout": "",
   "detour": "",
@@ -146,6 +147,16 @@ TCP keep alive 间隔。
 TCP keep-alive 探测次数。
 
 未设置或设置为 `0` 时使用系统默认值。
+
+#### udp_gso
+
+控制此入站发回客户端的 UDP 发送是否允许使用 GSO（Generic Segmentation Offload），包括基于 quic-go 的 QUIC 传输。
+
+不填写或设为 `true` 时保留自动检测；设为 `false` 时禁止发送分段，普通 UDP 仍保留批量发送和接收。
+此选项不控制接收侧 GRO，也不影响 TUN 的 `gso` 设置；使用其他网络引擎的协议不受此选项控制。
+
+`SING_BOX_DISABLE_GSO=true` 在进程启动时全局禁止 sing UDP 和 quic-go 使用 GSO。
+`QUIC_GO_DISABLE_GSO=true` 继续仅禁止 quic-go 的 GSO。`udp_gso: true` 不能覆盖这些禁用或系统能力限制。
 
 #### udp_fragment
 

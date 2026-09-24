@@ -48,7 +48,7 @@ func newHTTP3Client(options ClientOptions, authorization string) (http3Client, e
 	if dialer == nil {
 		dialer = N.SystemDialer
 	}
-	quicConfig := httpclient.NewQUICConfig(options.HTTP3Options)
+	quicConfig := qtls.ConfigWithGSO(httpclient.NewQUICConfig(options.HTTP3Options), dialer)
 	quicConfig.EnableDatagrams = true
 	headers := options.Headers.Clone()
 	authority := options.Server.String()

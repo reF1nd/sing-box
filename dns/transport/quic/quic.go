@@ -110,7 +110,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 				ctx,
 				rawConn,
 				t.tlsConfig,
-				nil,
+				sQUIC.ConfigWithGSO(nil, t.dialer),
 			)
 			if err != nil {
 				rawConn.Close()

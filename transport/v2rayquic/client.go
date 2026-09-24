@@ -52,9 +52,9 @@ func (c *clientConnection) releaseStream(keepSession bool) {
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayQUICOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
-	quicConfig := &quic.Config{
+	quicConfig := qtls.ConfigWithGSO(&quic.Config{
 		DisablePathMTUDiscovery: !C.IsLinux && !C.IsWindows,
-	}
+	}, dialer)
 	if len(tlsConfig.NextProtos()) == 0 {
 		tlsConfig.SetNextProtos([]string{http3.NextProtoH3})
 	}

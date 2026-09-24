@@ -1,6 +1,7 @@
 package hysteria
 
 import (
+	"github.com/sagernet/sing-box/common/udpgso"
 	"github.com/sagernet/sing-box/option"
 	qtls "github.com/sagernet/sing-quic"
 )
@@ -19,6 +20,7 @@ func buildBaseQUICOptions(options option.QUICOptions) qtls.QUICOptions {
 
 func buildInboundQUICOptions(options option.HysteriaInboundOptions) qtls.QUICOptions {
 	quicOptions := buildBaseQUICOptions(options.QUICOptions)
+	quicOptions.DisableGSO = udpgso.Disabled(options.UDPGSO)
 	if quicOptions.ConnectionReceiveWindow == 0 {
 		quicOptions.ConnectionReceiveWindow = options.ReceiveWindowConn //nolint:staticcheck
 	}
@@ -36,6 +38,7 @@ func buildInboundQUICOptions(options option.HysteriaInboundOptions) qtls.QUICOpt
 
 func buildOutboundQUICOptions(options option.HysteriaOutboundOptions) qtls.QUICOptions {
 	quicOptions := buildBaseQUICOptions(options.QUICOptions)
+	quicOptions.DisableGSO = udpgso.Disabled(options.UDPGSO)
 	if quicOptions.ConnectionReceiveWindow == 0 {
 		quicOptions.ConnectionReceiveWindow = options.ReceiveWindowConn //nolint:staticcheck
 	}
