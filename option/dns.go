@@ -187,8 +187,9 @@ type RawLocalDNSServerOptions struct {
 
 type LocalDNSServerOptions struct {
 	RawLocalDNSServerOptions
-	PreferGo       bool                       `json:"prefer_go,omitempty"`
-	NeighborDomain badoption.Listable[string] `json:"neighbor_domain,omitempty"`
+	ImplicitDefault bool                       `json:"-"`
+	PreferGo        bool                       `json:"prefer_go,omitempty"`
+	NeighborDomain  badoption.Listable[string] `json:"neighbor_domain,omitempty"`
 }
 
 type RemoteDNSServerOptions struct {
