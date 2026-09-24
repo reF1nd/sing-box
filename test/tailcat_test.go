@@ -85,6 +85,8 @@ func TestTailcat(t *testing.T) {
 					ListenOptions: option.ListenOptions{
 						Listen:     (*badoption.Addr)(common.Ptr(loopback)),
 						ListenPort: stunPort,
+						// The STUN responder must accept a GSO-restricted socket.
+						UDPGSO: common.Ptr(false),
 					},
 				},
 			},

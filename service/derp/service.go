@@ -269,7 +269,7 @@ func (d *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 				return err
 			}
 			scope.Add(d.stunListener.Close)
-			go d.loopSTUNPacket(stunConn.(*net.UDPConn))
+			go d.loopSTUNPacket(common.MustCast[*net.UDPConn](stunConn))
 		}
 	case adapter.StartStatePostStart:
 		if len(d.verifyClientEndpoint) > 0 {

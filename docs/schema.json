@@ -787,6 +787,9 @@
         "tcp_keep_alive_count": {
           "type": "integer"
         },
+        "udp_gso": {
+          "type": "boolean"
+        },
         "udp_fragment": {
           "type": "boolean"
         },
@@ -2046,6 +2049,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -2231,6 +2237,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -2412,6 +2421,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -2549,6 +2561,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -2681,6 +2696,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -2876,6 +2894,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -3049,6 +3070,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -3173,6 +3197,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -3301,6 +3328,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -3460,6 +3490,9 @@
         },
         "tcp_keep_alive_count": {
           "type": "integer"
+        },
+        "udp_gso": {
+          "type": "boolean"
         },
         "udp_fragment": {
           "type": "boolean"
@@ -3990,6 +4023,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -4220,6 +4256,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -4440,6 +4479,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -4729,6 +4771,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -5136,6 +5181,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -5416,6 +5464,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -5716,6 +5767,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -5880,6 +5934,9 @@
         },
         "tcp_keep_alive_count": {
           "type": "integer"
+        },
+        "udp_gso": {
+          "type": "boolean"
         },
         "udp_fragment": {
           "type": "boolean"
@@ -6056,6 +6113,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -6786,6 +6846,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -6956,6 +7019,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -7124,6 +7190,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -7276,6 +7345,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -7432,6 +7504,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -7687,6 +7762,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -7779,6 +7857,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -7898,6 +7979,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -7975,6 +8059,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -8122,6 +8209,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -8244,6 +8334,9 @@
                 "tcp_multi_path": {
                   "type": "boolean"
                 },
+                "udp_gso": {
+                  "type": "boolean"
+                },
                 "udp_fragment": {
                   "type": "boolean"
                 },
@@ -8350,6 +8443,9 @@
                 "tcp_multi_path": {
                   "type": "boolean"
                 },
+                "udp_gso": {
+                  "type": "boolean"
+                },
                 "udp_fragment": {
                   "type": "boolean"
                 },
@@ -8454,6 +8550,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -8614,6 +8713,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -8718,6 +8820,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -8843,6 +8948,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -8944,6 +9052,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -9482,6 +9593,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -9574,6 +9688,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -9724,6 +9841,9 @@
         },
         "tcp_keep_alive_count": {
           "type": "integer"
+        },
+        "udp_gso": {
+          "type": "boolean"
         },
         "udp_fragment": {
           "type": "boolean"
@@ -10168,6 +10288,9 @@
         },
         "tcp_keep_alive_count": {
           "type": "integer"
+        },
+        "udp_gso": {
+          "type": "boolean"
         },
         "udp_fragment": {
           "type": "boolean"
@@ -12398,6 +12521,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -12589,6 +12715,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -12718,6 +12847,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -12907,6 +13039,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -13151,6 +13286,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -13469,6 +13607,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -13728,6 +13869,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -13934,6 +14078,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -14077,6 +14224,9 @@
                 },
                 "tcp_keep_alive_count": {
                   "type": "integer"
+                },
+                "udp_gso": {
+                  "type": "boolean"
                 },
                 "udp_fragment": {
                   "type": "boolean"
@@ -14248,6 +14398,9 @@
                 "tcp_keep_alive_count": {
                   "type": "integer"
                 },
+                "udp_gso": {
+                  "type": "boolean"
+                },
                 "udp_fragment": {
                   "type": "boolean"
                 },
@@ -14417,6 +14570,9 @@
                 },
                 "tcp_keep_alive_count": {
                   "type": "integer"
+                },
+                "udp_gso": {
+                  "type": "boolean"
                 },
                 "udp_fragment": {
                   "type": "boolean"
@@ -14588,6 +14744,9 @@
                 "tcp_keep_alive_count": {
                   "type": "integer"
                 },
+                "udp_gso": {
+                  "type": "boolean"
+                },
                 "udp_fragment": {
                   "type": "boolean"
                 },
@@ -14756,6 +14915,9 @@
                 },
                 "tcp_keep_alive_count": {
                   "type": "integer"
+                },
+                "udp_gso": {
+                  "type": "boolean"
                 },
                 "udp_fragment": {
                   "type": "boolean"
@@ -14926,6 +15088,9 @@
                 "tcp_keep_alive_count": {
                   "type": "integer"
                 },
+                "udp_gso": {
+                  "type": "boolean"
+                },
                 "udp_fragment": {
                   "type": "boolean"
                 },
@@ -15094,6 +15259,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -15282,6 +15450,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -15553,6 +15724,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -15669,6 +15843,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -15804,6 +15981,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -15962,6 +16142,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -16237,6 +16420,9 @@
             "tcp_keep_alive_count": {
               "type": "integer"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -16400,6 +16586,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -16938,6 +17127,9 @@
         },
         "tcp_keep_alive_interval": {
           "$ref": "#/$defs/Duration"
+        },
+        "udp_gso": {
+          "type": "boolean"
         },
         "udp_fragment": {
           "type": "boolean"
@@ -18801,6 +18993,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -18941,6 +19136,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -19036,6 +19234,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -19169,6 +19370,9 @@
                         },
                         "tcp_keep_alive_count": {
                           "type": "integer"
+                        },
+                        "udp_gso": {
+                          "type": "boolean"
                         },
                         "udp_fragment": {
                           "type": "boolean"
@@ -19354,6 +19558,9 @@
                           },
                           "tcp_keep_alive_count": {
                             "type": "integer"
+                          },
+                          "udp_gso": {
+                            "type": "boolean"
                           },
                           "udp_fragment": {
                             "type": "boolean"
@@ -19555,6 +19762,9 @@
                     "tcp_multi_path": {
                       "type": "boolean"
                     },
+                    "udp_gso": {
+                      "type": "boolean"
+                    },
                     "udp_fragment": {
                       "type": "boolean"
                     },
@@ -19637,6 +19847,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -19756,6 +19969,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -19898,6 +20114,9 @@
             "tcp_multi_path": {
               "type": "boolean"
             },
+            "udp_gso": {
+              "type": "boolean"
+            },
             "udp_fragment": {
               "type": "boolean"
             },
@@ -19975,6 +20194,9 @@
               "type": "boolean"
             },
             "tcp_multi_path": {
+              "type": "boolean"
+            },
+            "udp_gso": {
               "type": "boolean"
             },
             "udp_fragment": {
@@ -20078,6 +20300,9 @@
             },
             "tcp_keep_alive_count": {
               "type": "integer"
+            },
+            "udp_gso": {
+              "type": "boolean"
             },
             "udp_fragment": {
               "type": "boolean"
@@ -20208,6 +20433,9 @@
                 "tcp_multi_path": {
                   "type": "boolean"
                 },
+                "udp_gso": {
+                  "type": "boolean"
+                },
                 "udp_fragment": {
                   "type": "boolean"
                 },
@@ -20294,6 +20522,9 @@
                   "type": "boolean"
                 },
                 "tcp_multi_path": {
+                  "type": "boolean"
+                },
+                "udp_gso": {
                   "type": "boolean"
                 },
                 "udp_fragment": {
@@ -20392,6 +20623,9 @@
         },
         "tcp_keep_alive_count": {
           "type": "integer"
+        },
+        "udp_gso": {
+          "type": "boolean"
         },
         "udp_fragment": {
           "type": "boolean"

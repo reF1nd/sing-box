@@ -171,6 +171,7 @@ func (e *Endpoint) Start(postStart bool) error {
 	if isUDPListener {
 		listenerControl, egressEnabled := udpListener.UDPListenerControl()
 		standardBind := conn.NewStdNetBind(listenerControl).(*conn.StdNetBind)
+		standardBind.SetDisableGSO(e.options.DisableUDPGSO)
 		if e.options.ListenPort == 0 && len(e.peers) == 1 && e.peers[0].endpoint.IsValid() {
 			standardBind.SetSinglePeerMode()
 		}

@@ -47,6 +47,7 @@ icon: material/new-box
   "tcp_keep_alive": "",
   "tcp_keep_alive_interval": "",
   "tcp_keep_alive_count": 0,
+  "udp_gso": true,
   "udp_fragment": false,
 
   "domain_resolver": "", // or {}
@@ -71,7 +72,7 @@ icon: material/new-box
 
 The tag of the upstream outbound.
 
-If enabled, all other fields will be ignored.
+If enabled, other socket dial fields are ignored. `udp_gso` still applies to this outbound's own quic-go transport and Tailscale magicsock sockets.
 
 #### bind_interface
 
@@ -174,6 +175,19 @@ TCP keep alive interval.
 TCP keep-alive probe count.
 
 Uses system default if not set or set to `0`.
+
+#### udp_gso
+
+Allow Generic Segmentation Offload for UDP sends to remotes on this outbound, including quic-go based QUIC transports, WireGuard endpoints, and the magicsock sockets of Tailscale endpoints and Tailcat.
+
+Omitting this field or setting it to `true` retains automatic detection. Setting it to `false` disables send segmentation while preserving ordinary UDP batch sends and receives.
+This does not control receive-side GRO or the TUN `gso` option. Protocols using other networking engines are not controlled by this option.
+
+`SING_BOX_DISABLE_GSO=true`, read at process startup, disables GSO globally for sing UDP, quic-go, WireGuard and Tailscale.
+`QUIC_GO_DISABLE_GSO=true` continues to disable GSO only in quic-go, and `TS_DEBUG_DISABLE_UDP_GSO=true` only in Tailscale. `udp_gso: true` cannot override these prohibitions or platform limitations.
+
+With `detour`, the upstream outbound that creates the actual UDP socket controls its GSO policy. This option can still disable the current outbound's own quic-go transport.
+Tailscale endpoints and Tailcat always create their magicsock sockets directly, so this option applies to them regardless of `detour`.
 
 #### udp_fragment
 

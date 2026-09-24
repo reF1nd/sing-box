@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 )
 
 // bindEBPFSelfBypassConnLifecycle pairs userspace socket registration with the
@@ -91,6 +92,8 @@ func (c *selfBypassConn) Close() error {
 	return c.closeErr
 }
 
+func (c *selfBypassConn) DisableGSO() bool { return N.IsGSODisabled(c.Conn) }
+
 func (c *selfBypassConn) SyscallConn() (syscall.RawConn, error) { return c.rawConn, nil }
 
 // Only I/O may unwrap this adapter. The original owner must still close the
@@ -116,6 +119,8 @@ func (c *selfBypassPacketConn) Close() error {
 	})
 	return c.closeErr
 }
+
+func (c *selfBypassPacketConn) DisableGSO() bool { return N.IsGSODisabled(c.PacketConn) }
 
 func (c *selfBypassPacketConn) SyscallConn() (syscall.RawConn, error) { return c.rawConn, nil }
 
