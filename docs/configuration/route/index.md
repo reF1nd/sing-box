@@ -125,6 +125,12 @@ Takes no effect if `outbound.routing_mark` is set.
 
 Enable process search for logging when no `process_name`, `process_path`, `package_name`, `user` or `user_id` rules exist.
 
+On Android CLI, socket UIDs identify application packages first. Logging and package/user rules
+use this identity without forcing a procfs file-descriptor scan for identified applications;
+executable paths may be absent. Rules using `process_name`, `process_path`, or `process_path_regex`
+still resolve full paths when needed for matching. Native processes without a package mapping
+use short-lived snapshots for best-effort path information.
+
 #### find_neighbor
 
 !!! question "Since sing-box 1.14.0"
