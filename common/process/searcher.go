@@ -19,6 +19,20 @@ type Searcher interface {
 	Close() error
 }
 
+// LookupMode controls whether executable paths are required or best effort.
+type LookupMode uint8
+
+const (
+	LookupFull LookupMode = iota
+	// LookupOwner preserves UID/package attribution and only uses cached paths
+	// for applications. Native processes receive a budgeted path lookup.
+	LookupOwner
+)
+
+type ModeSearcher interface {
+	FindProcessInfoMode(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort, mode LookupMode) (*adapter.ConnectionOwner, error)
+}
+
 var ErrNotFound = E.New("process not found")
 
 type Config struct {
@@ -27,7 +41,17 @@ type Config struct {
 }
 
 func FindProcessInfo(searcher Searcher, ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*adapter.ConnectionOwner, error) {
-	info, err := searcher.FindProcessInfo(ctx, network, source, destination)
+	return FindProcessInfoMode(searcher, ctx, network, source, destination, LookupFull)
+}
+
+func FindProcessInfoMode(searcher Searcher, ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort, mode LookupMode) (*adapter.ConnectionOwner, error) {
+	var info *adapter.ConnectionOwner
+	var err error
+	if modeSearcher, ok := searcher.(ModeSearcher); ok {
+		info, err = modeSearcher.FindProcessInfoMode(ctx, network, source, destination, mode)
+	} else {
+		info, err = searcher.FindProcessInfo(ctx, network, source, destination)
+	}
 	if err != nil {
 		return nil, err
 	}
