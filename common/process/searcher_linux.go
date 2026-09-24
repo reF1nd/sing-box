@@ -11,17 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 	"unicode"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/contrab/freelru"
-	"github.com/sagernet/sing/contrab/maphash"
 )
 
 const (
@@ -36,20 +32,14 @@ type linuxSearcher struct {
 	logger           log.ContextLogger
 	packageManager   tun.PackageManager
 	diagConns        [4]*socketDiagConn
-	processPathCache *freelru.Cache[uint32, *uidProcessPaths]
-}
-
-type uidProcessPaths struct {
-	entries map[uint32]string
+	processPathCache *processPathCache
 }
 
 func NewSearcher(config Config) (Searcher, error) {
-	processPathCache := common.Must1(freelru.New[uint32, *uidProcessPaths](64, maphash.NewHasher[uint32]().Hash32, true))
-	processPathCache.SetLifetime(time.Second)
 	searcher := &linuxSearcher{
 		logger:           config.Logger,
 		packageManager:   config.PackageManager,
-		processPathCache: processPathCache,
+		processPathCache: newProcessPathCache(buildProcessPaths),
 	}
 	for _, family := range []uint8{syscall.AF_INET, syscall.AF_INET6} {
 		for _, protocol := range []uint8{syscall.IPPROTO_TCP, syscall.IPPROTO_UDP} {
@@ -64,10 +54,11 @@ func NewSearcher(config Config) (Searcher, error) {
 }
 
 func (s *linuxSearcher) ResetCache() {
-	s.processPathCache.Purge()
+	s.processPathCache.reset()
 }
 
 func (s *linuxSearcher) Close() error {
+	s.processPathCache.close()
 	var errs []error
 	for _, conn := range s.diagConns {
 		if conn == nil {
@@ -79,6 +70,13 @@ func (s *linuxSearcher) Close() error {
 }
 
 func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*adapter.ConnectionOwner, error) {
+	return s.FindProcessInfoMode(ctx, network, source, destination, LookupFull)
+}
+
+func (s *linuxSearcher) FindProcessInfoMode(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort, mode LookupMode) (*adapter.ConnectionOwner, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	inode, uid, err := s.resolveSocketByNetlink(network, source, destination)
 	if err != nil {
 		return nil, err
@@ -86,13 +84,23 @@ func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, sou
 	processInfo := &adapter.ConnectionOwner{
 		UserId: int32(uid),
 	}
-	processPath, err := s.findProcessPath(inode, uid)
+	completeProcessInfo(processInfo, s.packageManager)
+	if mode == LookupOwner && len(processInfo.AndroidPackageNames) > 0 {
+		processPath := s.processPathCache.cached(inode, uid)
+		if !C.IsAndroid || !strings.HasPrefix(processPath, "/system/bin/app_process") {
+			processInfo.ProcessPath = processPath
+		}
+		return processInfo, nil
+	}
+	processPath, err := s.processPathCache.find(ctx, inode, uid, mode == LookupFull)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
 		s.logger.DebugContext(ctx, "find process path: ", err)
 	} else if !C.IsAndroid || !strings.HasPrefix(processPath, "/system/bin/app_process") {
 		processInfo.ProcessPath = processPath
 	}
-	completeProcessInfo(processInfo, s.packageManager)
 	return processInfo, nil
 }
 
@@ -134,35 +142,7 @@ func (s *linuxSearcher) resolveSocketByNetlink(network string, source netip.Addr
 	return dumpSocketDiag(family, protocol, source, destination)
 }
 
-// The socket keeps the uid it was created with, while /proc reflects the
-// current uid of the process, so a socket created before a privilege drop
-// only appears under a scan of all users. On Android, netd chowns the DNS
-// sockets it opens on behalf of an app to the app's uid.
-func (s *linuxSearcher) findProcessPath(targetInode, uid uint32) (string, error) {
-	scanUIDs := []uint32{uid}
-	if !C.IsAndroid {
-		scanUIDs = append(scanUIDs, processPathsAllUsers)
-	}
-	for _, scanUID := range scanUIDs {
-		if cached, ok := s.processPathCache.Get(scanUID); ok {
-			if processPath, found := cached.entries[targetInode]; found {
-				return processPath, nil
-			}
-		}
-		processPaths, err := buildProcessPaths(scanUID)
-		if err != nil {
-			return "", err
-		}
-		s.processPathCache.Add(scanUID, &uidProcessPaths{entries: processPaths})
-		processPath, found := processPaths[targetInode]
-		if found {
-			return processPath, nil
-		}
-	}
-	return "", E.New("process of uid(", uid, "), inode(", targetInode, ") not found")
-}
-
-func buildProcessPaths(uid uint32) (map[uint32]string, error) {
+func buildProcessPaths(ctx context.Context, uid uint32) (map[uint32]string, error) {
 	files, err := os.ReadDir(pathProc)
 	if err != nil {
 		return nil, err
@@ -170,6 +150,9 @@ func buildProcessPaths(uid uint32) (map[uint32]string, error) {
 	buffer := make([]byte, syscall.PathMax)
 	processPaths := make(map[uint32]string)
 	for _, file := range files {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if !file.IsDir() || !isPid(file.Name()) {
 			continue
 		}
@@ -197,6 +180,9 @@ func buildProcessPaths(uid uint32) (map[uint32]string, error) {
 			continue
 		}
 		for _, fd := range fds {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			n, err := syscall.Readlink(filepath.Join(fdPath, fd.Name()), buffer)
 			if err != nil {
 				continue
