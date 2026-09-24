@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/common/udpgso"
 	"github.com/sagernet/sing-box/common/uot"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -69,6 +70,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		Logger:    logger,
 		TLSConfig: tlsConfig,
 		QUICOptions: qtls.QUICOptions{
+			DisableGSO:              udpgso.Disabled(options.UDPGSO),
 			IdleTimeout:             options.IdleTimeout.Build(),
 			KeepAlivePeriod:         options.KeepAlivePeriod.Build(),
 			StreamReceiveWindow:     options.StreamReceiveWindow.Value(),

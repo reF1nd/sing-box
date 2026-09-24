@@ -43,7 +43,7 @@ func NewHTTP3MeasurementClientFactory(dialer N.Dialer) (MeasurementClientFactory
 					wrappedConn = sBufio.NewCounterConn(udpConn, readCounters, writeCounters)
 					qtls.SetDesiredBufferSizes(udpConn)
 				}
-				quicConn, dialErr := quic.DialEarlyConn(ctx, wrappedConn, tlsCfg, cfg)
+				quicConn, dialErr := quic.DialEarlyConn(ctx, wrappedConn, tlsCfg, qtls.ConfigWithGSO(qtls.ConfigWithGSO(cfg, dialer), udpConn))
 				if dialErr != nil {
 					udpConn.Close()
 					return nil, dialErr

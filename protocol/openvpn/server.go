@@ -221,7 +221,7 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
 		if err == nil {
 			tuneOpenVPNUDPSocket(packetConn)
 			if egressEnabled {
-				udpConn := packetConn.(*net.UDPConn)
+				udpConn := s.listener.UDPConn()
 				networkManager := service.FromContext[adapter.NetworkManager](s.ctx)
 				egressPool := tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
 					Logger:           s.logger,

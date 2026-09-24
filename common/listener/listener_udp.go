@@ -69,7 +69,7 @@ func (l *Listener) ListenUDPWithConfig(listenConfig net.ListenConfig) (net.Packe
 	if !l.disableLog {
 		l.logger.Info("udp server started at ", udpConn.LocalAddr())
 	}
-	return udpConn, err
+	return l.udpPacketConn(), nil
 }
 
 func (l *Listener) DialContext(dialer net.Dialer, ctx context.Context, network string, address string) (net.Conn, error) {
@@ -222,7 +222,7 @@ func (l *Listener) loopUDPInBatch(handler adapter.PacketBatchHandler, readWaiter
 }
 
 func (l *Listener) loopUDPOut() {
-	packetConn := sBufio.NewPacketConn(l.udpConn)
+	packetConn := sBufio.NewPacketConn(l.udpPacketConn())
 	batchWriter := sBufio.NewPacketBatchWriter(packetConn)
 	packets := make([]*N.PacketBuffer, 0, udpOutputBatchSize)
 	buffers := make([]*buf.Buffer, 0, udpOutputBatchSize)
@@ -322,4 +322,11 @@ func (w *packetWriter) WritePacketBatch(buffers []*buf.Buffer, destinations []M.
 }
 
 func (w *packetWriter) WriteIsThreadUnsafe() {
+}
+
+func (l *Listener) udpPacketConn() net.PacketConn {
+	if l.disableGSO {
+		return sBufio.NewUDPConnWithoutGSO(l.udpConn)
+	}
+	return l.udpConn
 }

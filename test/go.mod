@@ -5,8 +5,11 @@ go 1.25.5
 require github.com/sagernet/sing-box v0.0.0
 
 replace (
+	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.61.0-sing-box-mod.7.0.20260924064108-532bb9d79a9c
+	github.com/sagernet/sing => github.com/reF1nd/sing v0.9.6-0.20260924064739-a7656b438274
 	github.com/sagernet/sing-anytls => github.com/reF1nd/sing-anytls v0.0.0-20260924145214-2a81df5d3e9f
 	github.com/sagernet/sing-box => ../
+	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.1-0.20260924162054-68e0ff4243bb
 	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20260925094756-0a4859632f29
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.6-0.20260925104803-09666f0b9669
 	github.com/sagernet/wireguard-go => github.com/reF1nd/wireguard-go v0.0.8-0.20260924180017-2736c480f8ac

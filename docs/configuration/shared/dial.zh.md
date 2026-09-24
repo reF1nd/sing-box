@@ -47,6 +47,7 @@ icon: material/new-box
   "tcp_keep_alive": "",
   "tcp_keep_alive_interval": "",
   "tcp_keep_alive_count": 0,
+  "udp_gso": true,
   "udp_fragment": false,
 
   "domain_resolver": "", // 或 {}
@@ -71,7 +72,7 @@ icon: material/new-box
 
 上游出站的标签。
 
-启用时，其他拨号字段将被忽略。
+启用时，其他 socket 拨号字段将被忽略。`udp_gso` 仍控制此出站自身的 quic-go 传输。
 
 #### bind_interface
 
@@ -172,6 +173,18 @@ TCP keep alive 间隔。
 TCP keep-alive 探测次数。
 
 未设置或设置为 `0` 时使用系统默认值。
+
+#### udp_gso
+
+控制此出站发往远端的 UDP 发送是否允许使用 GSO（Generic Segmentation Offload），包括基于 quic-go 的 QUIC 传输。
+
+不填写或设为 `true` 时保留自动检测；设为 `false` 时禁止发送分段，普通 UDP 仍保留批量发送和接收。
+此选项不控制接收侧 GRO，也不影响 TUN 的 `gso` 设置；使用其他网络引擎的协议不受此选项控制。
+
+`SING_BOX_DISABLE_GSO=true` 在进程启动时全局禁止 sing UDP 和 quic-go 使用 GSO。
+`QUIC_GO_DISABLE_GSO=true` 继续仅禁止 quic-go 的 GSO。`udp_gso: true` 不能覆盖这些禁用或系统能力限制。
+
+使用 `detour` 时，实际 UDP socket 的 GSO 由创建它的上游出站控制；此出站自身的 quic-go QUIC 传输仍可通过此选项禁用 GSO。
 
 #### udp_fragment
 

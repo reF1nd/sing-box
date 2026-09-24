@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing-box/common/tls"
+	"github.com/sagernet/sing-box/common/udpgso"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -193,6 +194,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		GeckoMaxPacketSize: geckoMaxPacketSize,
 		TLSConfig:          tlsConfig,
 		QUICOptions: qtls.QUICOptions{
+			DisableGSO:              udpgso.Disabled(options.UDPGSO),
 			IdleTimeout:             options.IdleTimeout.Build(),
 			KeepAlivePeriod:         options.KeepAlivePeriod.Build(),
 			StreamReceiveWindow:     options.StreamReceiveWindow.Value(),
