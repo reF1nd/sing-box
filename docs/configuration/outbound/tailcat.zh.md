@@ -79,6 +79,6 @@ DERP map 中的 DERP 区域 ID。
 
 !!! note
 
-    Tailcat 出站中的拨号字段仅控制它如何连接到 DERP 服务器，与实际连接无关。
+    Tailcat 出站中的拨号字段仅控制它如何连接到 DERP 服务器，与实际连接无关；`udp_gso` 例外，它还控制 magicsock 的 UDP socket。
 
 参阅 [拨号字段](/zh/configuration/shared/dial/) 了解详情。

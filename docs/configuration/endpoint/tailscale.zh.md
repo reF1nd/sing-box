@@ -173,6 +173,8 @@ icon: material/new-box
 
 当 `system_interface` 为 true 时，默认启用。
 
+此选项控制系统接口。连接对端所用 UDP socket 的 GSO 参阅 [拨号字段](/zh/configuration/shared/dial/#udp_gso) 中的 `udp_gso`。
+
 #### system_interface_mtu
 
 !!! question "自 sing-box 1.13.0 起"
@@ -259,7 +261,7 @@ UDP NAT 过期时间。
 
 !!! note
 
-    Tailscale 端点中的拨号字段仅控制它如何连接到控制平面，与实际连接无关。
+    Tailscale 端点中的拨号字段仅控制它如何连接到控制平面，与实际连接无关；`udp_gso` 例外，它还控制 magicsock 和对等中继的 UDP socket。
 
 参阅 [拨号字段](/zh/configuration/shared/dial/) 了解详情。
 

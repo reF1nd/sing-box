@@ -135,5 +135,5 @@ func (c *selfBypassPacketConn) Close() error {
 }
 
 func (b systemBinding) hooks(dialer N.Dialer) netmon.Hooks {
-	return netmon.Hooks{Dialer: dialer, Control: b.control, ListenPacket: b.listenPacket}
+	return netmon.Hooks{Dialer: dialer, Control: b.control, ListenPacket: b.listenPacket, DisableUDPGSO: N.IsGSODisabled(dialer)}
 }

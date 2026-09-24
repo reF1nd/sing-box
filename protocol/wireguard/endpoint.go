@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/iponly"
+	"github.com/sagernet/sing-box/common/udpgso"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -108,7 +109,8 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 				return networkManager.AutoRedirectOutputMark() != 0
 			},
 		},
-		Dialer: outboundDialer,
+		Dialer:        outboundDialer,
+		DisableUDPGSO: udpgso.Disabled(options.UDPGSO),
 		CreateDialer: func(interfaceName string) N.Dialer {
 			return common.Must1(dialer.NewDefault(ctx, option.DialerOptions{
 				AbstractDialerOptions: option.AbstractDialerOptions{

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/settings"
+	"github.com/sagernet/sing-box/common/udpgso"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
@@ -23,6 +24,7 @@ import (
 )
 
 type Listener struct {
+	disableGSO               bool
 	ctx                      context.Context
 	logger                   logger.ContextLogger
 	network                  []string
@@ -72,6 +74,7 @@ func New(
 		logger:                   options.Logger,
 		network:                  options.Network,
 		listenOptions:            options.Listen,
+		disableGSO:               udpgso.Disabled(options.Listen.UDPGSO),
 		connHandler:              options.ConnectionHandler,
 		packetHandler:            options.PacketHandler,
 		oobPacketHandler:         options.OOBPacketHandler,

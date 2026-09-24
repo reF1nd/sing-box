@@ -167,6 +167,7 @@ type OverrideDialerOptions struct {
 	TCPMultiPath         *bool                              `json:"tcp_multi_path,omitempty"`
 	TCPKeepAlive         *badoption.Duration                `json:"tcp_keep_alive,omitempty"`
 	TCPKeepAliveInterval *badoption.Duration                `json:"tcp_keep_alive_interval,omitempty"`
+	UDPGSO               *bool                              `json:"udp_gso,omitempty"`
 	UDPFragment          *bool                              `json:"udp_fragment,omitempty"`
 	DomainResolver       *DomainResolveOptions              `json:"domain_resolver,omitempty"`
 	NetworkStrategy      *NetworkStrategy                   `json:"network_strategy,omitempty"`
