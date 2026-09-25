@@ -5,6 +5,7 @@ package resolved
 import (
 	"context"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
@@ -80,6 +81,36 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		ThreadUnsafePacketWriter: true,
 	})
 	return inbound, nil
+}
+
+// IsDNSListener reports whether a local DNS fallback would send queries back to this service.
+func (i *Service) IsDNSListener(destination M.Socksaddr) bool {
+	options := i.listener.ListenOptions()
+	if destination.Port != options.ListenPort {
+		return false
+	}
+	address := options.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1})).Unmap()
+	if !address.IsUnspecified() {
+		return address == destination.Addr.Unmap()
+	}
+	if address.Is4() && !destination.Addr.Unmap().Is4() {
+		return false
+	}
+	if destination.Addr.IsLoopback() {
+		return true
+	}
+	addresses, err := net.InterfaceAddrs()
+	if err != nil {
+		// Conservatively reject fallback when a wildcard listener cannot be checked.
+		return true
+	}
+	for _, localAddress := range addresses {
+		prefix, err := netip.ParsePrefix(localAddress.String())
+		if err == nil && prefix.Addr().Unmap() == destination.Addr.Unmap() {
+			return true
+		}
+	}
+	return false
 }
 
 func (i *Service) Start(stage adapter.StartStage) error {

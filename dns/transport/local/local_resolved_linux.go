@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"os"
 	"strings"
@@ -63,11 +64,13 @@ type DBusResolvedResolver struct {
 	updateRunAccess   sync.Mutex
 	closed            bool
 	closeOnce         sync.Once
+	signalChan        chan *dbus.Signal
 }
 
 type resolvedServerSet struct {
-	servers   []resolvedServer
-	signature []string
+	servers     []resolvedServer
+	signature   []string
+	fallbackErr error
 }
 
 type resolvedServer struct {
@@ -86,7 +89,7 @@ func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (Reso
 	if interfaceMonitor == nil {
 		return nil, os.ErrInvalid
 	}
-	systemBus, err := dbus.SystemBus()
+	systemBus, err := dbus.ConnectSystemBus()
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +102,6 @@ func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (Reso
 }
 
 func (t *DBusResolvedResolver) Start() error {
-	t.updateStatus(t.ctx)
 	t.interfaceCallback = t.interfaceMonitor.RegisterCallback(t.updateDefaultInterface)
 	err := t.systemBus.BusObject().AddMatchSignal(
 		"org.freedesktop.DBus",
@@ -108,6 +110,7 @@ func (t *DBusResolvedResolver) Start() error {
 		dbus.WithMatchArg(0, "org.freedesktop.resolve1"),
 	).Err
 	if err != nil {
+		t.Close()
 		return E.Cause(err, "configure resolved restart listener")
 	}
 	err = t.systemBus.BusObject().AddMatchSignal(
@@ -117,8 +120,12 @@ func (t *DBusResolvedResolver) Start() error {
 		dbus.WithMatchArg(0, "org.freedesktop.resolve1.Manager"),
 	).Err
 	if err != nil {
+		t.Close()
 		return E.Cause(err, "configure resolved properties listener")
 	}
+	t.signalChan = make(chan *dbus.Signal, 16)
+	t.systemBus.Signal(t.signalChan)
+	t.updateStatus(t.ctx)
 	go t.loopUpdateStatus()
 	return nil
 }
@@ -171,32 +178,39 @@ func (t *DBusResolvedResolver) Environment() []string {
 	return serverSet.signature
 }
 
+func (t *DBusResolvedResolver) Fallback() bool {
+	serverSet := t.savedServerSet.Load()
+	return serverSet != nil && serverSet.fallbackErr != nil
+}
+
 func (t *DBusResolvedResolver) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	serverSet := t.savedServerSet.Load()
 	if serverSet == nil {
-		var err error
-		serverSet, err = t.checkResolved(context.Background())
-		if err != nil {
+		if err := t.updateStatus(ctx); err != nil {
 			return nil, err
 		}
-		previousServerSet := t.savedServerSet.Swap(serverSet)
-		if previousServerSet != nil {
-			_ = previousServerSet.Close()
-		}
+		serverSet = t.savedServerSet.Load()
 	}
 	response, err := t.exchangeServerSet(ctx, message, serverSet)
-	if err == nil {
-		return response, nil
+	if err == nil || errors.Is(err, errResolvedUnavailable) || ctx.Err() != nil {
+		return response, err
 	}
-	t.updateStatus(t.ctx)
+	t.updateStatus(ctx)
 	refreshedServerSet := t.savedServerSet.Load()
-	if refreshedServerSet == nil || refreshedServerSet == serverSet {
+	if refreshedServerSet == nil || refreshedServerSet == serverSet || refreshedServerSet.fallbackErr != nil {
 		return nil, err
 	}
 	return t.exchangeServerSet(ctx, message, refreshedServerSet)
 }
 
 func (t *DBusResolvedResolver) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	if err := ctx.Err(); err != nil {
+		callback(nil, err)
+		return
+	}
 	serverSet := t.savedServerSet.Load()
 	if serverSet == nil {
 		go func() {
@@ -205,14 +219,14 @@ func (t *DBusResolvedResolver) ExchangeAsync(ctx context.Context, message *mDNS.
 		return
 	}
 	t.exchangeServerSetAsync(ctx, message, serverSet, func(response *mDNS.Msg, err error) {
-		if err == nil {
-			callback(response, nil)
+		if err == nil || errors.Is(err, errResolvedUnavailable) || ctx.Err() != nil {
+			callback(response, err)
 			return
 		}
 		go func() {
-			t.updateStatus(t.ctx)
+			t.updateStatus(ctx)
 			refreshedServerSet := t.savedServerSet.Load()
-			if refreshedServerSet == nil || refreshedServerSet == serverSet {
+			if refreshedServerSet == nil || refreshedServerSet == serverSet || refreshedServerSet.fallbackErr != nil {
 				callback(nil, err)
 				return
 			}
@@ -222,6 +236,10 @@ func (t *DBusResolvedResolver) ExchangeAsync(ctx context.Context, message *mDNS.
 }
 
 func (t *DBusResolvedResolver) exchangeServerSetAsync(ctx context.Context, message *mDNS.Msg, serverSet *resolvedServerSet, callback func(response *mDNS.Msg, err error)) {
+	if serverSet.fallbackErr != nil {
+		callback(nil, serverSet.fallbackErr)
+		return
+	}
 	if len(serverSet.servers) == 0 {
 		callback(nil, E.New("link has no DNS servers configured"))
 		return
@@ -242,16 +260,14 @@ func (t *DBusResolvedResolver) exchangeServerSetAsync(ctx context.Context, messa
 }
 
 func (t *DBusResolvedResolver) loopUpdateStatus() {
-	signalChan := make(chan *dbus.Signal, 1)
-	t.systemBus.Signal(signalChan)
-	for signal := range signalChan {
+	for signal := range t.signalChan {
 		switch signal.Name {
 		case "org.freedesktop.DBus.NameOwnerChanged":
 			if len(signal.Body) != 3 {
 				continue
 			}
-			newOwner, loaded := signal.Body[2].(string)
-			if !loaded || newOwner == "" {
+			_, loaded := signal.Body[2].(string)
+			if !loaded {
 				continue
 			}
 			t.postUpdateStatus()
@@ -279,38 +295,90 @@ func (t *DBusResolvedResolver) postUpdateStatus() {
 	}()
 }
 
-func (t *DBusResolvedResolver) updateStatus(ctx context.Context) {
+func (t *DBusResolvedResolver) updateStatus(ctx context.Context) error {
 	t.updateRunAccess.Lock()
 	defer t.updateRunAccess.Unlock()
-	if t.closed || ctx.Err() != nil {
-		return
+	if t.closed {
+		return os.ErrClosed
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	serverSet, err := t.checkResolved(ctx)
-	if t.closed || ctx.Err() != nil {
+	if ctx.Err() != nil {
 		if serverSet != nil {
 			_ = serverSet.Close()
 		}
-		return
+		return ctx.Err()
+	}
+	if isResolvedUnavailableError(err) {
+		serverSet = &resolvedServerSet{fallbackErr: fmt.Errorf("%w: %w", errResolvedUnavailable, err)}
+		err = nil
 	}
 	oldServerSet := t.savedServerSet.Swap(serverSet)
 	if oldServerSet != nil {
 		_ = oldServerSet.Close()
 	}
+	if serverSet != nil && serverSet.fallbackErr != nil {
+		if oldServerSet == nil || oldServerSet.fallbackErr == nil || oldServerSet.fallbackErr.Error() != serverSet.fallbackErr.Error() {
+			t.logger.Debug("using resolv.conf: ", serverSet.fallbackErr)
+		}
+		return nil
+	}
 	if err != nil {
-		var dbusErr dbus.Error
-		if !errors.As(err, &dbusErr) || dbusErr.Name != "org.freedesktop.DBus.Error.NameHasNoOwner" {
-			t.logger.Debug(E.Cause(err, "systemd-resolved service unavailable"))
-		}
-		if oldServerSet != nil {
-			t.logger.Debug("systemd-resolved service is gone")
-		}
-		return
-	} else if oldServerSet == nil {
+		t.logger.Debug(E.Cause(err, "systemd-resolved service unavailable"))
+		return err
+	}
+	if oldServerSet == nil || oldServerSet.fallbackErr != nil {
 		t.logger.Debug("using systemd-resolved service as resolver")
+	}
+	return nil
+}
+
+// Only failures discovering the optional D-Bus interface permit resolv.conf fallback.
+// DNS query failures, authorization failures and missing link DNS are not included.
+func isResolvedUnavailableError(err error) bool {
+	var value dbus.Error
+	var pointer *dbus.Error
+	var name string
+	if errors.As(err, &value) {
+		name = value.Name
+	} else if errors.As(err, &pointer) {
+		name = pointer.Name
+	}
+	switch name {
+	case "org.freedesktop.DBus.Error.UnknownMethod", "org.freedesktop.DBus.Error.UnknownInterface",
+		"org.freedesktop.DBus.Error.ServiceUnknown", "org.freedesktop.DBus.Error.NameHasNoOwner",
+		"org.freedesktop.DBus.Error.Spawn.ServiceNotFound":
+		return true
+	default:
+		return false
 	}
 }
 
+func checkResolvedFallback(ctx context.Context, servers []M.Socksaddr) error {
+	manager := service.FromContext[adapter.ServiceManager](ctx)
+	if manager == nil {
+		return nil
+	}
+	for _, current := range manager.Services() {
+		resolver, ok := current.(*resolved.Service)
+		if !ok {
+			continue
+		}
+		for _, server := range servers {
+			if resolver.IsDNSListener(server) {
+				return E.New("local DNS fallback would loop into resolved service ", resolver.Tag(), " at ", server)
+			}
+		}
+	}
+	return nil
+}
+
 func (t *DBusResolvedResolver) exchangeServerSet(ctx context.Context, message *mDNS.Msg, serverSet *resolvedServerSet) (*mDNS.Msg, error) {
+	if serverSet != nil && serverSet.fallbackErr != nil {
+		return nil, serverSet.fallbackErr
+	}
 	if serverSet == nil || len(serverSet.servers) == 0 {
 		return nil, E.New("link has no DNS servers configured")
 	}
