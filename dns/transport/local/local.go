@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -39,10 +40,16 @@ type Transport struct {
 	resolved          ResolvedResolver
 	mdnsTransport     adapter.DNSTransport
 	mdnsScope         *adapter.Scope
-	configSource      *systemconfig.Source
+	configSource      systemConfigSource
 	system            systemResolver
 	serverSet         atomic.Pointer[localServerSet]
 	serverSetAccess   sync.Mutex
+}
+
+type systemConfigSource interface {
+	Configuration() *systemconfig.Config
+	Reset()
+	Close() error
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.LocalDNSServerOptions) (adapter.DNSTransport, error) {
@@ -134,6 +141,9 @@ func (t *Transport) PreferredDomain(domain string) bool {
 
 func (t *Transport) Environment() []string {
 	if t.resolved != nil {
+		if t.resolved.Fallback() {
+			return append([]string{"resolv.conf"}, t.configSource.Configuration().Signature()...)
+		}
 		return t.resolved.Environment()
 	}
 	return t.configSource.Configuration().Signature()
@@ -155,6 +165,10 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 }
 
 func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	if err := ctx.Err(); err != nil {
+		callback(nil, err)
+		return
+	}
 	question := message.Question[0]
 	response := t.preferredResolver.Lookup(message)
 	if response != nil {
@@ -170,7 +184,22 @@ func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callba
 		return
 	}
 	if t.resolved != nil {
-		t.resolved.ExchangeAsync(ctx, message, callback)
+		t.resolved.ExchangeAsync(ctx, message, func(response *mDNS.Msg, err error) {
+			if !errors.Is(err, errResolvedUnavailable) {
+				callback(response, err)
+				return
+			}
+			if err = ctx.Err(); err != nil {
+				callback(nil, err)
+				return
+			}
+			systemConfig := t.configSource.Configuration()
+			if err = checkResolvedFallback(t.ctx, systemConfig.Servers); err != nil {
+				callback(nil, err)
+				return
+			}
+			t.exchangeWithConfig(ctx, message, question.Name, systemConfig, callback)
+		})
 		return
 	}
 	t.exchangeAsync(ctx, message, question.Name, callback)
