@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/winwlanapi"
 
 	"golang.org/x/sys/windows"
@@ -23,7 +24,7 @@ type windowsWIFIMonitor struct {
 	mutex     sync.Mutex
 }
 
-func NewWIFIMonitor(callback func(adapter.WIFIState)) (WIFIMonitor, error) {
+func NewWIFIMonitor(logger logger.ContextLogger, callback func(adapter.WIFIState)) (WIFIMonitor, error) {
 	handle, err := winwlanapi.OpenHandle()
 	if err != nil {
 		return nil, err

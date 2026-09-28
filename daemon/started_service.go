@@ -33,7 +33,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const APIVersion = 4
+const APIVersion = 6
 
 const (
 	urlTestPushMinInterval = 250 * time.Millisecond
