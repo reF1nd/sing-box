@@ -6,9 +6,11 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"sync"
 	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/control"
@@ -28,6 +30,7 @@ type systemBinding struct {
 func newSystemBinding(ctx context.Context, logger logger.ContextLogger) (systemBinding, error) {
 	network := service.FromContext[adapter.NetworkManager](ctx)
 	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
+	selfBypassControl := dialer.AppendEBPFSelfBypass(network, nil)
 	var binding systemBinding
 	if platformInterface != nil && platformInterface.UsePlatformNetworkInterfaces() {
 		err := network.UpdateInterfaces()
@@ -65,40 +68,53 @@ func newSystemBinding(ctx context.Context, logger logger.ContextLogger) (systemB
 		}
 	}
 	if network.AutoRedirectOutputMark() != 0 {
-		binding.control = network.AutoRedirectOutputMarkFunc()
+		binding.control = control.Append(network.AutoRedirectOutputMarkFunc(), selfBypassControl)
 		return binding, nil
 	}
 	if platformInterface != nil && platformInterface.UsePlatformNetworkInterfaces() {
 		if platformInterface.UsePlatformAutoDetectInterfaceControl() {
-			binding.control = func(_, _ string, conn syscall.RawConn) error {
+			platformControl := func(_, _ string, conn syscall.RawConn) error {
 				return control.Raw(conn, func(fileDescriptor uintptr) error {
 					return platformInterface.AutoDetectInterfaceControl(int(fileDescriptor))
 				})
 			}
+			binding.control = control.Append(platformControl, selfBypassControl)
 			return binding, nil
 		}
 		// NEPacketTunnelProvider sockets are excluded from tunnel routes by
 		// NECP; the empty override only suppresses tailscale's own
 		// default-interface bind, which would select the sing-box utun.
-		binding.control = func(string, string, syscall.RawConn) error {
+		platformControl := func(string, string, syscall.RawConn) error {
 			return nil
 		}
+		binding.control = control.Append(platformControl, selfBypassControl)
 		return binding, nil
 	}
 	bindFunc := network.AutoDetectInterfaceFunc()
-	if bindFunc == nil {
+	if bindFunc == nil && selfBypassControl == nil {
 		return binding, nil
 	}
-	binding.control = bindFunc
+	binding.control = control.Append(bindFunc, selfBypassControl)
 	binding.listenPacket = func(listenContext context.Context, networkName string, address string) (nettype.PacketConn, error) {
 		listenConfig := net.ListenConfig{
-			Control: control.Append(bindFunc, control.DisableUDPNetReset()),
+			Control: control.Append(control.Append(bindFunc, selfBypassControl), control.DisableUDPNetReset()),
 		}
 		packetConn, err := listenConfig.ListenPacket(listenContext, networkName, address)
 		if err != nil {
 			return nil, err
 		}
 		udpConn := packetConn.(*net.UDPConn)
+		rawConn, rawConnErr := udpConn.SyscallConn()
+		if rawConnErr != nil {
+			return udpConn, nil
+		}
+		cleanup := dialer.EBPFSelfBypassCleanup(network, rawConn)
+		wrapPacketConn := func(conn nettype.PacketConn) nettype.PacketConn {
+			if cleanup == nil {
+				return conn
+			}
+			return &selfBypassPacketConn{PacketConn: conn, cleanup: cleanup}
+		}
 		egressPool := tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
 			Logger:           logger,
 			Network:          networkName,
@@ -110,11 +126,26 @@ func newSystemBinding(ctx context.Context, logger logger.ContextLogger) (systemB
 		})
 		if !egressPool.SetEgressPort(udpConn.LocalAddr().(*net.UDPAddr).AddrPort().Port()) {
 			egressPool.Close()
-			return udpConn, nil
+			return wrapPacketConn(udpConn), nil
 		}
-		return tun.NewUDPEgressConn(udpConn, egressPool), nil
+		return wrapPacketConn(tun.NewUDPEgressConn(udpConn, egressPool)), nil
 	}
 	return binding, nil
+}
+
+type selfBypassPacketConn struct {
+	nettype.PacketConn
+	cleanup func()
+	once    sync.Once
+}
+
+func (c *selfBypassPacketConn) Close() error {
+	c.once.Do(func() {
+		if c.cleanup != nil {
+			c.cleanup()
+		}
+	})
+	return c.PacketConn.Close()
 }
 
 func (b systemBinding) hooks(dialer N.Dialer) netmon.Hooks {
