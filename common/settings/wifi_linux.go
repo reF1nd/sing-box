@@ -5,14 +5,18 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 )
 
 type LinuxWIFIMonitor struct {
 	monitor WIFIMonitor
 }
 
-func NewWIFIMonitor(callback func(adapter.WIFIState)) (WIFIMonitor, error) {
+func NewWIFIMonitor(logger logger.ContextLogger, callback func(adapter.WIFIState)) (WIFIMonitor, error) {
 	monitors := []func(func(adapter.WIFIState)) (WIFIMonitor, error){
+		func(monitorCallback func(adapter.WIFIState)) (WIFIMonitor, error) {
+			return newAndroidWIFIMonitor(logger, monitorCallback)
+		},
 		newNetworkManagerMonitor,
 		newIWDMonitor,
 		newWpaSupplicantMonitor,
