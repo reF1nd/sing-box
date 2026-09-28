@@ -42,6 +42,7 @@ type NetworkManager struct {
 	autoDetectInterface     bool
 	defaultOptions          adapter.NetworkOptions
 	autoRedirectOutputMark  uint32
+	ebpfSelfBypass          ebpfSelfBypassState //nolint:unused // Accessed by the with_ebpf build.
 	networkMonitor          tun.NetworkUpdateMonitor
 	interfaceMonitor        tun.DefaultInterfaceMonitor
 	packageManager          tun.PackageManager
@@ -202,7 +203,7 @@ func (r *NetworkManager) Start(stage adapter.StartStage, scope *adapter.Scope) e
 		}
 	case adapter.StartStatePostStart:
 		if r.needWIFIState && !(r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor()) {
-			wifiMonitor, err := settings.NewWIFIMonitor(r.onWIFIStateChanged)
+			wifiMonitor, err := settings.NewWIFIMonitor(r.logger, r.onWIFIStateChanged)
 			if err != nil {
 				if err != os.ErrInvalid {
 					r.logger.Warn(E.Cause(err, "create WIFI monitor"))
