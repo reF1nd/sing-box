@@ -18,17 +18,29 @@ import (
 )
 
 type slowOpenConn struct {
-	dialer      *tfo.Dialer
-	ctx         context.Context
-	cancel      context.CancelFunc
-	network     string
-	destination M.Socksaddr
-	conn        atomic.Pointer[net.TCPConn]
-	create      chan struct{}
-	done        chan struct{}
-	access      sync.Mutex
-	closeOnce   sync.Once
-	err         error
+	dialer       *tfo.Dialer
+	ctx          context.Context
+	cancel       context.CancelFunc
+	network      string
+	destination  M.Socksaddr
+	conn         atomic.Pointer[net.TCPConn]
+	create       chan struct{}
+	done         chan struct{}
+	access       sync.Mutex
+	closeOnce    sync.Once
+	closeHandler atomic.Value // func(*net.TCPConn)
+	err          error
+}
+
+func (c *slowOpenConn) setCloseHandler(handler func(*net.TCPConn)) {
+	c.closeHandler.Store(handler)
+}
+
+func (c *slowOpenConn) closeTCP(conn *net.TCPConn) {
+	if handler, loaded := c.closeHandler.Load().(func(*net.TCPConn)); loaded {
+		handler(conn)
+	}
+	_ = conn.Close()
 }
 
 func DialSlowContext(dialer *tfo.Dialer, ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -91,7 +103,7 @@ func (c *slowOpenConn) Write(b []byte) (n int, err error) {
 	} else {
 		select {
 		case <-c.done:
-			conn.Close()
+			c.closeTCP(conn.(*net.TCPConn))
 			err = os.ErrClosed
 			c.err = err
 		default:
@@ -109,7 +121,7 @@ func (c *slowOpenConn) Close() error {
 		c.cancel()
 		conn := c.conn.Load()
 		if conn != nil {
-			conn.Close()
+			c.closeTCP(conn)
 		}
 	})
 	return nil
