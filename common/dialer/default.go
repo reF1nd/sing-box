@@ -138,6 +138,7 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		markFunc := networkManager.AutoRedirectOutputMarkFunc()
 		dialer.Control = control.Append(dialer.Control, markFunc)
 		listener.Control = control.Append(listener.Control, markFunc)
+		dialer.Control, listener.Control = appendEBPFSelfBypass(networkManager, dialer.Control, listener.Control)
 	}
 	if options.ReuseAddr {
 		listener.Control = control.Append(listener.Control, control.ReuseAddr())
@@ -440,6 +441,7 @@ func (d *DefaultDialer) trackConn(ctx context.Context, destination M.Socksaddr, 
 		}
 		conn = &udpConn{Conn: conn, rawConn: rawConn}
 	}
+	conn = bindEBPFSelfBypassConnLifecycle(d.networkManager, conn)
 	if d.connectionManager != nil {
 		conn = d.connectionManager.TrackConn(conn)
 	}
@@ -470,6 +472,7 @@ func (d *DefaultDialer) trackPacketConn(ctx context.Context, destination M.Socks
 	if err != nil {
 		return conn, err
 	}
+	conn = bindEBPFSelfBypassPacketConnLifecycle(d.networkManager, conn)
 	if d.connectionManager != nil {
 		conn = d.connectionManager.TrackPacketConn(conn)
 	}

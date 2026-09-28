@@ -15,7 +15,7 @@ sing-box can monitor Wi-Fi state to enable routing rules based on `wifi_ssid` an
 
 | Platform        | Support          | Notes                    |
 |-----------------|------------------|--------------------------|
-| Android         | :material-check: | In graphical client      |
+| Android         | :material-check: | In graphical client and core |
 | Apple platforms | :material-check: | In graphical clients     |
 | Linux           | :material-check: | Requires supported daemon |
 | Windows         | :material-check: | WLAN API                 |
