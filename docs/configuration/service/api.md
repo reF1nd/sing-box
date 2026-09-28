@@ -14,6 +14,13 @@ Android (via the Remote Control feature), or the
 
 The server also accepts [gRPC-Web](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-WEB.md) requests.
 
+The bundled `sing-box api` client can query this service. For a running eBPF
+inbound, `sing-box api ebpf` provides runtime diagnostics; this is separate
+from the kernel capability probe provided by `sing-box tools ebpf status`.
+Runtime results include attachments, recovery state, UDP NAT, active programs,
+map occupancy, and data-plane failure counters. Expensive program/map
+enumeration runs only for an explicit query.
+
 ### Structure
 
 ```json
