@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagernet/quic-go"
+	"github.com/sagernet/quic-go/http3"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -183,6 +185,69 @@ func TestMASQUESelfToSelf(t *testing.T) {
 
 func TestMASQUEVersionFallback(t *testing.T) {
 	environment := startMASQUE(t, []int{1, 2}, 0, false, 0, nil, nil)
+	testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+}
+
+func TestMASQUEVersionFallbackUDPBlackhole(t *testing.T) {
+	for _, version := range []int{2, 1} {
+		t.Run(strconv.Itoa(version), func(t *testing.T) {
+			environment := startMASQUEConfigured(t, []int{version}, 3, false, 1280, nil, nil, func(server, client *option.Options) {
+				serverOptions := server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions)
+				// Keep UDP open without responding, so QUIC has to time out
+				// rather than receiving an immediate connection-refused error.
+				socket, err := net.ListenPacket("udp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(serverOptions.ListenPort))))
+				require.NoError(t, err)
+				t.Cleanup(func() { socket.Close() })
+			})
+			testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+		})
+	}
+}
+
+func TestMASQUEVersionFallbackAfterHTTP3Failure(t *testing.T) {
+	var requests atomic.Int32
+	environment := startMASQUEConfigured(t, []int{2}, 3, false, 1280, nil, nil, func(server, client *option.Options) {
+		serverOptions := server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions)
+		certificate, err := tls.LoadX509KeyPair(serverOptions.TLS.CertificatePath, serverOptions.TLS.KeyPath)
+		require.NoError(t, err)
+		socket, err := net.ListenPacket("udp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(int(serverOptions.ListenPort))))
+		require.NoError(t, err)
+		t.Cleanup(func() { socket.Close() })
+		listener, err := quic.ListenEarly(socket, &tls.Config{
+			Certificates: []tls.Certificate{certificate},
+			NextProtos:   []string{http3.NextProtoH3},
+		}, &quic.Config{EnableDatagrams: true})
+		require.NoError(t, err)
+		t.Cleanup(func() { listener.Close() })
+		type connectionKey struct{}
+		h3Server := &http3.Server{
+			EnableDatagrams: true,
+			ConnContext: func(ctx context.Context, conn *quic.Conn) context.Context {
+				return context.WithValue(ctx, connectionKey{}, conn)
+			},
+			Handler: http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				requests.Add(1)
+				writer.WriteHeader(http.StatusOK)
+				writer.(http.Flusher).Flush()
+				// Wait for the client's first capsule, proving OpenTunnel already
+				// succeeded, then fail the underlying QUIC connection.
+				if _, readErr := io.ReadFull(request.Body, make([]byte, 1)); readErr == nil {
+					conn := request.Context().Value(connectionKey{}).(*quic.Conn)
+					conn.CloseWithError(0x102, "test connection failure")
+				}
+			}),
+		}
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			h3Server.ServeListener(listener)
+		}()
+		t.Cleanup(func() {
+			h3Server.Close()
+			<-done
+		})
+	})
+	require.EqualValues(t, 1, requests.Load(), "a failed H3 session must fall back on reconnect")
 	testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
 }
 
