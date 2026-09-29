@@ -4,6 +4,7 @@ package http
 
 import (
 	"context"
+	stdTLS "crypto/tls"
 	"errors"
 	"net"
 	"net/http"
@@ -134,7 +135,7 @@ func (c *http3ClientImpl) dialConn(ctx context.Context, offer *dialOffer) (*http
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		err = E.Cause1(ErrHTTP3Unavailable, err)
+		err = wrapHTTP3Error(err)
 		offer.err = err
 		return nil, err
 	}
@@ -173,7 +174,7 @@ func (c *http3ClientImpl) openRequestStream(ctx context.Context, extendedConnect
 					err = errHTTP3ExtendedConnectUnsupported
 				}
 			case <-conn.Context().Done():
-				err = E.Cause1(ErrHTTP3Unavailable, context.Cause(conn.Context()))
+				err = wrapHTTP3Error(context.Cause(conn.Context()))
 			case <-ctx.Done():
 				err = E.Cause(ctx.Err(), "wait for HTTP/3 SETTINGS")
 			}
@@ -196,7 +197,7 @@ func (c *http3ClientImpl) openRequestStream(ctx context.Context, extendedConnect
 			if ctx.Err() != nil {
 				err = ctx.Err()
 			} else {
-				err = E.Cause1(ErrHTTP3Unavailable, err)
+				err = wrapHTTP3Error(err)
 			}
 		}
 		c.release(conn, keepSession)
@@ -230,7 +231,7 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request,
 		if ctx.Err() != nil {
 			return nil, nil, ctx.Err()
 		}
-		return nil, nil, E.Cause(err, "HTTP/3 CONNECT")
+		return nil, nil, wrapHTTP3Error(E.Cause(err, "HTTP/3 CONNECT"))
 	}
 	if response.StatusCode != http.StatusOK {
 		stream.CancelRead(0)
@@ -239,6 +240,26 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request,
 		return nil, nil, statusError(response)
 	}
 	return stream, conn, nil
+}
+
+func wrapHTTP3Error(err error) error {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return err
+	}
+	var certificateError *stdTLS.CertificateVerificationError
+	if errors.As(err, &certificateError) {
+		return err
+	}
+	var transportError *quic.TransportError
+	if errors.As(err, &transportError) && transportError.ErrorCode >= 0x100 && transportError.ErrorCode < 0x200 {
+		// TLS failures must remain visible. An ALPN negotiation failure is
+		// different: the peer may support HTTP over TCP but not HTTP/3.
+		const noApplicationProtocol = 0x100 + 120
+		if transportError.ErrorCode != noApplicationProtocol {
+			return err
+		}
+	}
+	return E.Cause1(ErrHTTP3Unavailable, err)
 }
 
 func (c *http3ClientImpl) DialContext(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
@@ -388,11 +409,28 @@ type http3RequestDatagramStream struct {
 }
 
 func (s *http3RequestDatagramStream) Read(p []byte) (int, error) {
-	return s.stream.Read(p)
+	n, err := s.stream.Read(p)
+	return n, s.wrapError(err)
 }
 
 func (s *http3RequestDatagramStream) Write(p []byte) (int, error) {
-	return s.stream.Write(p)
+	n, err := s.stream.Write(p)
+	return n, s.wrapError(err)
+}
+
+func (s *http3RequestDatagramStream) wrapError(err error) error {
+	if err == nil || s.closed.Load() {
+		return err
+	}
+	var streamError *quic.StreamError
+	if errors.As(err, &streamError) && !streamError.Remote {
+		return err
+	}
+	var applicationError *quic.ApplicationError
+	if errors.As(err, &applicationError) && !applicationError.Remote {
+		return err
+	}
+	return wrapHTTP3Error(err)
 }
 
 func (s *http3RequestDatagramStream) Close() error {
@@ -402,7 +440,9 @@ func (s *http3RequestDatagramStream) Close() error {
 	s.stream.SetWriteDeadline(time.Now())
 	s.stream.CancelRead(0)
 	err := s.stream.Close()
-	s.onClose()
+	if s.onClose != nil {
+		s.onClose()
+	}
 	return err
 }
 
@@ -417,11 +457,15 @@ func (s *http3RequestDatagramStream) SendDatagram(payload []byte) error {
 	if tooLarge, ok := errors.AsType[*quic.DatagramTooLargeError](err); ok {
 		return &DatagramTooLargeError{MaxPayloadSize: int(tooLarge.MaxDatagramPayloadSize) - VarintLen(uint64(s.stream.StreamID()/4))}
 	}
-	return err
+	return s.wrapError(err)
 }
 
 func (s *http3RequestDatagramStream) ReceiveDatagram(ctx context.Context) ([]byte, error) {
-	return s.stream.ReceiveDatagram(ctx)
+	datagram, err := s.stream.ReceiveDatagram(ctx)
+	if err != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return datagram, s.wrapError(err)
 }
 
 var (
