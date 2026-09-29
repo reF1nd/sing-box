@@ -195,6 +195,9 @@ func (c *Client) connect() (bool, error) {
 	err = current.run()
 	c.access.Lock()
 	c.current = nil
+	if !c.suspended && !c.restarting && c.ctx.Err() == nil {
+		c.httpClient.ReportTunnelError(err)
+	}
 	c.access.Unlock()
 	current.access.Lock()
 	established := current.ready
