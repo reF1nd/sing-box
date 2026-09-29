@@ -205,7 +205,7 @@ func (s *session) writePackets(buffers []*buf.Buffer) error {
 					s.handler.handlePacketTooBig(datagram, mtu)
 					continue
 				}
-				err = E.New("QUIC connection is unable to carry ", minimumLinkMTU, " bytes packets")
+				err = E.Cause1(transportHTTP.ErrHTTP3Unavailable, E.New("QUIC connection is unable to carry ", minimumLinkMTU, " bytes packets"))
 			case errors.Is(err, transportHTTP.ErrDatagramUnsupported):
 				capsules = append(capsules, datagram)
 				continue
