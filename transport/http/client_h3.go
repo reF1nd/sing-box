@@ -4,6 +4,7 @@ package http
 
 import (
 	"context"
+	stdTLS "crypto/tls"
 	"errors"
 	"net"
 	"net/http"
@@ -88,7 +89,7 @@ func (c *http3ClientImpl) acquire(ctx context.Context) (*http3.ClientConn, error
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return nil, E.Cause1(ErrHTTP3Unavailable, err)
+		return nil, wrapHTTP3Error(err)
 	}
 	quicConn, err := qtls.DialEarly(ctx, rawConn, c.tlsConfig, c.quicConfig)
 	if err != nil {
@@ -96,7 +97,7 @@ func (c *http3ClientImpl) acquire(ctx context.Context) (*http3.ClientConn, error
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return nil, E.Cause1(ErrHTTP3Unavailable, err)
+		return nil, wrapHTTP3Error(err)
 	}
 	c.conn = c.transport.NewClientConn(quicConn)
 	c.rawConn = rawConn
@@ -113,7 +114,7 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 		if ctx.Err() != nil {
 			return nil, nil, ctx.Err()
 		}
-		return nil, nil, E.Cause1(ErrHTTP3Unavailable, err)
+		return nil, nil, wrapHTTP3Error(err)
 	}
 	stop := context.AfterFunc(ctx, func() {
 		stream.CancelRead(0)
@@ -142,7 +143,7 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 		if ctx.Err() != nil {
 			return nil, nil, ctx.Err()
 		}
-		return nil, nil, E.Cause(err, "HTTP/3 CONNECT")
+		return nil, nil, wrapHTTP3Error(E.Cause(err, "HTTP/3 CONNECT"))
 	}
 	if response.StatusCode != http.StatusOK {
 		stream.CancelRead(0)
@@ -150,6 +151,26 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 		return nil, nil, statusError(response)
 	}
 	return stream, clientConn, nil
+}
+
+func wrapHTTP3Error(err error) error {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return err
+	}
+	var certificateError *stdTLS.CertificateVerificationError
+	if errors.As(err, &certificateError) {
+		return err
+	}
+	var transportError *quic.TransportError
+	if errors.As(err, &transportError) && transportError.ErrorCode >= 0x100 && transportError.ErrorCode < 0x200 {
+		// TLS failures must remain visible. An ALPN negotiation failure is
+		// different: the peer may support HTTP over TCP but not HTTP/3.
+		const noApplicationProtocol = 0x100 + 120
+		if transportError.ErrorCode != noApplicationProtocol {
+			return err
+		}
+	}
+	return E.Cause1(ErrHTTP3Unavailable, err)
 }
 
 func (c *http3ClientImpl) DialContext(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
@@ -181,7 +202,10 @@ func (c *http3ClientImpl) OpenTunnel(ctx context.Context, request tunnelRequest)
 	if err != nil {
 		return nil, err
 	}
-	return &http3RequestDatagramStream{stream: stream, datagramsEnabled: clientConn.Settings().EnableDatagrams}, nil
+	return &http3RequestDatagramStream{
+		stream:           stream,
+		datagramsEnabled: clientConn.Settings().EnableDatagrams,
+	}, nil
 }
 
 func (c *http3ClientImpl) ResetConnection() {
@@ -282,17 +306,36 @@ func (c *http3StreamConn) NeedAdditionalReadDeadline() bool {
 type http3RequestDatagramStream struct {
 	stream           *http3.RequestStream
 	datagramsEnabled bool
+	closed           atomic.Bool
 }
 
 func (s *http3RequestDatagramStream) Read(p []byte) (int, error) {
-	return s.stream.Read(p)
+	n, err := s.stream.Read(p)
+	return n, s.wrapError(err)
 }
 
 func (s *http3RequestDatagramStream) Write(p []byte) (int, error) {
-	return s.stream.Write(p)
+	n, err := s.stream.Write(p)
+	return n, s.wrapError(err)
+}
+
+func (s *http3RequestDatagramStream) wrapError(err error) error {
+	if err == nil || s.closed.Load() {
+		return err
+	}
+	var streamError *quic.StreamError
+	if errors.As(err, &streamError) && !streamError.Remote {
+		return err
+	}
+	var applicationError *quic.ApplicationError
+	if errors.As(err, &applicationError) && !applicationError.Remote {
+		return err
+	}
+	return wrapHTTP3Error(err)
 }
 
 func (s *http3RequestDatagramStream) Close() error {
+	s.closed.Store(true)
 	s.stream.SetWriteDeadline(time.Now())
 	s.stream.CancelRead(0)
 	return s.stream.Close()
@@ -310,11 +353,15 @@ func (s *http3RequestDatagramStream) SendDatagram(payload []byte) error {
 	if errors.As(err, &tooLarge) {
 		return &DatagramTooLargeError{MaxPayloadSize: int(tooLarge.MaxDatagramPayloadSize) - VarintLen(uint64(s.stream.StreamID()/4))}
 	}
-	return err
+	return s.wrapError(err)
 }
 
 func (s *http3RequestDatagramStream) ReceiveDatagram(ctx context.Context) ([]byte, error) {
-	return s.stream.ReceiveDatagram(ctx)
+	datagram, err := s.stream.ReceiveDatagram(ctx)
+	if err != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return datagram, s.wrapError(err)
 }
 
 var (

@@ -46,7 +46,10 @@ func (c *Client) OpenTunnel(ctx context.Context, protocol string, path string) (
 
 func (c *Client) openTunnel(ctx context.Context, request tunnelRequest) (net.Conn, DatagramStream, error) {
 	if c.http3Available() {
-		stream, err := c.http3.OpenTunnel(ctx, request)
+		attemptCtx, cancel := c.http3AttemptContext(ctx)
+		stream, err := c.http3.OpenTunnel(attemptCtx, request)
+		err = http3AttemptError(ctx, attemptCtx, err)
+		cancel()
 		if err == nil {
 			c.clearHTTP3Broken()
 			return nil, stream, nil
