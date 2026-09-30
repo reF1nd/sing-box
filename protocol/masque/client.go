@@ -67,6 +67,12 @@ type clientState struct {
 }
 
 func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.MASQUEClientEndpointOptions) (adapter.Endpoint, error) {
+	if err := options.H3CongestionControl.Validate([]int{options.ResolvedVersion()}, true); err != nil {
+		return nil, err
+	}
+	if options.H3CongestionControl != "" && http.NewHTTP3Client == nil {
+		return nil, E.New("h3_congestion_control requires QUIC support in this build")
+	}
 	innerDNSQueryOptions, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
 	if err != nil {
 		return nil, E.Cause(err, "inner domain resolver")
@@ -121,6 +127,7 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		DisableVersionFallback: options.DisableVersionFallback,
 		HTTP2Options:           http2Options,
 		HTTP3Options:           options.HTTP3Options,
+		H3CongestionControl:    options.H3CongestionControl,
 	})
 	if err != nil {
 		return nil, err

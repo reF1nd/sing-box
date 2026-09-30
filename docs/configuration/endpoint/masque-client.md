@@ -18,6 +18,7 @@
   "path": "",
   "headers": {},
   "version": 0,
+  // "h3_congestion_control": "bbr",
   "disable_version_fallback": false,
   "tls": {},
   "advertise_routes": [],
@@ -83,6 +84,22 @@ When `2`, [QUIC Fields](#quic-fields) are replaced by [HTTP2 Fields](#http2-fiel
 ### disable_version_fallback
 
 Disable automatic fallback to lower HTTP version.
+
+### h3_congestion_control
+
+Selects the local sender congestion controller for HTTP/3 connections. Applies only to HTTP/3.
+
+Available values: `new_reno`, `cubic`, `bbr`, `none`.
+
+Omitting the field preserves the existing defaults: NewReno on the client and BBR on the server. BBR uses the Standard profile; profile and bandwidth parameters are not exposed. The setting affects only local sending, so the two peers may select different algorithms.
+
+When configured, `version` must be `3` or omitted; `0` resolves to the default version `3`. Builds without QUIC support reject this setting.
+
+This field does not change version fallback. Client fallback remains controlled by `disable_version_fallback`; the setting has no effect after fallback to HTTP/1 or HTTP/2.
+
+`none` bypasses the outer congestion window and pacing only for QUIC DATAGRAM packets carrying IP traffic. Control streams, the handshake, and reliable capsules retain normal congestion control. Capsule fallback remains available when DATAGRAM is unsupported. Exempt packets retain ACK/loss tracking, path MTU and resource limits, and use Not-ECT.
+
+Before using `none`, ensure tunneled traffic has appropriate congestion control or that the deployment provides suitable traffic management. UDP or KCP alone does not establish this. Lower latency is not guaranteed. Configure both peers to exempt both sending directions.
 
 ### tls
 
