@@ -14,6 +14,7 @@
   ... // 监听字段
 
   "version": [],
+  // "h3_congestion_control": "bbr",
   "users": [
     {
       "username": "",
@@ -24,6 +25,7 @@
   "path": "",
   "address": [],
   "advertise_routes": [],
+  // "tcp_congestion_control": "bbr",
   "system": false,
   "gso": false,
   "inner_domain_resolver": "", // or {}
@@ -61,6 +63,22 @@ HTTP 用户，通过 `Authorization` 标头验证。
 
 如果为空则不需要验证。
 
+### h3_congestion_control
+
+HTTP/3 连接的本端发送拥塞控制算法。仅在 HTTP/3 生效。
+
+支持 `new_reno`、`cubic`、`bbr`、`none`。
+
+省略时保留现有行为：客户端使用 NewReno，服务端使用 BBR。BBR 使用 Standard profile，不提供 profile 或带宽参数。配置仅影响本端发送，两端可以使用不同算法。
+
+配置本字段时，`version` 必须包含 `3`。省略 `version` 时默认包含 `3`。不包含 QUIC 支持的构建拒绝此配置。
+
+本字段不改变版本回退策略。客户端是否允许回退仍由 `disable_version_fallback` 控制；回退到 HTTP/1 或 HTTP/2 后，本字段不生效。
+
+`none` 仅免除承载 IP 的 QUIC DATAGRAM 包的外层拥塞窗口和 pacing。控制流、握手和可靠 Capsule 仍受正常拥塞控制；DATAGRAM 不可用时仍允许 Capsule 回退。豁免包保留 ACK、丢包追踪、路径 MTU 和资源限制，并使用 Not-ECT。
+
+使用 `none` 前应确认被代理流量具有适当的拥塞控制或部署环境具备相应的流量管理；仅知道内层是 UDP 或 KCP 并不足以判断。此选项不保证更低延迟。双向豁免需要两端分别配置。
+
 ### tls
 
 TLS 配置，参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
@@ -88,6 +106,20 @@ IP 代理资源的 URI 模板路径，可以包含 `target` 和 `ipproto` 变量
 客户端发往其他目的地址的流量会被拒绝。
 
 默认声明全部地址。
+
+### tcp_congestion_control
+
+选择此端点内部 Go TCP 栈发送方向的拥塞控制算法。
+
+可选值：`reno`、`cubic`、`bbr`。省略时保留默认值 CUBIC；不支持空值或 `none`。
+
+仅影响由此端点内部 Go TCP 栈终结或发起的 TCP 连接，不影响系统内核 TCP、纯 L3 转发的 TCP、UDP 或内层 QUIC。两端可以选择不同的算法；例如，服务端向客户端发送 TCP 下载数据时，需要配置服务端的此字段。
+
+`system` 为 `false` 或 `true` 时均可配置，但只对经过内部 Go TCP 栈的连接生效。启用系统接口不会使此设置影响内核 TCP。
+
+适用于 HTTP/1、HTTP/2 和 HTTP/3，版本回退后仍然有效；不要求构建包含 QUIC 支持。此字段独立于控制外层 HTTP/3 拥塞控制的 `h3_congestion_control`，可与其 `none` 值组合使用。
+
+切换算法不保证提高吞吐量，应结合实际链路测试。
 
 ### system
 

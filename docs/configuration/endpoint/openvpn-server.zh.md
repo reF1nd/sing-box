@@ -11,6 +11,7 @@
 
   ... // 监听字段
 
+  // "tcp_congestion_control": "bbr",
   "system": false,
   "gso": false,
   "inner_domain_resolver": "", // or {}
@@ -106,6 +107,18 @@
 参阅 [监听字段](/zh/configuration/shared/listen/)。`udp_timeout` 属于下方的 [UDP NAT 字段](#udp-nat-字段)。
 
 ## 字段
+
+### tcp_congestion_control
+
+选择此端点内部 Go TCP 栈发送方向的拥塞控制算法。
+
+可选值：`reno`、`cubic`、`bbr`。省略时保留默认值 CUBIC；不支持空值或 `none`。
+
+仅影响由此端点内部 Go TCP 栈终结或发起的 TCP 连接，不影响系统内核 TCP、纯 L3 转发的 TCP、UDP 或内层 QUIC。两端可以选择不同的算法；例如，服务端向客户端发送 TCP 下载数据时，需要配置服务端的此字段。
+
+`system` 为 `false` 或 `true` 时均可配置，但只对经过内部 Go TCP 栈的连接生效。启用系统接口不会使此设置影响内核 TCP。
+
+切换算法不保证提高吞吐量，应结合实际链路测试。
 
 ### system
 

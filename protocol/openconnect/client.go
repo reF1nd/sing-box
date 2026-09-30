@@ -78,6 +78,9 @@ type clientState struct {
 }
 
 func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.OpenConnectEndpointOptions) (adapter.Endpoint, error) {
+	if err := options.TCPCongestionControl.Validate(); err != nil {
+		return nil, err
+	}
 	innerDNSQueryOptions, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
 	if err != nil {
 		return nil, E.Cause(err, "inner domain resolver")
@@ -172,22 +175,23 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 
 	openConnectEndpoint.deviceOptions = &device.Options{
-		Context:             ctx,
-		Logger:              logger,
-		System:              options.System,
-		GSO:                 gso,
-		Handler:             openConnectEndpoint,
-		UDPTimeout:          udpTimeout,
-		ICMPTimeout:         C.ICMPTimeout,
-		UDPMapping:          tun.NATMapping(options.UDPMapping),
-		UDPFiltering:        tun.NATFiltering(options.UDPFiltering),
-		UDPNATMax:           options.UDPNATMax,
-		InterfaceFinder:     networkManager.InterfaceFinder(),
-		Name:                options.Name,
-		NamePrefix:          "oc",
-		MTU:                 openconnecttransport.DefaultMTU,
-		PacketFrontHeadroom: openconnect.PacketHeadroom,
-		PacketRearHeadroom:  openconnect.PacketRearHeadroom,
+		TCPCongestionControl: string(options.TCPCongestionControl),
+		Context:              ctx,
+		Logger:               logger,
+		System:               options.System,
+		GSO:                  gso,
+		Handler:              openConnectEndpoint,
+		UDPTimeout:           udpTimeout,
+		ICMPTimeout:          C.ICMPTimeout,
+		UDPMapping:           tun.NATMapping(options.UDPMapping),
+		UDPFiltering:         tun.NATFiltering(options.UDPFiltering),
+		UDPNATMax:            options.UDPNATMax,
+		InterfaceFinder:      networkManager.InterfaceFinder(),
+		Name:                 options.Name,
+		NamePrefix:           "oc",
+		MTU:                  openconnecttransport.DefaultMTU,
+		PacketFrontHeadroom:  openconnect.PacketHeadroom,
+		PacketRearHeadroom:   openconnect.PacketRearHeadroom,
 		Configuration: device.Configuration{
 			MTU: openconnecttransport.DefaultMTU,
 		},

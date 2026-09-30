@@ -18,9 +18,11 @@
   "path": "",
   "headers": {},
   "version": 0,
+  // "h3_congestion_control": "bbr",
   "disable_version_fallback": false,
   "tls": {},
   "advertise_routes": [],
+  // "tcp_congestion_control": "bbr",
   "system": false,
   "gso": false,
   "inner_domain_resolver": "", // or {}
@@ -84,6 +86,22 @@ When `2`, [QUIC Fields](#quic-fields) are replaced by [HTTP2 Fields](#http2-fiel
 
 Disable automatic fallback to lower HTTP version.
 
+### h3_congestion_control
+
+Selects the local sender congestion controller for HTTP/3 connections. Applies only to HTTP/3.
+
+Available values: `new_reno`, `cubic`, `bbr`, `none`.
+
+Omitting the field preserves the existing defaults: NewReno on the client and BBR on the server. BBR uses the Standard profile; profile and bandwidth parameters are not exposed. The setting affects only local sending, so the two peers may select different algorithms.
+
+When configured, `version` must be `3` or omitted; `0` resolves to the default version `3`. Builds without QUIC support reject this setting.
+
+This field does not change version fallback. Client fallback remains controlled by `disable_version_fallback`; the setting has no effect after fallback to HTTP/1 or HTTP/2.
+
+`none` bypasses the outer congestion window and pacing only for QUIC DATAGRAM packets carrying IP traffic. Control streams, the handshake, and reliable capsules retain normal congestion control. Capsule fallback remains available when DATAGRAM is unsupported. Exempt packets retain ACK/loss tracking, path MTU and resource limits, and use Not-ECT.
+
+Before using `none`, ensure tunneled traffic has appropriate congestion control or that the deployment provides suitable traffic management. UDP or KCP alone does not establish this. Lower latency is not guaranteed. Configure both peers to exempt both sending directions.
+
 ### tls
 
 TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
@@ -95,6 +113,20 @@ Required for HTTP/3.
 List of IP prefixes to advertise to the server.
 
 The server will route traffic for these prefixes into this endpoint, where it is handled as inbound traffic.
+
+### tcp_congestion_control
+
+Selects the congestion controller for the local sender in this endpoint's internal Go TCP stack.
+
+Available values: `reno`, `cubic`, `bbr`. Omitting the field preserves the default, CUBIC. Empty values and `none` are not supported.
+
+Only affects TCP connections terminated or initiated by this endpoint's internal Go TCP stack. It does not affect kernel TCP, TCP forwarded at L3, UDP, or inner QUIC. Peers may select different algorithms; for example, configure this field on the server to control TCP download data sent by its internal stack to the client.
+
+Allowed with either `system: false` or `system: true`, but only applies to connections handled by the internal Go TCP stack. Enabling the system interface does not make this setting affect kernel TCP.
+
+Applies to HTTP/1, HTTP/2, and HTTP/3, including after version fallback. Does not require a build with QUIC support. This field is independent of `h3_congestion_control`, which controls outer HTTP/3 congestion, and can be combined with its `none` value.
+
+Changing algorithms does not guarantee higher throughput; test on the actual network path.
 
 ### system
 

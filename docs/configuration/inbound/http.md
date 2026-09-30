@@ -8,6 +8,7 @@
   ... // Listen Fields
   
   "version": [],
+  // "h3_congestion_control": "bbr",
   "users": [
     {
       "username": "admin",
@@ -38,6 +39,18 @@ Available values: `1`, `2`, `3`.
 `1` and `2` are used by default.
 
 TLS is required for `3`.
+
+#### h3_congestion_control
+
+Selects the local sender congestion controller for HTTP/3 connections. Applies only to HTTP/3.
+
+Available values: `new_reno`, `cubic`, `bbr`. HTTP proxies reject `none` at startup.
+
+Omitting the field preserves the existing defaults: NewReno on the client and BBR on the server. BBR uses the Standard profile; profile and bandwidth parameters are not exposed. The setting affects only local sending, so the two peers may select different algorithms.
+
+When configured, `version` must include `3`. The default version list does not include `3`; enable it explicitly. Builds without QUIC support reject this setting.
+
+This field does not change version fallback. Client fallback remains controlled by `disable_version_fallback`; the setting has no effect after fallback to HTTP/1 or HTTP/2.
 
 #### tls
 

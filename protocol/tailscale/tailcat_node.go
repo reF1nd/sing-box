@@ -188,7 +188,7 @@ func newTailcatNode(options tailcatNodeOptions) (*tailcatNode, error) {
 	}
 	sys.Set(engine)
 	sys.NetstackRouter.Set(true)
-	netStack, err := netstack.Create(node.logf, sys.Tun.Get(), sys.DNSManager.Get(), sys.ProxyMapper(), options.MemoryPressure)
+	netStack, err := netstack.Create(node.logf, sys.Tun.Get(), sys.DNSManager.Get(), sys.ProxyMapper(), options.MemoryPressure, "")
 	if err != nil {
 		node.close()
 		return nil, E.Cause(err, "create netstack")

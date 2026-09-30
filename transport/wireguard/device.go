@@ -25,23 +25,24 @@ type Device interface {
 }
 
 type DeviceOptions struct {
-	Context         context.Context
-	Logger          logger.ContextLogger
-	System          bool
-	GSO             bool
-	Handler         tun.Handler
-	UDPTimeout      time.Duration
-	ICMPTimeout     time.Duration
-	UDPMapping      tun.NATMapping
-	UDPFiltering    tun.NATFiltering
-	UDPNATMax       uint32
-	InterfaceFinder control.InterfaceFinder
-	MemoryPressure  func() tun.MemoryPressure
-	CreateDialer    func(interfaceName string) N.Dialer
-	Name            string
-	MTU             uint32
-	Address         []netip.Prefix
-	AllowedAddress  []netip.Prefix
+	TCPCongestionControl string
+	Context              context.Context
+	Logger               logger.ContextLogger
+	System               bool
+	GSO                  bool
+	Handler              tun.Handler
+	UDPTimeout           time.Duration
+	ICMPTimeout          time.Duration
+	UDPMapping           tun.NATMapping
+	UDPFiltering         tun.NATFiltering
+	UDPNATMax            uint32
+	InterfaceFinder      control.InterfaceFinder
+	MemoryPressure       func() tun.MemoryPressure
+	CreateDialer         func(interfaceName string) N.Dialer
+	Name                 string
+	MTU                  uint32
+	Address              []netip.Prefix
+	AllowedAddress       []netip.Prefix
 }
 
 func NewDevice(options DeviceOptions) (Device, error) {
@@ -53,18 +54,19 @@ func NewDevice(options DeviceOptions) (Device, error) {
 
 func newStack(options DeviceOptions, memoryTun *tun.MemoryTun) (*tun.Go, error) {
 	return tun.NewGo(tun.StackOptions{
-		Context:         options.Context,
-		Tun:             memoryTun,
-		TunOptions:      tun.Options{MTU: options.MTU},
-		UDPTimeout:      options.UDPTimeout,
-		ICMPTimeout:     options.ICMPTimeout,
-		UDPMapping:      options.UDPMapping,
-		UDPFiltering:    options.UDPFiltering,
-		UDPNATMax:       options.UDPNATMax,
-		Handler:         options.Handler,
-		Logger:          options.Logger,
-		InterfaceFinder: options.InterfaceFinder,
-		MemoryPressure:  options.MemoryPressure,
+		TCPCongestionControl: options.TCPCongestionControl,
+		Context:              options.Context,
+		Tun:                  memoryTun,
+		TunOptions:           tun.Options{MTU: options.MTU},
+		UDPTimeout:           options.UDPTimeout,
+		ICMPTimeout:          options.ICMPTimeout,
+		UDPMapping:           options.UDPMapping,
+		UDPFiltering:         options.UDPFiltering,
+		UDPNATMax:            options.UDPNATMax,
+		Handler:              options.Handler,
+		Logger:               options.Logger,
+		InterfaceFinder:      options.InterfaceFinder,
+		MemoryPressure:       options.MemoryPressure,
 	})
 }
 
