@@ -258,6 +258,10 @@ func (c *capsuleConn) Upstream() any {
 
 var _ N.PacketConn = (*capsuleConn)(nil)
 
+// IPDatagramStream opts into the IP-tunneling congestion policy. Ordinary
+// CONNECT-UDP continues to use DatagramStream.SendDatagram.
+type IPDatagramStream interface{ SendIPDatagram([]byte) error }
+
 type DatagramStream interface {
 	io.ReadWriteCloser
 	SendDatagram(payload []byte) error

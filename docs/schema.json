@@ -3961,6 +3961,15 @@
             "tag": {
               "type": "string"
             },
+            "h3_congestion_control": {
+              "type": "string",
+              "enum": [
+                "new_reno",
+                "cubic",
+                "bbr",
+                "none"
+              ]
+            },
             "detour": {
               "type": "string",
               "x-tag-reference": "outbound"
@@ -4073,6 +4082,14 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 65535
+            },
+            "tcp_congestion_control": {
+              "type": "string",
+              "enum": [
+                "reno",
+                "cubic",
+                "bbr"
+              ]
             },
             "inner_domain_resolver": {
               "$ref": "#/$defs/DomainResolver"
@@ -4194,7 +4211,26 @@
           "required": [
             "type"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "h3_congestion_control"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "version": {
+                    "enum": [
+                      0,
+                      3
+                    ]
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "type": "object",
@@ -4204,6 +4240,15 @@
             },
             "tag": {
               "type": "string"
+            },
+            "h3_congestion_control": {
+              "type": "string",
+              "enum": [
+                "new_reno",
+                "cubic",
+                "bbr",
+                "none"
+              ]
             },
             "listen": {
               "$ref": "#/$defs/IPAddress"
@@ -4271,6 +4316,14 @@
             },
             "proxy_protocol_accept_no_header": {
               "type": "boolean"
+            },
+            "tcp_congestion_control": {
+              "type": "string",
+              "enum": [
+                "reno",
+                "cubic",
+                "bbr"
+              ]
             },
             "inner_domain_resolver": {
               "$ref": "#/$defs/DomainResolver"
@@ -4407,7 +4460,39 @@
           "required": [
             "type"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "h3_congestion_control"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "version": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "const": 3
+                      },
+                      {
+                        "type": "array",
+                        "contains": {
+                          "const": 3
+                        }
+                      },
+                      {
+                        "enum": [
+                          []
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
         },
         {
           "type": "object",
@@ -7139,6 +7224,14 @@
             "tag": {
               "type": "string"
             },
+            "h3_congestion_control": {
+              "type": "string",
+              "enum": [
+                "new_reno",
+                "cubic",
+                "bbr"
+              ]
+            },
             "listen": {
               "$ref": "#/$defs/IPAddress"
             },
@@ -7285,7 +7378,37 @@
           "required": [
             "type"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "h3_congestion_control"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "version": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "const": 3
+                      },
+                      {
+                        "type": "array",
+                        "contains": {
+                          "const": 3
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          ]
         },
         {
           "type": "object",
@@ -12786,6 +12909,14 @@
             "tag": {
               "type": "string"
             },
+            "h3_congestion_control": {
+              "type": "string",
+              "enum": [
+                "new_reno",
+                "cubic",
+                "bbr"
+              ]
+            },
             "detour": {
               "type": "string",
               "x-tag-reference": "outbound"
@@ -12967,7 +13098,28 @@
           "required": [
             "type"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "h3_congestion_control"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "version": {
+                    "enum": [
+                      3
+                    ]
+                  }
+                },
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          ]
         },
         {
           "type": "object",
