@@ -192,7 +192,12 @@ func (s *session) writePackets(buffers []*buf.Buffer) error {
 	for i, buffer := range buffers {
 		datagram := transportHTTP.PrependContextID(buffer)
 		if s.datagrams != nil {
-			err := s.datagrams.SendDatagram(datagram.Bytes())
+			var err error
+			if ipStream, ok := s.datagrams.(transportHTTP.IPDatagramStream); ok {
+				err = ipStream.SendIPDatagram(datagram.Bytes())
+			} else {
+				err = s.datagrams.SendDatagram(datagram.Bytes())
+			}
 			var tooLarge *transportHTTP.DatagramTooLargeError
 			switch {
 			case err == nil:

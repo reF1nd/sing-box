@@ -51,6 +51,7 @@ type ClientOptions struct {
 	DisableVersionFallback bool
 	HTTP2Options           option.HTTP2Options
 	HTTP3Options           option.QUICOptions
+	H3CongestionControl    option.H3CongestionControl
 }
 
 type http3Client interface {

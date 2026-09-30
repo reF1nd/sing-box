@@ -43,6 +43,7 @@ icon: material/new-box
   "listen_port": 0,
   "relay_server_port": 0,
   "relay_server_static_endpoints": [],
+  // "tcp_congestion_control": "bbr",
   "system_interface": false,
   "system_interface_name": "",
   "system_interface_gso": false,
@@ -151,6 +152,18 @@ The port to listen on for incoming relay connections from other Tailscale nodes.
 !!! question "Since sing-box 1.13.0"
 
 Static endpoints to advertise for the relay server.
+
+#### tcp_congestion_control
+
+Selects the congestion controller for the local sender in this endpoint's internal Go TCP stack.
+
+Available values: `reno`, `cubic`, `bbr`. Omitting the field preserves the default, CUBIC. Empty values and `none` are not supported.
+
+Only affects TCP connections terminated or initiated by this endpoint's internal Go TCP stack. It does not affect kernel TCP, TCP forwarded at L3, UDP, or inner QUIC. Peers may select different algorithms. The setting affects only data sent by this endpoint; for example, when this endpoint serves as an exit node or subnet router, it controls TCP data sent by its internal stack back to tailnet peers.
+
+Allowed with either `system_interface: false` or `system_interface: true`, but only applies to connections handled by the internal Go TCP stack. Enabling the system interface does not make this setting affect kernel TCP.
+
+Changing algorithms does not guarantee higher throughput; test on the actual network path.
 
 #### system_interface
 

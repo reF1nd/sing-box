@@ -400,3 +400,106 @@ func TestMASQUEStuckClient(t *testing.T) {
 	defer closeEcho()
 	require.NoError(t, probeOpenVPNTCPWithTimeout(environment.clientProxyPort, masqueServerAddress, echoPort, 5*time.Second))
 }
+
+func TestMASQUEH3CongestionAlgorithms(t *testing.T) {
+	for _, pair := range [][2]option.H3CongestionControl{{"new_reno", "new_reno"}, {"cubic", "cubic"}, {"bbr", "bbr"}, {"none", "none"}, {"none", ""}, {"", "none"}, {"bbr", "cubic"}} {
+		t.Run(string(pair[0])+"/"+string(pair[1]), func(t *testing.T) {
+			environment := startMASQUEConfigured(t, nil, 3, true, 1280, nil, nil, func(server, client *option.Options) {
+				server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions).H3CongestionControl = pair[1]
+				client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions).H3CongestionControl = pair[0]
+			})
+			testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+		})
+	}
+}
+
+func TestMASQUEH3CongestionFallback(t *testing.T) {
+	for _, algorithm := range []option.H3CongestionControl{"new_reno", "cubic", "bbr", "none"} {
+		for _, version := range []int{1, 2} {
+			t.Run(string(algorithm)+"/"+strconv.Itoa(version), func(t *testing.T) {
+				environment := startMASQUEConfigured(t, []int{version}, 3, false, 1280, nil, nil, func(server, client *option.Options) {
+					client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions).H3CongestionControl = algorithm
+				})
+				testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+			})
+		}
+	}
+}
+
+func TestMASQUETCPCongestionAlgorithms(t *testing.T) {
+	for _, pair := range [][2]option.TCPCongestionControl{{"", ""}, {"reno", "reno"}, {"cubic", "cubic"}, {"bbr", "bbr"}, {"bbr", "cubic"}, {"", "bbr"}} {
+		t.Run(string(pair[0])+"/"+string(pair[1]), func(t *testing.T) {
+			environment := startMASQUEConfigured(t, nil, 3, true, 1280, nil, nil, func(server, client *option.Options) {
+				serverEndpoint := server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions)
+				clientEndpoint := client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions)
+				serverEndpoint.TCPCongestionControl = pair[1]
+				clientEndpoint.TCPCongestionControl = pair[0]
+				serverEndpoint.H3CongestionControl = option.H3CongestionNone
+				clientEndpoint.H3CongestionControl = option.H3CongestionNone
+			})
+			// Echo and large transfers exercise both TCP senders; UDP remains unaffected.
+			testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+		})
+	}
+}
+
+func TestMASQUETCPCongestionVersions(t *testing.T) {
+	for _, algorithm := range []option.TCPCongestionControl{"reno", "cubic", "bbr"} {
+		for _, version := range []int{1, 2} {
+			for _, fallback := range []bool{false, true} {
+				name := string(algorithm) + "/HTTP" + strconv.Itoa(version) + "/fallback=" + strconv.FormatBool(fallback)
+				t.Run(name, func(t *testing.T) {
+					clientVersion := version
+					if fallback {
+						clientVersion = 3
+					}
+					environment := startMASQUEConfigured(t, []int{version}, clientVersion, !fallback, 1280, nil, nil, func(server, client *option.Options) {
+						server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions).TCPCongestionControl = algorithm
+						client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions).TCPCongestionControl = algorithm
+					})
+					testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+				})
+			}
+		}
+	}
+}
+
+func TestMASQUETCPCongestionShadowsocks(t *testing.T) {
+	ssPort := reserveOpenVPNEchoPort(t)
+	const method = "aes-128-gcm"
+	const password = "masque-tcp-congestion-test"
+	startInstance(t, option.Options{
+		Inbounds: []option.Inbound{{
+			Type: C.TypeShadowsocks,
+			Options: &option.ShadowsocksInboundOptions{
+				ListenOptions: option.ListenOptions{
+					Listen:     common.Ptr(badoption.Addr(netip.MustParseAddr("127.0.0.1"))),
+					ListenPort: ssPort,
+				},
+				Method:   method,
+				Password: password,
+			},
+		}},
+		Outbounds: []option.Outbound{{Type: C.TypeDirect}},
+	})
+	environment := startMASQUEConfigured(t, nil, 3, true, 1280, nil, nil, func(server, client *option.Options) {
+		serverEndpoint := server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions)
+		clientEndpoint := client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions)
+		serverEndpoint.TCPCongestionControl = option.TCPCongestionBBR
+		serverEndpoint.H3CongestionControl = option.H3CongestionNone
+		clientEndpoint.H3CongestionControl = option.H3CongestionNone
+		server.Outbounds = []option.Outbound{{
+			Type: C.TypeShadowsocks,
+			Tag:  "ss",
+			Options: &option.ShadowsocksOutboundOptions{
+				ServerOptions: option.ServerOptions{Server: "127.0.0.1", ServerPort: ssPort},
+				Method:        method,
+				Password:      password,
+			},
+		}}
+		route := &server.Route.Rules[1].DefaultOptions.RouteOptions
+		route.Outbound = "ss"
+		route.OverrideAddress = "127.0.0.1"
+	})
+	testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+}

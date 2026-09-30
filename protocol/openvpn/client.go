@@ -77,6 +77,9 @@ type clientState struct {
 }
 
 func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.OpenVPNClientEndpointOptions) (adapter.Endpoint, error) {
+	if err := options.TCPCongestionControl.Validate(); err != nil {
+		return nil, err
+	}
 	innerDNSQueryOptions, err := dialer.NewInnerDNSQueryOptions(ctx, options.InnerDomainResolver)
 	if err != nil {
 		return nil, E.Cause(err, "inner domain resolver")
@@ -140,22 +143,23 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 	}
 
 	clientEndpoint.deviceOptions = &device.Options{
-		Context:             ctx,
-		Logger:              logger,
-		System:              options.System,
-		GSO:                 gso,
-		Handler:             clientEndpoint,
-		UDPTimeout:          udpTimeout,
-		ICMPTimeout:         C.ICMPTimeout,
-		UDPMapping:          tun.NATMapping(options.UDPMapping),
-		UDPFiltering:        tun.NATFiltering(options.UDPFiltering),
-		UDPNATMax:           options.UDPNATMax,
-		InterfaceFinder:     service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
-		Name:                options.Name,
-		NamePrefix:          "ovpn",
-		MTU:                 deviceMTU,
-		PacketFrontHeadroom: packetFrontHeadroom,
-		PacketRearHeadroom:  packetRearHeadroom,
+		TCPCongestionControl: string(options.TCPCongestionControl),
+		Context:              ctx,
+		Logger:               logger,
+		System:               options.System,
+		GSO:                  gso,
+		Handler:              clientEndpoint,
+		UDPTimeout:           udpTimeout,
+		ICMPTimeout:          C.ICMPTimeout,
+		UDPMapping:           tun.NATMapping(options.UDPMapping),
+		UDPFiltering:         tun.NATFiltering(options.UDPFiltering),
+		UDPNATMax:            options.UDPNATMax,
+		InterfaceFinder:      service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
+		Name:                 options.Name,
+		NamePrefix:           "ovpn",
+		MTU:                  deviceMTU,
+		PacketFrontHeadroom:  packetFrontHeadroom,
+		PacketRearHeadroom:   packetRearHeadroom,
 		Configuration: device.Configuration{
 			MTU:     deviceMTU,
 			Address: clientOptions.Tunnel.LocalAddress,

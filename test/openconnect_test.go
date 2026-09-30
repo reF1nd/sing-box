@@ -132,6 +132,27 @@ func TestOpenConnectDockerInterop(t *testing.T) {
 		require.NoError(subtest, err)
 	})
 
+	t.Run("tcp_congestion_control", func(subtest *testing.T) {
+		for _, algorithm := range []option.TCPCongestionControl{"reno", "bbr"} {
+			subtest.Run(string(algorithm), func(subtest *testing.T) {
+				container := startOpenConnectOcservContainer(subtest, ctx)
+				options := openConnectInstanceOptions(
+					container.serverAddress,
+					container.certificateAuthorityPath,
+					openConnectUsername,
+					openConnectPassword,
+				)
+				options.Endpoints[0].Options.(*option.OpenConnectEndpointOptions).TCPCongestionControl = algorithm
+				instance := startInstance(subtest, options)
+				endpoint := requireOpenConnectEndpoint(subtest, instance)
+				waitForOpenConnectState(subtest, endpoint, adapter.OpenConnectStateConnected, 45*time.Second)
+				// The endpoint's internal stack sends the upload half of the echo.
+				err := exchangeOpenConnectTCPEcho(endpoint, 256*1024, 30*time.Second)
+				require.NoError(subtest, err)
+			})
+		}
+	})
+
 	t.Run("interactive_password_auth", func(subtest *testing.T) {
 		container := startOpenConnectOcservContainer(subtest, ctx)
 		instance := startInstance(subtest, openConnectInstanceOptions(
