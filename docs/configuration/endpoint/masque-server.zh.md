@@ -14,6 +14,7 @@
   ... // 监听字段
 
   "version": [],
+  // "h3_congestion_control": "bbr",
   "users": [
     {
       "username": "",
@@ -60,6 +61,22 @@
 HTTP 用户，通过 `Authorization` 标头验证。
 
 如果为空则不需要验证。
+
+### h3_congestion_control
+
+HTTP/3 连接的本端发送拥塞控制算法。仅在 HTTP/3 生效。
+
+支持 `new_reno`、`cubic`、`bbr`、`none`。
+
+省略时保留现有行为：客户端使用 NewReno，服务端使用 BBR。BBR 使用 Standard profile，不提供 profile 或带宽参数。配置仅影响本端发送，两端可以使用不同算法。
+
+配置本字段时，`version` 必须包含 `3`。省略 `version` 时默认包含 `3`。不包含 QUIC 支持的构建拒绝此配置。
+
+本字段不改变版本回退策略。客户端是否允许回退仍由 `disable_version_fallback` 控制；回退到 HTTP/1 或 HTTP/2 后，本字段不生效。
+
+`none` 仅免除承载 IP 的 QUIC DATAGRAM 包的外层拥塞窗口和 pacing。控制流、握手和可靠 Capsule 仍受正常拥塞控制；DATAGRAM 不可用时仍允许 Capsule 回退。豁免包保留 ACK、丢包追踪、路径 MTU 和资源限制，并使用 Not-ECT。
+
+使用 `none` 前应确认被代理流量具有适当的拥塞控制或部署环境具备相应的流量管理；仅知道内层是 UDP 或 KCP 并不足以判断。此选项不保证更低延迟。双向豁免需要两端分别配置。
 
 ### tls
 

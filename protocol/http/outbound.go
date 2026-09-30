@@ -30,6 +30,12 @@ type Outbound struct {
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPOutboundOptions) (adapter.Outbound, error) {
+	if err := options.H3CongestionControl.Validate([]int{options.Version}, false); err != nil {
+		return nil, err
+	}
+	if options.H3CongestionControl != "" && http.NewHTTP3Client == nil {
+		return nil, E.New("h3_congestion_control requires QUIC support in this build")
+	}
 	outboundDialer, err := dialer.New(ctx, options.DialerOptions, options.ServerIsDomain())
 	if err != nil {
 		return nil, err
@@ -44,6 +50,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		DisableVersionFallback: options.DisableVersionFallback,
 		HTTP2Options:           options.HTTP2Options,
 		HTTP3Options:           options.HTTP3Options,
+		H3CongestionControl:    options.H3CongestionControl,
 	})
 	if err != nil {
 		return nil, err

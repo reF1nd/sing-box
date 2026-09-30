@@ -8,6 +8,7 @@
   ... // 监听字段
 
   "version": [],
+  // "h3_congestion_control": "bbr",
   "users": [
     {
       "username": "admin",
@@ -38,6 +39,18 @@
 默认为 `1` 和 `2`。
 
 `3` 需要 TLS。
+
+#### h3_congestion_control
+
+HTTP/3 连接的本端发送拥塞控制算法。仅在 HTTP/3 生效。
+
+支持 `new_reno`、`cubic`、`bbr`。HTTP 代理不支持 `none`，配置后将拒绝启动。
+
+省略时保留现有行为：客户端使用 NewReno，服务端使用 BBR。BBR 使用 Standard profile，不提供 profile 或带宽参数。配置仅影响本端发送，两端可以使用不同算法。
+
+配置本字段时，`version` 必须包含 `3`。默认版本不包含 `3`，需要显式启用。不包含 QUIC 支持的构建拒绝此配置。
+
+本字段不改变版本回退策略。客户端是否允许回退仍由 `disable_version_fallback` 控制；回退到 HTTP/1 或 HTTP/2 后，本字段不生效。
 
 #### tls
 
