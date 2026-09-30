@@ -176,7 +176,11 @@ func TestHTTPInboundConnectUDPHTTP3(t *testing.T) {
 	capsuleStream.Close()
 }
 
-func startHTTP3OnlyInbound(t *testing.T, certPem string, keyPem string) {
+func startHTTP3OnlyInbound(t *testing.T, certPem string, keyPem string, algorithms ...option.H3CongestionControl) {
+	var algorithm option.H3CongestionControl
+	if len(algorithms) > 0 {
+		algorithm = algorithms[0]
+	}
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -186,8 +190,9 @@ func startHTTP3OnlyInbound(t *testing.T, certPem string, keyPem string) {
 						Listen:     common.Ptr(badoption.Addr(netip.IPv4Unspecified())),
 						ListenPort: serverPort,
 					},
-					Version: []int{3},
-					Users:   []auth.User{{Username: "sekai", Password: "password"}},
+					Version:             []int{3},
+					H3CongestionControl: algorithm,
+					Users:               []auth.User{{Username: "sekai", Password: "password"}},
 					InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
 						TLS: &option.InboundTLSOptions{
 							Enabled:         true,
@@ -203,7 +208,11 @@ func startHTTP3OnlyInbound(t *testing.T, certPem string, keyPem string) {
 	})
 }
 
-func startHTTP3Outbound(t *testing.T, certPem string, disableFallback bool) {
+func startHTTP3Outbound(t *testing.T, certPem string, disableFallback bool, algorithms ...option.H3CongestionControl) {
+	var algorithm option.H3CongestionControl
+	if len(algorithms) > 0 {
+		algorithm = algorithms[0]
+	}
 	startInstance(t, option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -228,6 +237,7 @@ func startHTTP3Outbound(t *testing.T, certPem string, disableFallback bool) {
 					Password:               "password",
 					Version:                3,
 					DisableVersionFallback: disableFallback,
+					H3CongestionControl:    algorithm,
 					OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
 						TLS: &option.OutboundTLSOptions{
 							Enabled:         true,
@@ -241,12 +251,20 @@ func startHTTP3Outbound(t *testing.T, certPem string, disableFallback bool) {
 	})
 }
 
-func TestHTTPOutboundHTTP3(t *testing.T) {
+func TestHTTPOutboundHTTP3(t *testing.T) { testHTTPOutboundHTTP3Congestion(t, "", "") }
+
+func TestHTTPH3CongestionAlgorithms(t *testing.T) {
+	for _, pair := range [][2]option.H3CongestionControl{{"new_reno", "new_reno"}, {"cubic", "cubic"}, {"bbr", "bbr"}, {"bbr", "cubic"}} {
+		t.Run(string(pair[0])+"/"+string(pair[1]), func(t *testing.T) { testHTTPOutboundHTTP3Congestion(t, pair[0], pair[1]) })
+	}
+}
+
+func testHTTPOutboundHTTP3Congestion(t *testing.T, clientAlgorithm, serverAlgorithm option.H3CongestionControl) {
 	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	startHTTP3OnlyInbound(t, certPem, keyPem)
+	startHTTP3OnlyInbound(t, certPem, keyPem, serverAlgorithm)
 	_, err := net.DialTimeout("tcp", "127.0.0.1:"+strconv.Itoa(int(serverPort)), time.Second)
 	require.Error(t, err)
-	startHTTP3Outbound(t, certPem, true)
+	startHTTP3Outbound(t, certPem, true, clientAlgorithm)
 	origin := newForwardOrigin(t)
 	client := proxyClient(t, clientPort)
 	for i := 0; i < 3; i++ {

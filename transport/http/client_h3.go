@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/httpclient"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -30,18 +31,19 @@ func init() {
 }
 
 type http3ClientImpl struct {
-	dialer        N.Dialer
-	tlsConfig     aTLS.Config
-	server        M.Socksaddr
-	authority     string
-	headers       http.Header
-	authorization string
-	quicConfig    *quic.Config
-	transport     *http3.Transport
-	closeIdle     *atomic.Bool
-	access        sync.Mutex
-	conn          *http3Conn
-	dial          *dialOffer
+	dialer            N.Dialer
+	tlsConfig         aTLS.Config
+	server            M.Socksaddr
+	authority         string
+	headers           http.Header
+	authorization     string
+	quicConfig        *quic.Config
+	congestionControl option.H3CongestionControl
+	transport         *http3.Transport
+	closeIdle         *atomic.Bool
+	access            sync.Mutex
+	conn              *http3Conn
+	dial              *dialOffer
 }
 
 type http3Conn struct {
@@ -71,15 +73,16 @@ func newHTTP3Client(options ClientOptions, authorization string, closeIdle *atom
 		headers.Del("Host")
 	}
 	return &http3ClientImpl{
-		dialer:        dialer,
-		tlsConfig:     options.TLSConfig,
-		server:        options.Server,
-		authority:     authority,
-		headers:       headers,
-		authorization: authorization,
-		quicConfig:    quicConfig,
-		transport:     &http3.Transport{EnableDatagrams: true, DisableCompression: true},
-		closeIdle:     closeIdle,
+		dialer:            dialer,
+		tlsConfig:         options.TLSConfig,
+		server:            options.Server,
+		authority:         authority,
+		headers:           headers,
+		authorization:     authorization,
+		quicConfig:        quicConfig,
+		congestionControl: options.H3CongestionControl,
+		transport:         &http3.Transport{EnableDatagrams: true, DisableCompression: true},
+		closeIdle:         closeIdle,
 	}, nil
 }
 
@@ -143,6 +146,7 @@ func (c *http3ClientImpl) dialConn(ctx context.Context, offer *dialOffer) (*http
 		quicConn.CloseWithError(0, "")
 		return nil, net.ErrClosed
 	}
+	applyH3Congestion(ctx, quicConn, c.congestionControl, false)
 	c.conn = &http3Conn{ClientConn: c.transport.NewClientConn(quicConn), streams: 1}
 	return c.conn, nil
 }
@@ -298,9 +302,10 @@ func (c *http3ClientImpl) OpenTunnel(ctx context.Context, request tunnelRequest)
 		return nil, err
 	}
 	return &http3RequestDatagramStream{
-		stream:           stream,
-		datagramsEnabled: conn.Settings().EnableDatagrams,
-		onClose:          func() { c.release(conn, keepSession) },
+		stream:             stream,
+		datagramsEnabled:   conn.Settings().EnableDatagrams,
+		bypassIPCongestion: c.congestionControl == option.H3CongestionNone && request.protocol == "connect-ip",
+		onClose:            func() { c.release(conn, keepSession) },
 	}, nil
 }
 
@@ -402,10 +407,11 @@ func (c *http3StreamConn) NeedAdditionalReadDeadline() bool {
 }
 
 type http3RequestDatagramStream struct {
-	stream           *http3.RequestStream
-	datagramsEnabled bool
-	onClose          func()
-	closed           atomic.Bool
+	stream             *http3.RequestStream
+	datagramsEnabled   bool
+	bypassIPCongestion bool
+	onClose            func()
+	closed             atomic.Bool
 }
 
 func (s *http3RequestDatagramStream) Read(p []byte) (int, error) {
@@ -447,10 +453,23 @@ func (s *http3RequestDatagramStream) Close() error {
 }
 
 func (s *http3RequestDatagramStream) SendDatagram(payload []byte) error {
+	return s.sendDatagram(payload, false)
+}
+
+func (s *http3RequestDatagramStream) SendIPDatagram(payload []byte) error {
+	return s.sendDatagram(payload, s.bypassIPCongestion)
+}
+
+func (s *http3RequestDatagramStream) sendDatagram(payload []byte, bypass bool) error {
 	if !s.datagramsEnabled {
 		return ErrDatagramUnsupported
 	}
-	err := s.stream.SendDatagram(payload)
+	var err error
+	if bypass {
+		err = s.stream.SendDatagramWithoutCongestionControl(payload)
+	} else {
+		err = s.stream.SendDatagram(payload)
+	}
 	if err == nil {
 		return nil
 	}

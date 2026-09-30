@@ -93,6 +93,8 @@ type openVPNSelfCase struct {
 	tlsCrypt             bool
 	omitServerKeyUsage   bool
 	remoteCertificateTLS string
+	clientTCPCongestion  option.TCPCongestionControl
+	serverTCPCongestion  option.TCPCongestionControl
 }
 
 type openVPNPacketReturn struct {
@@ -136,6 +138,19 @@ func TestOpenVPNSelfToSelf(t *testing.T) {
 		currentTestCase := testCases[i]
 		t.Run(currentTestCase.name, func(t *testing.T) {
 			runOpenVPNSelfToSelf(t, currentTestCase)
+		})
+	}
+}
+
+func TestOpenVPNTCPCongestionAlgorithms(t *testing.T) {
+	for _, pair := range [][2]option.TCPCongestionControl{{"reno", "reno"}, {"cubic", "cubic"}, {"bbr", "bbr"}, {"bbr", "cubic"}, {"", "bbr"}} {
+		t.Run(string(pair[0])+"/"+string(pair[1]), func(t *testing.T) {
+			// Echo and large transfers exercise both TCP senders; UDP remains unaffected.
+			runOpenVPNSelfToSelf(t, openVPNSelfCase{
+				protocol:            N.NetworkUDP,
+				clientTCPCongestion: pair[0],
+				serverTCPCongestion: pair[1],
+			})
 		})
 	}
 }
@@ -362,11 +377,13 @@ func runOpenVPNSelfToSelf(t *testing.T, testCase openVPNSelfCase) {
 	serverOptions.UDPMapping = option.UDPNATBehaviorAddressDependent
 	serverOptions.UDPFiltering = option.UDPNATBehaviorAddressAndPortDependent
 	serverOptions.UDPNATMax = 128
+	serverOptions.TCPCongestionControl = testCase.serverTCPCongestion
 	clientOptions := newOpenVPNTLSClientOptions(testCase.protocol, openVPNPort, certificates.caPath, certificates.clientCertPath, certificates.clientKeyPath)
 	clientOptions.TLS.RemoteCertificateTLS = testCase.remoteCertificateTLS
 	clientOptions.UDPMapping = option.UDPNATBehaviorAddressDependent
 	clientOptions.UDPFiltering = option.UDPNATBehaviorAddressAndPortDependent
 	clientOptions.UDPNATMax = 128
+	clientOptions.TCPCongestionControl = testCase.clientTCPCongestion
 	if testCase.tlsCrypt {
 		tlsCryptKeyPath := writeOpenVPNStaticKeyFile(t, createOpenVPNStaticKey(t))
 		serverOptions.TLS.ControlWrap = &option.OpenVPNInboundControlWrapOptions{

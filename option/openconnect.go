@@ -4,6 +4,7 @@ import "github.com/sagernet/sing/common/json/badoption"
 
 type OpenConnectEndpointOptions struct {
 	DialerOptions
+	TCPCongestionControl           TCPCongestionControl                 `json:"tcp_congestion_control,omitempty" enum:"reno,cubic,bbr"`
 	InnerDomainResolver            *DomainResolveOptions                `json:"inner_domain_resolver,omitempty"`
 	System                         bool                                 `json:"system,omitempty"`
 	GSO                            *bool                                `json:"gso,omitempty"`

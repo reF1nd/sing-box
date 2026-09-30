@@ -23,9 +23,16 @@ import (
 )
 
 func TestWireGuardEndpointDataPlane(t *testing.T) {
-	for _, testCase := range []struct{ system, udpGSO bool }{{false, true}, {true, true}, {false, false}} {
+	for _, testCase := range []struct {
+		system, udpGSO       bool
+		serverTCP, clientTCP option.TCPCongestionControl
+	}{{false, true, "", ""}, {true, true, "", ""}, {false, false, "", ""}, {false, true, "bbr", "bbr"}, {false, true, "cubic", "reno"}, {true, true, "bbr", ""}} {
 		system, udpGSO := testCase.system, testCase.udpGSO
-		t.Run(fmt.Sprintf("system=%v/udp_gso=%v", system, udpGSO), func(test *testing.T) {
+		name := fmt.Sprintf("system=%v/udp_gso=%v", system, udpGSO)
+		if testCase.serverTCP != "" || testCase.clientTCP != "" {
+			name += fmt.Sprintf("/tcp_congestion=%s,%s", testCase.serverTCP, testCase.clientTCP)
+		}
+		t.Run(name, func(test *testing.T) {
 			serverKey, err := ecdh.X25519().GenerateKey(rand.Reader)
 			require.NoError(test, err)
 			clientKey, err := ecdh.X25519().GenerateKey(rand.Reader)
@@ -42,7 +49,7 @@ func TestWireGuardEndpointDataPlane(t *testing.T) {
 						Type: C.TypeWireGuard,
 						Tag:  "server",
 						Options: &option.WireGuardEndpointOptions{
-							MTU: 1280, Address: serverAddresses, Workers: 2,
+							MTU: 1280, Address: serverAddresses, Workers: 2, TCPCongestionControl: testCase.serverTCP,
 							PrivateKey: base64.StdEncoding.EncodeToString(serverKey.Bytes()),
 							ListenPort: serverPort,
 							DialerOptions: option.DialerOptions{
@@ -58,7 +65,7 @@ func TestWireGuardEndpointDataPlane(t *testing.T) {
 						Type: C.TypeWireGuard,
 						Tag:  "client",
 						Options: &option.WireGuardEndpointOptions{
-							System: system, MTU: 1280, Address: clientAddresses, Workers: 2,
+							System: system, MTU: 1280, Address: clientAddresses, Workers: 2, TCPCongestionControl: testCase.clientTCP,
 							PrivateKey: base64.StdEncoding.EncodeToString(clientKey.Bytes()),
 							DialerOptions: option.DialerOptions{
 								AbstractDialerOptions: option.AbstractDialerOptions{UDPGSO: &udpGSO},
