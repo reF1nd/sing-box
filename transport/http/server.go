@@ -30,7 +30,7 @@ const (
 	realm               = "sing-box"
 )
 
-var ConfigureHTTP3ListenerFunc func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error)
+var ConfigureHTTP3ListenerFunc func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions, congestionControl option.H3CongestionControl) (io.Closer, error)
 
 type Handler interface {
 	N.TCPConnectionHandlerEx
@@ -125,7 +125,7 @@ func (s *Server) ConfigureTLS(tlsConfig tls.ServerConfig) {
 	tlsConfig.SetNextProtos(nextProtos)
 }
 
-func (s *Server) ListenHTTP3(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error) {
+func (s *Server) ListenHTTP3(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler Handler, tlsConfig tls.ServerConfig, options option.QUICOptions, congestionControl option.H3CongestionControl) (io.Closer, error) {
 	if ConfigureHTTP3ListenerFunc == nil {
 		return nil, C.ErrQUICNotIncluded
 	}
@@ -135,7 +135,7 @@ func (s *Server) ListenHTTP3(ctx context.Context, logger logger.Logger, listener
 	return ConfigureHTTP3ListenerFunc(ctx, logger, listener, &httpHandler{
 		server:  s,
 		handler: handler,
-	}, tlsConfig, options)
+	}, tlsConfig, options, congestionControl)
 }
 
 func (s *Server) finishConnection(ctx context.Context, conn net.Conn, source M.Socksaddr, onClose N.CloseHandlerFunc, err error) {

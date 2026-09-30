@@ -17,6 +17,7 @@
   "type": "wireguard",
   "tag": "wg-ep",
   
+  // "tcp_congestion_control": "bbr",
   "system": false,
   "name": "",
   "gso": false,
@@ -51,6 +52,18 @@
     You can ignore the JSON Array [] tag when the content is only one item
 
 ### Fields
+
+#### tcp_congestion_control
+
+Selects the congestion controller for the local sender in this endpoint's internal Go TCP stack.
+
+Available values: `reno`, `cubic`, `bbr`. Omitting the field preserves the default, CUBIC. Empty values and `none` are not supported.
+
+Only affects TCP connections terminated or initiated by this endpoint's internal Go TCP stack. It does not affect kernel TCP, TCP forwarded at L3, UDP, or inner QUIC. Peers may select different algorithms. The setting affects only data sent by this endpoint: uploads over TCP connections it initiates through the tunnel and, when peers route traffic through this endpoint, TCP data its internal stack sends back to those peers.
+
+Allowed with either `system: false` or `system: true`, but only applies to connections handled by the internal Go TCP stack. Enabling the system interface does not make this setting affect kernel TCP.
+
+Changing algorithms does not guarantee higher throughput; test on the actual network path.
 
 #### system
 

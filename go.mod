@@ -89,13 +89,13 @@ require (
 )
 
 replace (
-	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.61.0-sing-box-mod.13.0.20261111053926-ce47d74da48a
+	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.61.0-sing-box-mod.13.0.20261111053926-d84b179bd597
 	github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261111053803-aff75de96033
 	github.com/sagernet/sing-anytls => github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a
-	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261111071352-959aab03feff
+	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261111071355-6f763a74f598
 	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20261111152839-c3d3cba7c508
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.7-0.20261111075846-c70827b4926d
-	github.com/sagernet/tailscale => github.com/reF1nd/tailscale v1.102.1-sing-box-1.14-mod.5.0.20261111053927-6a4cbde50882
+	github.com/sagernet/tailscale => github.com/reF1nd/tailscale v1.102.1-sing-box-1.14-mod.5.0.20261111053927-c23a64f6574e
 	github.com/sagernet/wireguard-go => github.com/reF1nd/wireguard-go v0.0.8-0.20261025115602-efd86415af1a
 )
 
