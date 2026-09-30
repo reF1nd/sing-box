@@ -28,6 +28,7 @@ func (o *MASQUEEndpointOptions) TakeInnerDomainResolverOptions() *DomainResolveO
 }
 
 type _MASQUEClientEndpointOptions struct {
+	H3CongestionControl H3CongestionControl `json:"h3_congestion_control,omitempty" enum:"new_reno,cubic,bbr,none"`
 	DialerOptions
 	ServerOptions
 	MASQUEEndpointOptions
@@ -63,6 +64,9 @@ func (o *MASQUEClientEndpointOptions) UnmarshalJSONContext(ctx context.Context, 
 	if err != nil {
 		return err
 	}
+	if err := o.H3CongestionControl.Validate([]int{o.ResolvedVersion()}, true); err != nil {
+		return err
+	}
 	return unmarshalHTTPVersionOptions(ctx, content, (*_MASQUEClientEndpointOptions)(o), o.ResolvedVersion(), &o.HTTP2Options, &o.HTTP3Options)
 }
 
@@ -76,10 +80,12 @@ func (o MASQUEClientEndpointOptions) DescribeSchema(builder schema.Builder) (*sc
 	if err != nil {
 		return nil, err
 	}
+	describeH3Congestion(node, false, true)
 	return node, nil
 }
 
 type _MASQUEServerEndpointOptions struct {
+	H3CongestionControl H3CongestionControl `json:"h3_congestion_control,omitempty" enum:"new_reno,cubic,bbr,none"`
 	ListenOptions
 	MASQUEEndpointOptions
 	Users   []auth.User             `json:"users,omitempty"`
@@ -110,6 +116,9 @@ func (o *MASQUEServerEndpointOptions) UnmarshalJSONContext(ctx context.Context, 
 	if err != nil {
 		return err
 	}
+	if err := o.H3CongestionControl.Validate(o.Versions(), true); err != nil {
+		return err
+	}
 	return unmarshalHTTPVersionsOptions(ctx, content, (*_MASQUEServerEndpointOptions)(o), o.Versions(), &o.HTTP2Options, &o.HTTP3Options)
 }
 
@@ -123,5 +132,6 @@ func (o MASQUEServerEndpointOptions) DescribeSchema(builder schema.Builder) (*sc
 	if err != nil {
 		return nil, err
 	}
+	describeH3Congestion(node, true, true)
 	return node, nil
 }

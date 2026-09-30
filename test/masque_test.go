@@ -400,3 +400,28 @@ func TestMASQUEStuckClient(t *testing.T) {
 	defer closeEcho()
 	require.NoError(t, probeOpenVPNTCPWithTimeout(environment.clientProxyPort, masqueServerAddress, echoPort, 5*time.Second))
 }
+
+func TestMASQUEH3CongestionAlgorithms(t *testing.T) {
+	for _, pair := range [][2]option.H3CongestionControl{{"new_reno", "new_reno"}, {"cubic", "cubic"}, {"bbr", "bbr"}, {"none", "none"}, {"none", ""}, {"", "none"}, {"bbr", "cubic"}} {
+		t.Run(string(pair[0])+"/"+string(pair[1]), func(t *testing.T) {
+			environment := startMASQUEConfigured(t, nil, 3, true, 1280, nil, nil, func(server, client *option.Options) {
+				server.Endpoints[0].Options.(*option.MASQUEServerEndpointOptions).H3CongestionControl = pair[1]
+				client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions).H3CongestionControl = pair[0]
+			})
+			testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+		})
+	}
+}
+
+func TestMASQUEH3CongestionFallback(t *testing.T) {
+	for _, algorithm := range []option.H3CongestionControl{"new_reno", "cubic", "bbr", "none"} {
+		for _, version := range []int{1, 2} {
+			t.Run(string(algorithm)+"/"+strconv.Itoa(version), func(t *testing.T) {
+				environment := startMASQUEConfigured(t, []int{version}, 3, false, 1280, nil, nil, func(server, client *option.Options) {
+					client.Endpoints[0].Options.(*option.MASQUEClientEndpointOptions).H3CongestionControl = algorithm
+				})
+				testSuitOpenVPN(t, environment.clientProxyPort, reserveOpenVPNEchoPort(t), masqueServerAddress)
+			})
+		}
+	}
+}
