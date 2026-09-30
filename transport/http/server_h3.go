@@ -17,13 +17,12 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic"
-	congestion_meta2 "github.com/sagernet/sing-quic/congestion_meta2"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 )
 
 func init() {
-	ConfigureHTTP3ListenerFunc = func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error) {
+	ConfigureHTTP3ListenerFunc = func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions, congestionControl option.H3CongestionControl) (io.Closer, error) {
 		err := qtls.ConfigureHTTP3(tlsConfig)
 		if err != nil {
 			return nil, err
@@ -33,6 +32,7 @@ func init() {
 			return nil, err
 		}
 		quicConfig := httpclient.NewQUICConfig(options)
+		configureH3Congestion(quicConfig, congestionControl)
 		if quicConfig.MaxIncomingStreams == 0 {
 			quicConfig.MaxIncomingStreams = 1 << 60
 		}
@@ -48,7 +48,8 @@ func init() {
 			Handler:         handler,
 			EnableDatagrams: true,
 			ConnContext: func(ctx context.Context, conn *quic.Conn) context.Context {
-				conn.SetCongestionControl(congestion_meta2.NewBbrSenderWithProfile(conn.InitialPacketSize(), congestion_meta2.ProfileStandard))
+				applyH3Congestion(conn, congestionControl, true)
+				ctx = context.WithValue(ctx, h3CongestionContextKey{}, congestionControl)
 				return log.ContextWithNewID(ctx)
 			},
 		}
@@ -76,22 +77,35 @@ func init() {
 			return nil, false
 		}
 		return &datagramStream{
-			Stream:           streamer.HTTPStream(),
-			datagramsEnabled: settingser.Settings().EnableDatagrams,
+			Stream:             streamer.HTTPStream(),
+			datagramsEnabled:   settingser.Settings().EnableDatagrams,
+			bypassIPCongestion: ctx.Value(h3CongestionContextKey{}) == option.H3CongestionNone,
 		}, true
 	}
 }
 
 type datagramStream struct {
 	*http3.Stream
-	datagramsEnabled bool
+	datagramsEnabled   bool
+	bypassIPCongestion bool
 }
 
-func (s *datagramStream) SendDatagram(payload []byte) error {
+func (s *datagramStream) SendDatagram(payload []byte) error { return s.sendDatagram(payload, false) }
+
+func (s *datagramStream) SendIPDatagram(payload []byte) error {
+	return s.sendDatagram(payload, s.bypassIPCongestion)
+}
+
+func (s *datagramStream) sendDatagram(payload []byte, bypass bool) error {
 	if !s.datagramsEnabled {
 		return ErrDatagramUnsupported
 	}
-	err := s.Stream.SendDatagram(payload)
+	var err error
+	if bypass {
+		err = s.Stream.SendDatagramWithoutCongestionControl(payload)
+	} else {
+		err = s.Stream.SendDatagram(payload)
+	}
 	if err == nil {
 		return nil
 	}

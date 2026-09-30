@@ -20,6 +20,9 @@ type Node struct {
 	PropertyNames         *Node                            `json:"propertyNames,omitempty"`
 	AdditionalProperties  any                              `json:"additionalProperties,omitempty"`
 	UnevaluatedProperties any                              `json:"unevaluatedProperties,omitempty"`
+	If                    *Node                            `json:"if,omitempty"`
+	Then                  *Node                            `json:"then,omitempty"`
+	Contains              *Node                            `json:"contains,omitempty"`
 	AllOf                 []*Node                          `json:"allOf,omitempty"`
 	AnyOf                 []*Node                          `json:"anyOf,omitempty"`
 	OneOf                 []*Node                          `json:"oneOf,omitempty"`

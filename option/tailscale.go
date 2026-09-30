@@ -29,6 +29,7 @@ type TailscaleEndpointOptions struct {
 	ListenPort                 uint16                     `json:"listen_port,omitempty"`
 	RelayServerPort            *uint16                    `json:"relay_server_port,omitempty"`
 	RelayServerStaticEndpoints []netip.AddrPort           `json:"relay_server_static_endpoints,omitempty"`
+	TCPCongestionControl       TCPCongestionControl       `json:"tcp_congestion_control,omitempty" enum:"reno,cubic,bbr"`
 	SystemInterface            bool                       `json:"system_interface,omitempty"`
 	SystemInterfaceName        string                     `json:"system_interface_name,omitempty"`
 	SystemInterfaceGSO         *bool                      `json:"system_interface_gso,omitempty"`
