@@ -303,7 +303,7 @@ func (s *RemoteRuleSet) resolveTransport() (adapter.HTTPTransport, error) {
 	httpClientManager := service.FromContext[adapter.HTTPClientManager](s.ctx)
 	if s.options.RemoteOptions.HTTPClient != nil && !s.options.RemoteOptions.HTTPClient.IsEmpty() {
 		if s.options.RemoteOptions.DownloadDetour != "" { //nolint:staticcheck
-			return nil, E.New("http_client is conflict with deprecated download_detour field")
+			return nil, E.New("http_client conflicts with deprecated download_detour field")
 		}
 		return httpClientManager.ResolveTransport(s.ctx, s.logger, *s.options.RemoteOptions.HTTPClient)
 	}
