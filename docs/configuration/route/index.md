@@ -153,7 +153,7 @@ Automatically detected from common DHCP servers (dnsmasq, odhcpd, ISC dhcpd, Kea
 
 !!! question "Since sing-box 1.14.0"
 
-Tag of the default [HTTP Client](/configuration/shared/http-client/) used by remote rule-sets.
+Tag of the default [HTTP Client](/configuration/shared/http-client/) used for resource downloads.
 
 If empty and `http_clients` is defined, the first HTTP client is used.
 

@@ -66,11 +66,15 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		return nil
 	}
 	if m.defaultTag != "" {
-		sharedTransport, err := m.resolveShared(m.defaultTag)
+		m.access.Lock()
+		sharedTransport, err := m.resolveSharedLocked(m.defaultTag)
+		if err == nil {
+			m.defaultTransport = sharedTransport
+		}
+		m.access.Unlock()
 		if err != nil {
 			return E.Cause(err, "resolve default http client")
 		}
-		m.defaultTransport = sharedTransport
 	}
 	scope.Add(m.close)
 	return nil
@@ -79,6 +83,14 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 func (m *Manager) DefaultTransport() adapter.HTTPTransport {
 	m.access.Lock()
 	defer m.access.Unlock()
+	if m.defaultTransport == nil && m.defaultTag != "" {
+		transport, err := m.resolveSharedLocked(m.defaultTag)
+		if err != nil {
+			m.logger.Error(E.Cause(err, "resolve default http client"))
+			return nil
+		}
+		m.defaultTransport = transport
+	}
 	if m.defaultTransport == nil && m.defaultTransportFallback != nil {
 		transport, err := m.defaultTransportFallback()
 		if err != nil {
@@ -136,6 +148,10 @@ func (m *Manager) trackTransport(transport *ManagedTransport) {
 func (m *Manager) resolveShared(tag string) (*sharedManagedTransport, error) {
 	m.access.Lock()
 	defer m.access.Unlock()
+	return m.resolveSharedLocked(tag)
+}
+
+func (m *Manager) resolveSharedLocked(tag string) (*sharedManagedTransport, error) {
 	if sharedTransport, loaded := m.sharedTransports[tag]; loaded {
 		return sharedTransport, nil
 	}
