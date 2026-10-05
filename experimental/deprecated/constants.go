@@ -152,7 +152,7 @@ var OptionStoreRDRC = Note{
 
 var OptionImplicitDefaultHTTPClient = Note{
 	Name:              "implicit-default-http-client",
-	Description:       "implicit default HTTP client using default outbound for remote rule-sets",
+	Description:       "implicit default HTTP client using default outbound for resource downloads",
 	DeprecatedVersion: "1.14.0",
 	ScheduledVersion:  "1.16.0",
 	EnvName:           "IMPLICIT_DEFAULT_HTTP_CLIENT",
