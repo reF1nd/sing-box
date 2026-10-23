@@ -257,6 +257,8 @@ github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
 github.com/reF1nd/quic-go v0.61.0-sing-box-mod.15.0.20261127183425-c040dd3f73dc h1:sGeBoU9wrLMfOfQ1sAm7kh5wnidRFCMyA3Ior8d05V4=
 github.com/reF1nd/quic-go v0.61.0-sing-box-mod.15.0.20261127183425-c040dd3f73dc/go.mod h1:4JZ5DuMe1zsiMRdETvHFWFqCcvbBuZa0PYqpc4jYQhE=
+github.com/reF1nd/sing v0.9.7-0.20261127183253-4eaef109de89 h1:1uKUt8y77rnhnXw6ainfK0TdrlVukn29J4N6FKu/xBU=
+github.com/reF1nd/sing v0.9.7-0.20261127183253-4eaef109de89/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/reF1nd/sing-anytls-old v0.0.14-0.20261009171641-358fdab236d2 h1:V6elaG9Ms/xyiwVJbH1nQjLZgRVIeS6nxFJCO6sYWZg=
 github.com/reF1nd/sing-anytls-old v0.0.14-0.20261009171641-358fdab236d2/go.mod h1:k+Y2AmeDV+z9daPjsy5xemgbR1x3IqcLiigYEhajeuM=
 github.com/reF1nd/sing-ebpf v0.1.0-beta.3.0.20261127184451-2314b6ea5229 h1:lcY5y/aH+IVLUMUpqma36qiM+zYe/jiV3YKQ8cDjKfU=
@@ -347,8 +349,6 @@ github.com/sagernet/netlink v0.0.0-20261125120807-b006b90aa077 h1:L1pxwVWz02wU/o
 github.com/sagernet/netlink v0.0.0-20261125120807-b006b90aa077/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
 github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b h1:dgnXJAbP71bzUrl31YvQNO3DGqQq20tz7h8MaroD4fY=
 github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
-github.com/sagernet/sing v0.9.7-0.20261127131305-db09250ecaed h1:gqJ4tOSPOhEwSU7hPrjojkLjAIJGS4FUMmsvcJb51JU=
-github.com/sagernet/sing v0.9.7-0.20261127131305-db09250ecaed/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/sagernet/sing-cloudflared v0.1.4-0.20261125132439-71e2e5ed8ed0 h1:xGM1kyl4+0Tq2AIjGgKjRROd+Nwb4RGYA4UbyEg5Pq4=
 github.com/sagernet/sing-cloudflared v0.1.4-0.20261125132439-71e2e5ed8ed0/go.mod h1:XEqEDYRCAYLaoPjZ1ifVWJg5iWAJHL2gOAXe/PM28Cg=
 github.com/sagernet/sing-mux v0.3.10-0.20261125130604-6c5b46f55eeb h1:iK0uoxfzEEDhez9zXj/Pvu4zEqAwNFzc6nAZzdaaC1Q=

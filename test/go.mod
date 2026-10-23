@@ -229,3 +229,5 @@ replace github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20
 replace github.com/anytls/sing-anytls => github.com/reF1nd/sing-anytls-old v0.0.14-0.20261009171641-358fdab236d2
 
 replace github.com/CHIZI-0618/sing-ebpf => github.com/reF1nd/sing-ebpf v0.1.0-beta.3.0.20261127184451-2314b6ea5229
+
+replace github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261127183253-4eaef109de89
