@@ -16,6 +16,7 @@
   "version": 0,
   // "h3_congestion_control": "bbr",
   "disable_version_fallback": false,
+  "udp_fast_open": false,
   "tls": {},
 
   ... // HTTP2 Fields / QUIC Fields
@@ -84,6 +85,16 @@ Omitting the field preserves the existing defaults: NewReno on the client and BB
 When configured, `version` must explicitly be `3`. Builds without QUIC support reject this setting.
 
 This field does not change version fallback. Client fallback remains controlled by `disable_version_fallback`; the setting has no effect after fallback to HTTP/1 or HTTP/2.
+
+#### udp_fast_open
+
+Send UDP packets over `connect-udp` without waiting for the proxy's response. Disabled by default.
+
+The tunnel is ready once the request is sent; the response is checked on the first read. A rejected request (for example `407` or `405`) is reported as a connection error instead of a dial error. Version fallback is unaffected.
+
+For HTTP/3, the client still waits for the server's SETTINGS so it knows whether QUIC datagrams can be used. Early QUIC datagrams may be dropped by servers that do not buffer datagrams for request streams they have not accepted yet.
+
+Only `connect-udp` is affected; TCP `CONNECT` always waits for the response.
 
 #### tls
 

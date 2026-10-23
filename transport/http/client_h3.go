@@ -109,7 +109,9 @@ func (c *http3ClientImpl) acquire(ctx context.Context) (*http3.ClientConn, error
 	return c.conn, nil
 }
 
-func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request) (*http3.RequestStream, *http3.ClientConn, error) {
+// openStream sends the request and waits for the peer's SETTINGS. Unless fastOpen
+// is set, it also waits for a successful response; with fastOpen the caller reads it.
+func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request, fastOpen bool) (*http3.RequestStream, *http3.ClientConn, error) {
 	clientConn, err := c.acquire(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -127,7 +129,7 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 	})
 	var response *http.Response
 	err = stream.SendRequestHeader(request)
-	if err == nil {
+	if err == nil && !fastOpen {
 		response, err = stream.ReadResponse()
 	}
 	if err == nil {
@@ -150,7 +152,7 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 		}
 		return nil, nil, wrapHTTP3Error(E.Cause(err, "HTTP/3 CONNECT"))
 	}
-	if response.StatusCode != http.StatusOK {
+	if !fastOpen && response.StatusCode != http.StatusOK {
 		stream.CancelRead(0)
 		stream.Close()
 		return nil, nil, statusError(response)
@@ -184,7 +186,7 @@ func (c *http3ClientImpl) DialContext(ctx context.Context, destination M.Socksad
 		URL:    &url.URL{Host: destination.String()},
 		Host:   destination.String(),
 		Header: buildRequestHeader(c.headers, c.authorization, false),
-	})
+	}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -203,15 +205,20 @@ func (c *http3ClientImpl) OpenTunnel(ctx context.Context, request tunnelRequest)
 		URL:    &requestURL,
 		Host:   c.authority,
 		Header: header,
-	})
+	}, request.fastOpen)
 	if err != nil {
 		return nil, err
 	}
-	return &http3RequestDatagramStream{
+	datagramStream := &http3RequestDatagramStream{
 		stream:             stream,
 		datagramsEnabled:   clientConn.Settings().EnableDatagrams,
 		bypassIPCongestion: c.congestionControl == option.H3CongestionNone && request.protocol == "connect-ip",
-	}, nil
+	}
+	if request.fastOpen {
+		datagramStream.responseDone = make(chan struct{})
+		go datagramStream.readResponse()
+	}
+	return datagramStream, nil
 }
 
 func (c *http3ClientImpl) ResetConnection() {
@@ -314,9 +321,43 @@ type http3RequestDatagramStream struct {
 	datagramsEnabled   bool
 	bypassIPCongestion bool
 	closed             atomic.Bool
+	// responseDone is set for fast open streams and closed once the response
+	// was read; responseErr is valid after that.
+	responseDone chan struct{}
+	responseErr  error
+}
+
+func (s *http3RequestDatagramStream) readResponse() {
+	defer close(s.responseDone)
+	response, err := s.stream.ReadResponse()
+	if err != nil {
+		s.responseErr = s.wrapError(E.Cause(err, "HTTP/3 CONNECT"))
+	} else if response.StatusCode != http.StatusOK {
+		s.responseErr = statusError(response)
+	}
+	if s.responseErr != nil {
+		s.stream.CancelRead(0)
+		s.stream.Close()
+	}
+}
+
+func (s *http3RequestDatagramStream) waitResponse(ctx context.Context) error {
+	if s.responseDone == nil {
+		return nil
+	}
+	select {
+	case <-s.responseDone:
+		return s.responseErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (s *http3RequestDatagramStream) Read(p []byte) (int, error) {
+	err := s.waitResponse(context.Background())
+	if err != nil {
+		return 0, err
+	}
 	n, err := s.stream.Read(p)
 	return n, s.wrapError(err)
 }
@@ -377,6 +418,10 @@ func (s *http3RequestDatagramStream) sendDatagram(payload []byte, bypass bool) e
 }
 
 func (s *http3RequestDatagramStream) ReceiveDatagram(ctx context.Context) ([]byte, error) {
+	err := s.waitResponse(ctx)
+	if err != nil {
+		return nil, err
+	}
 	datagram, err := s.stream.ReceiveDatagram(ctx)
 	if err != nil && ctx.Err() != nil {
 		return nil, ctx.Err()

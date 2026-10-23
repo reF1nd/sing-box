@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -22,6 +23,9 @@ type tunnelRequest struct {
 	url                 *url.URL
 	destination         M.Socksaddr
 	originAuthorization bool
+	// fastOpen returns the tunnel once the request is sent, before the response
+	// arrives. The response is checked on the first read.
+	fastOpen bool
 }
 
 func (c *Client) OpenTunnel(ctx context.Context, protocol string, path string) (io.ReadWriteCloser, error) {
@@ -120,16 +124,16 @@ func (c *Client) openTunnelHTTP1(ctx context.Context, conn net.Conn, request tun
 	if err != nil {
 		return nil, E.Cause(err, "write request")
 	}
+	if request.fastOpen {
+		if !stop() {
+			return nil, ctx.Err()
+		}
+		return newHTTP1EarlyConn(conn, httpRequest, request.protocol), nil
+	}
 	reader := std_bufio.NewReader(conn)
-	response, err := http.ReadResponse(reader, httpRequest)
+	err = readUpgradeResponse(reader, httpRequest, request.protocol)
 	if err != nil {
-		return nil, E.Cause(err, "read response")
-	}
-	if response.StatusCode != http.StatusSwitchingProtocols {
-		return nil, statusError(response)
-	}
-	if !strings.EqualFold(response.Header.Get("Upgrade"), request.protocol) {
-		return nil, E.New("unexpected upgrade protocol: ", response.Header.Get("Upgrade"))
+		return nil, err
 	}
 	if !stop() {
 		return nil, ctx.Err()
@@ -146,6 +150,51 @@ func (c *Client) openTunnelHTTP1(ctx context.Context, conn net.Conn, request tun
 	return conn, nil
 }
 
+func readUpgradeResponse(reader *std_bufio.Reader, request *http.Request, protocol string) error {
+	response, err := http.ReadResponse(reader, request)
+	if err != nil {
+		return E.Cause(err, "read response")
+	}
+	if response.StatusCode != http.StatusSwitchingProtocols {
+		return statusError(response)
+	}
+	if !strings.EqualFold(response.Header.Get("Upgrade"), protocol) {
+		return E.New("unexpected upgrade protocol: ", response.Header.Get("Upgrade"))
+	}
+	return nil
+}
+
+// http1EarlyConn is returned before the upgrade response arrives.
+// Writes go out immediately; the first read checks the response.
+type http1EarlyConn struct {
+	net.Conn
+	reader    *std_bufio.Reader
+	handshake func() error
+}
+
+func newHTTP1EarlyConn(conn net.Conn, request *http.Request, protocol string) *http1EarlyConn {
+	reader := std_bufio.NewReader(conn)
+	return &http1EarlyConn{
+		Conn:   conn,
+		reader: reader,
+		handshake: sync.OnceValue(func() error {
+			err := readUpgradeResponse(reader, request, protocol)
+			if err != nil {
+				conn.Close()
+			}
+			return err
+		}),
+	}
+}
+
+func (c *http1EarlyConn) Read(p []byte) (int, error) {
+	err := c.handshake()
+	if err != nil {
+		return 0, err
+	}
+	return c.reader.Read(p)
+}
+
 func (c *Client) openTunnelHTTP2(ctx context.Context, clientConn *http2ClientConn, request tunnelRequest) (net.Conn, error) {
 	requestURL := *request.url
 	requestURL.Scheme = "https"
@@ -158,7 +207,15 @@ func (c *Client) openTunnelHTTP2(ctx context.Context, clientConn *http2ClientCon
 	}
 	httpRequest.Header.Set(":protocol", request.protocol)
 	httpRequest.Header.Set("Capsule-Protocol", "?1")
-	streamConn, err := c.roundTripHTTP2(ctx, clientConn, httpRequest, request.destination)
+	var (
+		streamConn *clientStreamConn
+		err        error
+	)
+	if request.fastOpen {
+		streamConn, err = c.roundTripHTTP2FastOpen(ctx, clientConn, httpRequest, request.destination)
+	} else {
+		streamConn, err = c.roundTripHTTP2(ctx, clientConn, httpRequest, request.destination)
+	}
 	if err != nil {
 		return nil, err
 	}
