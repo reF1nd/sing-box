@@ -49,6 +49,7 @@ type ClientOptions struct {
 	Headers                http.Header
 	Version                int
 	DisableVersionFallback bool
+	UDPFastOpen            bool
 	HTTP2Options           option.HTTP2Options
 	HTTP3Options           option.QUICOptions
 	H3CongestionControl    option.H3CongestionControl
@@ -75,6 +76,7 @@ type Client struct {
 	headers                         http.Header
 	version                         int
 	disableVersionFallback          bool
+	udpFastOpen                     bool
 	http2Transport                  *http2.Transport
 	http2Access                     sync.Mutex
 	http2Conns                      []*http2ClientConn
@@ -134,6 +136,7 @@ func NewClient(options ClientOptions) (*Client, error) {
 		headers:                options.Headers.Clone(),
 		version:                options.Version,
 		disableVersionFallback: options.DisableVersionFallback,
+		udpFastOpen:            options.UDPFastOpen,
 	}
 	if client.headers != nil {
 		client.host = client.headers.Get("Host")
@@ -394,6 +397,7 @@ func (c *Client) listenPacket(ctx context.Context, destination M.Socksaddr) (N.P
 		protocol:    connectUDPProtocol,
 		url:         connectUDPURL(destination),
 		destination: destination,
+		fastOpen:    c.udpFastOpen,
 	})
 	if err != nil {
 		return nil, err

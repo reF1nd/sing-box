@@ -243,8 +243,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/quic-go/qpack v0.6.0 h1:g7W+BMYynC1LbYLSqRt8PBg5Tgwxn214ZZR34VIOjz8=
 github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9qMDZII=
-github.com/reF1nd/quic-go v0.61.0-sing-box-mod.13.0.20261111053926-d84b179bd597 h1:nSawNzmHDO6UcOqsmruehsDh9qTCJ6jpi20kRf0e10g=
-github.com/reF1nd/quic-go v0.61.0-sing-box-mod.13.0.20261111053926-d84b179bd597/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
+github.com/reF1nd/quic-go v0.61.0-sing-box-mod.13.0.20261111053926-b78a91ac3898 h1:1sXPnouP9pLio58c1RJYCIzfBlYterRjCt0WIynHevk=
+github.com/reF1nd/quic-go v0.61.0-sing-box-mod.13.0.20261111053926-b78a91ac3898/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
 github.com/reF1nd/sing v0.9.7-0.20261111053803-aff75de96033 h1:AFryC+VYl7vz9GnijS2ORKwFePnvlMjd9e5FDFrq53U=
 github.com/reF1nd/sing v0.9.7-0.20261111053803-aff75de96033/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a h1:9bnRAsAjqDSQkGLjjd64rvzAir42v5lH16aJDFg8TEU=
