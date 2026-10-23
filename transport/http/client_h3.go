@@ -163,13 +163,16 @@ func (c *http3ClientImpl) release(conn *http3Conn, keepSession bool) {
 	}
 }
 
-func (c *http3ClientImpl) openRequestStream(ctx context.Context, extendedConnect bool, keepSession bool) (*http3Conn, *http3.RequestStream, error) {
+func (c *http3ClientImpl) openRequestStream(ctx context.Context, extendedConnect bool, keepSession bool, timeout time.Duration) (*http3Conn, *http3.RequestStream, error) {
+	if timeout <= 0 {
+		timeout = C.TCPTimeout
+	}
 	for retry := true; ; retry = false {
 		conn, err := c.acquire(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
-		ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		if extendedConnect {
 			select {
@@ -209,12 +212,19 @@ func (c *http3ClientImpl) openRequestStream(ctx context.Context, extendedConnect
 	}
 }
 
-func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request, extendedConnect bool, keepSession bool) (*http3.RequestStream, *http3Conn, error) {
-	conn, stream, err := c.openRequestStream(ctx, extendedConnect, keepSession)
-	if err != nil {
-		return nil, nil, err
+// openStream sends the request after opening a request stream (and waiting for the
+// peer's SETTINGS when extendedConnect is set). Unless fastOpen is set, it also
+// waits for a successful response; with fastOpen the caller reads it.
+func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request, extendedConnect bool, keepSession bool, fastOpen bool, timeout time.Duration) (*http3.RequestStream, *http3Conn, time.Time, error) {
+	if timeout <= 0 {
+		timeout = C.TCPTimeout
 	}
-	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	conn, stream, err := c.openRequestStream(ctx, extendedConnect, keepSession, timeout)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	handshakeDeadline := time.Now().Add(timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	stop := context.AfterFunc(ctx, func() {
 		stream.CancelRead(0)
@@ -222,7 +232,7 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request,
 	})
 	var response *http.Response
 	err = stream.SendRequestHeader(request)
-	if err == nil {
+	if err == nil && !fastOpen {
 		response, err = stream.ReadResponse()
 	}
 	if !stop() {
@@ -233,17 +243,17 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request,
 		stream.Close()
 		c.release(conn, keepSession)
 		if ctx.Err() != nil {
-			return nil, nil, ctx.Err()
+			return nil, nil, time.Time{}, ctx.Err()
 		}
-		return nil, nil, wrapHTTP3Error(E.Cause(err, "HTTP/3 CONNECT"))
+		return nil, nil, time.Time{}, wrapHTTP3Error(E.Cause(err, "HTTP/3 CONNECT"))
 	}
-	if response.StatusCode != http.StatusOK {
+	if !fastOpen && response.StatusCode != http.StatusOK {
 		stream.CancelRead(0)
 		stream.Close()
 		c.release(conn, keepSession)
-		return nil, nil, statusError(response)
+		return nil, nil, time.Time{}, statusError(response)
 	}
-	return stream, conn, nil
+	return stream, conn, handshakeDeadline, nil
 }
 
 func wrapHTTP3Error(err error) error {
@@ -268,12 +278,12 @@ func wrapHTTP3Error(err error) error {
 
 func (c *http3ClientImpl) DialContext(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
 	keepSession := adapter.KeepSessionFromContext(ctx)
-	stream, conn, err := c.openStream(ctx, &http.Request{
+	stream, conn, _, err := c.openStream(ctx, &http.Request{
 		Method: http.MethodConnect,
 		URL:    &url.URL{Host: destination.String()},
 		Host:   destination.String(),
 		Header: buildRequestHeader(c.headers, c.authorization, false),
-	}, false, keepSession)
+	}, false, keepSession, false, C.TCPTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -291,22 +301,41 @@ func (c *http3ClientImpl) OpenTunnel(ctx context.Context, request tunnelRequest)
 	header := buildRequestHeader(c.headers, c.authorization, request.originAuthorization)
 	header.Set("Capsule-Protocol", "?1")
 	keepSession := adapter.KeepSessionFromContext(ctx)
-	stream, conn, err := c.openStream(ctx, &http.Request{
+	timeout := request.handshakeTimeout
+	if timeout <= 0 {
+		timeout = C.TCPTimeout
+	}
+	stream, conn, handshakeDeadline, err := c.openStream(ctx, &http.Request{
 		Method: http.MethodConnect,
 		Proto:  request.protocol,
 		URL:    &requestURL,
 		Host:   c.authority,
 		Header: header,
-	}, true, keepSession)
+	}, true, keepSession, request.fastOpen, timeout)
 	if err != nil {
 		return nil, err
 	}
-	return &http3RequestDatagramStream{
+	datagramStream := &http3RequestDatagramStream{
 		stream:             stream,
 		datagramsEnabled:   conn.Settings().EnableDatagrams,
 		bypassIPCongestion: c.congestionControl == option.H3CongestionNone && request.protocol == "connect-ip",
-		onClose:            func() { c.release(conn, keepSession) },
-	}, nil
+		onClose:            sync.OnceFunc(func() { c.release(conn, keepSession) }),
+	}
+	if request.fastOpen {
+		remaining := time.Until(handshakeDeadline)
+		if remaining <= 0 {
+			_ = datagramStream.abortAndClose()
+			return nil, context.DeadlineExceeded
+		}
+		datagramStream.responseDone = make(chan struct{})
+		datagramStream.handshakeTimer = time.AfterFunc(remaining, func() {
+			if datagramStream.handshakeState.CompareAndSwap(handshakePending, handshakeTimedOut) {
+				_ = datagramStream.abortAndClose()
+			}
+		})
+		go datagramStream.readResponse()
+	}
+	return datagramStream, nil
 }
 
 func (c *http3ClientImpl) CloseIdleConnections() {
@@ -411,15 +440,87 @@ type http3RequestDatagramStream struct {
 	datagramsEnabled   bool
 	bypassIPCongestion bool
 	onClose            func()
+	writeAccess        sync.Mutex
 	closed             atomic.Bool
+	closeOnce          sync.Once
+	closeErr           error
+	// responseDone is set for fast open streams and closed once the response
+	// was read; responseErr is valid after that.
+	responseDone   chan struct{}
+	responseErr    error
+	handshakeState atomic.Int32
+	handshakeTimer *time.Timer
+}
+
+func (s *http3RequestDatagramStream) readResponse() {
+	defer close(s.responseDone)
+	response, err := s.stream.ReadResponse()
+	if s.handshakeTimer != nil {
+		s.handshakeTimer.Stop()
+	}
+	if err != nil {
+		switch s.handshakeState.Load() {
+		case handshakeTimedOut:
+			s.responseErr = context.DeadlineExceeded
+		case handshakeClosed:
+			s.responseErr = net.ErrClosed
+		default:
+			s.handshakeState.CompareAndSwap(handshakePending, handshakeFailed)
+			s.responseErr = s.wrapError(E.Cause(err, "HTTP/3 CONNECT"))
+		}
+		_ = s.abortAndClose()
+		return
+	}
+	if response.StatusCode != http.StatusOK {
+		switch s.handshakeState.Load() {
+		case handshakeTimedOut:
+			s.responseErr = context.DeadlineExceeded
+		case handshakeClosed:
+			s.responseErr = net.ErrClosed
+		default:
+			s.handshakeState.CompareAndSwap(handshakePending, handshakeFailed)
+			s.responseErr = statusError(response)
+		}
+		_ = s.abortAndClose()
+		return
+	}
+	if !s.handshakeState.CompareAndSwap(handshakePending, handshakeSucceeded) {
+		if s.handshakeState.Load() == handshakeTimedOut {
+			s.responseErr = context.DeadlineExceeded
+		} else {
+			s.responseErr = net.ErrClosed
+		}
+		_ = s.abortAndClose()
+	}
+}
+
+func (s *http3RequestDatagramStream) waitResponse(ctx context.Context) error {
+	if s.responseDone == nil {
+		return nil
+	}
+	select {
+	case <-s.responseDone:
+		return s.responseErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (s *http3RequestDatagramStream) Read(p []byte) (int, error) {
+	err := s.waitResponse(context.Background())
+	if err != nil {
+		return 0, err
+	}
 	n, err := s.stream.Read(p)
 	return n, s.wrapError(err)
 }
 
 func (s *http3RequestDatagramStream) Write(p []byte) (int, error) {
+	s.writeAccess.Lock()
+	defer s.writeAccess.Unlock()
+	if s.closed.Load() {
+		return 0, net.ErrClosed
+	}
 	n, err := s.stream.Write(p)
 	return n, s.wrapError(err)
 }
@@ -439,17 +540,27 @@ func (s *http3RequestDatagramStream) wrapError(err error) error {
 	return wrapHTTP3Error(err)
 }
 
+func (s *http3RequestDatagramStream) abortAndClose() error {
+	s.closed.Store(true)
+	s.closeOnce.Do(func() {
+		s.stream.SetWriteDeadline(time.Now())
+		s.writeAccess.Lock()
+		s.stream.CancelRead(0)
+		s.closeErr = s.stream.Close()
+		s.writeAccess.Unlock()
+		if s.onClose != nil {
+			s.onClose()
+		}
+	})
+	return s.closeErr
+}
+
 func (s *http3RequestDatagramStream) Close() error {
-	if s.closed.Swap(true) {
-		return nil
+	s.handshakeState.CompareAndSwap(handshakePending, handshakeClosed)
+	if s.handshakeTimer != nil {
+		s.handshakeTimer.Stop()
 	}
-	s.stream.SetWriteDeadline(time.Now())
-	s.stream.CancelRead(0)
-	err := s.stream.Close()
-	if s.onClose != nil {
-		s.onClose()
-	}
-	return err
+	return s.abortAndClose()
 }
 
 func (s *http3RequestDatagramStream) SendDatagram(payload []byte) error {
@@ -463,6 +574,9 @@ func (s *http3RequestDatagramStream) SendIPDatagram(payload []byte) error {
 func (s *http3RequestDatagramStream) sendDatagram(payload []byte, bypass bool) error {
 	if !s.datagramsEnabled {
 		return ErrDatagramUnsupported
+	}
+	if s.closed.Load() {
+		return net.ErrClosed
 	}
 	var err error
 	if bypass {
@@ -480,6 +594,10 @@ func (s *http3RequestDatagramStream) sendDatagram(payload []byte, bypass bool) e
 }
 
 func (s *http3RequestDatagramStream) ReceiveDatagram(ctx context.Context) ([]byte, error) {
+	err := s.waitResponse(ctx)
+	if err != nil {
+		return nil, err
+	}
 	datagram, err := s.stream.ReceiveDatagram(ctx)
 	if err != nil && ctx.Err() != nil {
 		return nil, ctx.Err()
