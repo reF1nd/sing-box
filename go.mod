@@ -216,7 +216,7 @@ replace github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.66.0-sing-bo
 
 replace github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261126075700-6bacebea2bc5
 
-replace github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261126054854-95eb827d2702
+replace github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261126054856-f788640b80a9
 
 replace github.com/sagernet/tailscale => github.com/reF1nd/tailscale v1.106.1-sing-box-1.15-mod.1.0.20261126073511-9f0f2047d552
 
