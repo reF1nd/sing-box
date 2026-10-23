@@ -6,7 +6,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/quic-go"
@@ -88,6 +91,19 @@ type datagramStream struct {
 	*http3.Stream
 	datagramsEnabled   bool
 	bypassIPCongestion bool
+	writeAccess        sync.Mutex
+	closed             atomic.Bool
+	closeOnce          sync.Once
+	closeErr           error
+}
+
+func (s *datagramStream) Write(p []byte) (int, error) {
+	s.writeAccess.Lock()
+	defer s.writeAccess.Unlock()
+	if s.closed.Load() {
+		return 0, net.ErrClosed
+	}
+	return s.Stream.Write(p)
 }
 
 func (s *datagramStream) SendDatagram(payload []byte) error { return s.sendDatagram(payload, false) }
@@ -99,6 +115,9 @@ func (s *datagramStream) SendIPDatagram(payload []byte) error {
 func (s *datagramStream) sendDatagram(payload []byte, bypass bool) error {
 	if !s.datagramsEnabled {
 		return ErrDatagramUnsupported
+	}
+	if s.closed.Load() {
+		return net.ErrClosed
 	}
 	var err error
 	if bypass {
@@ -116,7 +135,13 @@ func (s *datagramStream) sendDatagram(payload []byte, bypass bool) error {
 }
 
 func (s *datagramStream) Close() error {
-	s.Stream.SetWriteDeadline(time.Now())
-	s.Stream.CancelRead(0)
-	return s.Stream.Close()
+	s.closed.Store(true)
+	s.closeOnce.Do(func() {
+		s.Stream.SetWriteDeadline(time.Now())
+		s.writeAccess.Lock()
+		s.Stream.CancelRead(0)
+		s.closeErr = s.Stream.Close()
+		s.writeAccess.Unlock()
+	})
+	return s.closeErr
 }

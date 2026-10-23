@@ -2,14 +2,17 @@ package http
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/pipe"
@@ -116,7 +119,7 @@ func (c *Client) connectHTTP2(ctx context.Context, session *http2Session, destin
 }
 
 func (c *Client) roundTripHTTP2(ctx context.Context, session *http2Session, request *http.Request, destination M.Socksaddr) (*clientStreamConn, error) {
-	ctx, cancelHandshake := context.WithTimeout(ctx, C.TCPTimeout)
+	ctx, cancelHandshake := context.WithTimeout(ctx, c.effectiveHandshakeTimeout())
 	defer cancelHandshake()
 	keepSession := adapter.KeepSessionFromContext(ctx)
 	pipeReader, pipeWriter := pipe.Pipe()
@@ -137,10 +140,7 @@ func (c *Client) roundTripHTTP2(ctx context.Context, session *http2Session, requ
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		if isExtendedConnectNotSupported(err) {
-			return nil, E.Cause1(errExtendedConnectUnsupported, err)
-		}
-		return nil, E.Cause(err, "HTTP/2 CONNECT")
+		return nil, http2RoundTripError(err)
 	}
 	if response.StatusCode != http.StatusOK {
 		response.Body.Close()
@@ -166,8 +166,168 @@ func isExtendedConnectNotSupported(err error) bool {
 	return strings.Contains(err.Error(), "extended connect not supported")
 }
 
+func http2RoundTripError(err error) error {
+	if isExtendedConnectNotSupported(err) {
+		return E.Cause1(errExtendedConnectUnsupported, err)
+	}
+	return E.Cause(err, "HTTP/2 CONNECT")
+}
+
+// roundTripHTTP2FastOpen returns once the transport starts reading the request body.
+// The transport does that only after the extended CONNECT check passed and HEADERS
+// were written, so a peer without extended CONNECT still fails here and keeps the
+// HTTP/1 fallback working. The response is checked asynchronously under timeout.
+func (c *Client) roundTripHTTP2FastOpen(ctx context.Context, session *http2Session, request *http.Request, destination M.Socksaddr, timeout time.Duration) (*clientStreamConn, error) {
+	if timeout <= 0 {
+		timeout = c.effectiveHandshakeTimeout()
+	}
+	handshakeCtx, cancelHandshake := context.WithTimeout(ctx, timeout)
+	defer cancelHandshake()
+	keepSession := adapter.KeepSessionFromContext(ctx)
+	release := sync.OnceFunc(func() { c.releaseHTTP2(session, keepSession) })
+	pipeReader, pipeWriter := pipe.Pipe()
+	streamCtx, cancel := context.WithCancel(context.Background())
+	abortStream := func() {
+		cancel()
+		pipeWriter.Close()
+		release()
+	}
+	bodyStarted := make(chan struct{})
+	request.Body = &http2NotifyBody{ReadCloser: pipeReader, notify: sync.OnceFunc(func() { close(bodyStarted) })}
+	request = request.WithContext(streamCtx)
+	response := &http2EarlyResponse{ready: make(chan struct{})}
+	response.handshakeTimer = time.AfterFunc(timeout, func() {
+		if response.handshakeState.CompareAndSwap(handshakePending, handshakeTimedOut) {
+			abortStream()
+		}
+	})
+	go func() {
+		defer close(response.ready)
+		httpResponse, err := session.clientConn.roundTrip(request)
+		response.handshakeTimer.Stop()
+		if err != nil {
+			switch response.handshakeState.Load() {
+			case handshakeTimedOut:
+				response.err = context.DeadlineExceeded
+			case handshakeClosed:
+				response.err = net.ErrClosed
+			default:
+				response.handshakeState.CompareAndSwap(handshakePending, handshakeFailed)
+				response.err = http2RoundTripError(err)
+			}
+			abortStream()
+			return
+		}
+		if httpResponse.StatusCode != http.StatusOK {
+			httpResponse.Body.Close()
+			switch response.handshakeState.Load() {
+			case handshakeTimedOut:
+				response.err = context.DeadlineExceeded
+			case handshakeClosed:
+				response.err = net.ErrClosed
+			default:
+				response.handshakeState.CompareAndSwap(handshakePending, handshakeFailed)
+				response.err = statusError(httpResponse)
+			}
+			abortStream()
+			return
+		}
+		if !response.handshakeState.CompareAndSwap(handshakePending, handshakeSucceeded) {
+			httpResponse.Body.Close()
+			if response.handshakeState.Load() == handshakeTimedOut {
+				response.err = context.DeadlineExceeded
+			} else {
+				response.err = net.ErrClosed
+			}
+			abortStream()
+			return
+		}
+		response.body = httpResponse.Body
+	}()
+	select {
+	case <-bodyStarted:
+	case <-response.ready:
+		if response.err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			return nil, response.err
+		}
+	case <-handshakeCtx.Done():
+		response.Close()
+		abortStream()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, handshakeCtx.Err()
+	}
+	return &clientStreamConn{
+		reader:     response,
+		writer:     pipeWriter,
+		cancel:     cancel,
+		onClose:    release,
+		localAddr:  M.Socksaddr{},
+		remoteAddr: destination,
+	}, nil
+}
+
+type http2NotifyBody struct {
+	io.ReadCloser
+	notify func()
+}
+
+func (b *http2NotifyBody) Read(p []byte) (int, error) {
+	b.notify()
+	return b.ReadCloser.Read(p)
+}
+
+// http2EarlyResponse is the response body of a fast open stream.
+// Reads wait for the response and fail if it was not successful.
+type http2EarlyResponse struct {
+	ready          chan struct{}
+	body           io.ReadCloser
+	err            error
+	handshakeState atomic.Int32
+	handshakeTimer *time.Timer
+	closeOnce      sync.Once
+	closeErr       error
+}
+
+func (r *http2EarlyResponse) Read(p []byte) (int, error) {
+	<-r.ready
+	if r.err != nil {
+		return 0, r.err
+	}
+	return r.body.Read(p)
+}
+
+func (r *http2EarlyResponse) Close() error {
+	r.closeOnce.Do(func() {
+		r.handshakeState.CompareAndSwap(handshakePending, handshakeClosed)
+		if r.handshakeTimer != nil {
+			r.handshakeTimer.Stop()
+		}
+		select {
+		case <-r.ready:
+			if r.body != nil {
+				r.closeErr = r.body.Close()
+			}
+			return
+		default:
+		}
+		// The stream is being canceled, so the round trip finishes shortly.
+		go func() {
+			<-r.ready
+			if r.body != nil {
+				r.body.Close()
+			}
+		}()
+	})
+	return r.closeErr
+}
+
 func (c *Client) connectAndClose(ctx context.Context, conn net.Conn, destination M.Socksaddr) (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	ctx, cancel := context.WithTimeout(ctx, c.effectiveHandshakeTimeout())
 	defer cancel()
 	result, err := c.connect(ctx, conn, destination)
 	if err != nil {
