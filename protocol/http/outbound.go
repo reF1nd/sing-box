@@ -50,6 +50,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		Headers:                headers,
 		Version:                http.ResolveVersion(options.Version, options.Path, headers.Get("Host")),
 		DisableVersionFallback: options.DisableVersionFallback,
+		UDPFastOpen:            options.UDPFastOpen,
 		HTTP2Options:           options.HTTP2Options,
 		HTTP3Options:           options.HTTP3Options,
 		H3CongestionControl:    options.H3CongestionControl,
