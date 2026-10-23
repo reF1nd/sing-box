@@ -6,7 +6,7 @@ require github.com/sagernet/sing-box v0.0.0
 
 replace (
 	github.com/sagernet/quic-go => github.com/reF1nd/quic-go v0.61.0-sing-box-mod.9.0.20261005174648-9adfe6790e84
-	github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261005174720-97b52bac92a7
+	github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261023104254-7f3a6e12f4fd
 	github.com/sagernet/sing-anytls => github.com/reF1nd/sing-anytls v0.0.0-20261005110320-ca02db16051a
 	github.com/sagernet/sing-box => ../
 	github.com/sagernet/sing-quic => github.com/reF1nd/sing-quic v0.7.2-0.20261005175038-460c79e81113
