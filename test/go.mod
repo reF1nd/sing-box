@@ -7,7 +7,7 @@ require github.com/sagernet/sing-box v0.0.0
 replace (
 	github.com/anytls/sing-anytls => github.com/reF1nd/sing-anytls-old v0.0.14-0.20261009171641-358fdab236d2
 	// Keep the stable sing implementation for sing-ebpf and all consumers.
-	github.com/sagernet/sing => github.com/sagernet/sing v0.9.7-0.20261023115459-5dc452e537bf
+	github.com/sagernet/sing => github.com/reF1nd/sing v0.9.7-0.20261026103503-65f0a080401b
 	github.com/sagernet/sing-box => ../
 	github.com/sagernet/sing-snell => github.com/reF1nd/sing-snell v0.0.0-20261023074937-e056cb336137
 	github.com/sagernet/sing-tun => github.com/reF1nd/sing-tun v0.9.7-0.20261026103802-64cf116f8c78
