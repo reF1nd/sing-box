@@ -16,6 +16,7 @@
   "version": 0,
   // "h3_congestion_control": "bbr",
   "disable_version_fallback": false,
+  "udp_fast_open": false,
   "tls": {},
 
   ... // HTTP2 字段 / QUIC 字段
@@ -84,6 +85,16 @@ HTTP/3 连接的本端发送拥塞控制算法。仅在 HTTP/3 生效。
 配置本字段时，必须显式设置 `version: 3`。不包含 QUIC 支持的构建拒绝此配置。
 
 本字段不改变版本回退策略。客户端是否允许回退仍由 `disable_version_fallback` 控制；回退到 HTTP/1 或 HTTP/2 后，本字段不生效。
+
+#### udp_fast_open
+
+通过 `connect-udp` 发送 UDP 数据包时，不等待代理返回响应。默认关闭。
+
+请求发出后隧道即可使用，响应在首次读取时检查。请求被拒绝（例如 `407`、`405`）时，将作为连接错误而不是拨号错误报告。版本回退不受影响。
+
+HTTP/3 下客户端仍会等待服务端的 SETTINGS，以确定能否使用 QUIC datagram。如果服务端不为尚未接受的请求流缓存 datagram，提前发送的 QUIC datagram 可能被丢弃。
+
+仅影响 `connect-udp`；TCP `CONNECT` 始终等待响应。
 
 #### tls
 
