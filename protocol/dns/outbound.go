@@ -59,5 +59,8 @@ func (d *Outbound) NewConnection(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (d *Outbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	NewDNSPacketConnection(ctx, d.router, conn, nil, metadata)
+	err := NewDNSPacketConnection(ctx, d.router, conn, nil, metadata)
+	if onClose != nil {
+		onClose(err)
+	}
 }
