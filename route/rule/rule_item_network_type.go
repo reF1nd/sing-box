@@ -24,6 +24,9 @@ func NewNetworkTypeItem(networkManager adapter.NetworkManager, networkType []C.I
 }
 
 func (r *NetworkTypeItem) Match(metadata *adapter.InboundContext) bool {
+	if C.IsAndroid && len(r.networkManager.NetworkInterfaces()) == 0 {
+		return common.Contains(r.networkType, C.InterfaceTypeWIFI) && r.networkManager.WIFIState().SSID != ""
+	}
 	networkInterface := r.networkManager.DefaultNetworkInterface()
 	if networkInterface == nil {
 		return false

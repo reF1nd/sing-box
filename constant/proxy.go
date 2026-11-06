@@ -2,6 +2,7 @@ package constant
 
 const (
 	TypeTun                = "tun"
+	TypeEBPF               = "ebpf"
 	TypeRedirect           = "redirect"
 	TypeTProxy             = "tproxy"
 	TypeDirect             = "direct"
@@ -56,6 +57,8 @@ func ProxyDisplayName(proxyType string) string {
 	switch proxyType {
 	case TypeTun:
 		return "TUN"
+	case TypeEBPF:
+		return "eBPF"
 	case TypeRedirect:
 		return "Redirect"
 	case TypeTProxy:

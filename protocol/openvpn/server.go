@@ -200,6 +200,7 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage, scope *adapter.Scope) e
 	} else {
 		var listenConfig net.ListenConfig
 		var egressEnabled bool
+		var wildcardUDP bool
 		listenAddress := s.options.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1}))
 		if listenAddress.IsUnspecified() && s.options.BindInterface == "" && s.options.RoutingMark == 0 && s.options.NetNs == "" {
 			udpDialer, dialerErr := dialer.NewDefault(s.ctx, option.DialerOptions{
@@ -212,18 +213,36 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage, scope *adapter.Scope) e
 			if dialerErr != nil {
 				return dialerErr
 			}
-			listenConfig.Control, egressEnabled = udpDialer.UDPListenerControl()
+			// Register eBPF self-bypass after bind succeeds so bind errors cannot leak cookies.
+			listenConfig.Control, egressEnabled = udpDialer.UDPListenerBaseControl()
+			wildcardUDP = true
 		}
 		packetConn, err = s.listener.ListenUDPWithConfig(listenConfig)
 		if err == nil {
 			tuneOpenVPNUDPSocket(packetConn)
+			networkManager := service.FromContext[adapter.NetworkManager](s.ctx)
+			if wildcardUDP {
+				if err = dialer.RegisterEBPFSelfBypassPacketConn(networkManager, packetConn); err != nil {
+					_ = s.listener.Close()
+					return err
+				}
+				if udpConn, ok := packetConn.(*net.UDPConn); ok {
+					if rawConn, rawErr := udpConn.SyscallConn(); rawErr == nil {
+						if cleanup := dialer.EBPFSelfBypassCleanup(networkManager, rawConn); cleanup != nil {
+							scope.Add(func() error {
+								cleanup()
+								return nil
+							})
+						}
+					}
+				}
+			}
 			if egressEnabled {
 				udpConn := packetConn.(*net.UDPConn)
-				networkManager := service.FromContext[adapter.NetworkManager](s.ctx)
 				egressPool := tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
 					Logger:           s.logger,
 					Network:          M.NetworkFromNetAddr(N.NetworkUDP, listenAddress),
-					Control:          listenConfig.Control,
+					Control:          dialer.AppendEBPFSelfBypass(networkManager, listenConfig.Control),
 					InterfaceFinder:  networkManager.InterfaceFinder(),
 					InterfaceMonitor: networkManager.InterfaceMonitor(),
 					ExcludeInterface: s.options.Name,

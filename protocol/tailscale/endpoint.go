@@ -302,41 +302,39 @@ func (t *Endpoint) start(scope *adapter.Scope) error {
 	}
 	if interfaceMonitor := t.network.InterfaceMonitor(); interfaceMonitor != nil {
 		interfaceFinder := t.network.InterfaceFinder()
-		netmon.RegisterInterfaceGetter(func() ([]netmon.Interface, error) {
-			return common.Map(interfaceFinder.Interfaces(), func(it control.Interface) netmon.Interface {
-				return netmon.Interface{
-					Interface: &net.Interface{
-						Index:        it.Index,
-						MTU:          it.MTU,
-						Name:         it.Name,
-						HardwareAddr: it.HardwareAddr,
-						Flags:        it.Flags,
-					},
-					AltAddrs: common.Map(it.Addresses, func(it netip.Prefix) net.Addr {
-						return &net.IPNet{
-							IP:   it.Addr().AsSlice(),
-							Mask: net.CIDRMask(it.Bits(), it.Addr().BitLen()),
-						}
-					}),
+		unregisterNetmon := registerGlobalNetmonHooks(
+			func() ([]netmon.Interface, error) {
+				return common.Map(interfaceFinder.Interfaces(), func(it control.Interface) netmon.Interface {
+					return netmon.Interface{
+						Interface: &net.Interface{
+							Index:        it.Index,
+							MTU:          it.MTU,
+							Name:         it.Name,
+							HardwareAddr: it.HardwareAddr,
+							Flags:        it.Flags,
+						},
+						AltAddrs: common.Map(it.Addresses, func(it netip.Prefix) net.Addr {
+							return &net.IPNet{
+								IP:   it.Addr().AsSlice(),
+								Mask: net.CIDRMask(it.Bits(), it.Addr().BitLen()),
+							}
+						}),
+					}
+				}), nil
+			},
+			func() (netmon.DefaultRouteDetails, error) {
+				defaultInterface := interfaceMonitor.DefaultInterface()
+				if defaultInterface == nil {
+					return netmon.DefaultRouteDetails{}, nil
 				}
-			}), nil
-		})
+				return netmon.DefaultRouteDetails{
+					InterfaceName:  defaultInterface.Name,
+					InterfaceIndex: defaultInterface.Index,
+				}, nil
+			},
+		)
 		scope.Add(func() error {
-			netmon.RegisterInterfaceGetter(nil)
-			return nil
-		})
-		netmon.SetDefaultRouteFunc(func() (netmon.DefaultRouteDetails, error) {
-			defaultInterface := interfaceMonitor.DefaultInterface()
-			if defaultInterface == nil {
-				return netmon.DefaultRouteDetails{}, nil
-			}
-			return netmon.DefaultRouteDetails{
-				InterfaceName:  defaultInterface.Name,
-				InterfaceIndex: defaultInterface.Index,
-			}, nil
-		})
-		scope.Add(func() error {
-			netmon.SetDefaultRouteFunc(nil)
+			unregisterNetmon()
 			return nil
 		})
 	}
@@ -384,43 +382,44 @@ func (t *Endpoint) start(scope *adapter.Scope) error {
 		t.systemDialer = systemDialer
 		t.server.Tun = wgTunDevice
 	}
+	selfBypassControl := dialer.AppendEBPFSelfBypass(t.network, nil)
 	if t.network.AutoRedirectOutputMark() != 0 {
-		netns.SetControlFunc(t.network.AutoRedirectOutputMarkFunc())
+		unregisterNetns := registerGlobalNetnsHooks(control.Append(t.network.AutoRedirectOutputMarkFunc(), selfBypassControl), nil)
 		scope.Add(func() error {
-			netns.SetControlFunc(nil)
+			unregisterNetns()
 			return nil
 		})
 	} else if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
 		if t.platformInterface.UsePlatformAutoDetectInterfaceControl() {
-			netns.SetControlFunc(func(network, address string, conn syscall.RawConn) error {
+			platformControl := func(network, address string, conn syscall.RawConn) error {
 				return control.Raw(conn, func(fileDescriptor uintptr) error {
 					return t.platformInterface.AutoDetectInterfaceControl(int(fileDescriptor))
 				})
-			})
+			}
+			unregisterNetns := registerGlobalNetnsHooks(control.Append(platformControl, selfBypassControl), nil)
 			scope.Add(func() error {
-				netns.SetControlFunc(nil)
+				unregisterNetns()
 				return nil
 			})
 		} else {
 			// NEPacketTunnelProvider sockets are excluded from tunnel routes by
 			// NECP; the empty override only suppresses tailscale's own
 			// default-interface bind, which would select the sing-box utun.
-			netns.SetControlFunc(func(string, string, syscall.RawConn) error {
+			platformControl := func(string, string, syscall.RawConn) error {
 				return nil
-			})
+			}
+			unregisterNetns := registerGlobalNetnsHooks(control.Append(platformControl, selfBypassControl), nil)
 			scope.Add(func() error {
-				netns.SetControlFunc(nil)
+				unregisterNetns()
 				return nil
 			})
 		}
 	} else {
 		bindFunc := t.network.AutoDetectInterfaceFunc()
-		if bindFunc != nil {
-			netns.SetControlFunc(bindFunc)
-			netns.SetListenPacketFunc(t.listenPacket)
+		if bindFunc != nil || selfBypassControl != nil {
+			unregisterNetns := registerGlobalNetnsHooks(control.Append(bindFunc, selfBypassControl), t.listenPacket)
 			scope.Add(func() error {
-				netns.SetControlFunc(nil)
-				netns.SetListenPacketFunc(nil)
+				unregisterNetns()
 				return nil
 			})
 		}
@@ -437,9 +436,25 @@ func (t *Endpoint) listenPacket(ctx context.Context, network string, address str
 		return nil, err
 	}
 	udpConn := packetConn.(*net.UDPConn)
+	if err = dialer.RegisterEBPFSelfBypassPacketConn(t.network, udpConn); err != nil {
+		_ = udpConn.Close()
+		return nil, err
+	}
+	rawConn, rawConnErr := udpConn.SyscallConn()
+	if rawConnErr != nil {
+		return udpConn, nil
+	}
+	cleanup := dialer.EBPFSelfBypassCleanup(t.network, rawConn)
+	wrapPacketConn := func(conn nettype.PacketConn) nettype.PacketConn {
+		if cleanup == nil {
+			return conn
+		}
+		return &selfBypassPacketConn{PacketConn: conn, cleanup: cleanup}
+	}
 	egressPool := tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
 		Logger:           t.logger,
 		Network:          network,
+		Control:          dialer.AppendEBPFSelfBypass(t.network, nil),
 		InterfaceFinder:  t.network.InterfaceFinder(),
 		InterfaceMonitor: t.network.InterfaceMonitor(),
 		IsExempt: func() bool {
@@ -448,9 +463,9 @@ func (t *Endpoint) listenPacket(ctx context.Context, network string, address str
 	})
 	if !egressPool.SetEgressPort(udpConn.LocalAddr().(*net.UDPAddr).AddrPort().Port()) {
 		egressPool.Close()
-		return udpConn, nil
+		return wrapPacketConn(udpConn), nil
 	}
-	return tun.NewUDPEgressConn(udpConn, egressPool), nil
+	return wrapPacketConn(tun.NewUDPEgressConn(udpConn, egressPool)), nil
 }
 
 func (t *Endpoint) postStart(scope *adapter.Scope) error {
@@ -1125,4 +1140,149 @@ func (t *peerDNSQueryHandler) HandlePeerDNSQuery(ctx context.Context, query []by
 	compressedResponse := response.Copy()
 	compressedResponse.Compress = true
 	return compressedResponse.Pack()
+}
+
+type selfBypassPacketConn struct {
+	nettype.PacketConn
+	cleanup func()
+	once    sync.Once
+}
+
+func (c *selfBypassPacketConn) Close() error {
+	c.once.Do(func() {
+		if c.cleanup != nil {
+			c.cleanup()
+		}
+	})
+	return c.PacketConn.Close()
+}
+
+type globalNetmonHookEntry struct {
+	id              uint64
+	interfaceGetter func() ([]netmon.Interface, error)
+	defaultRoute    func() (netmon.DefaultRouteDetails, error)
+}
+
+type globalNetnsHookEntry struct {
+	id           uint64
+	controlFunc  control.Func
+	listenPacket func(ctx context.Context, network, address string) (nettype.PacketConn, error)
+}
+
+var (
+	globalHookAccess      sync.Mutex
+	globalHookNextID      uint64
+	globalNetmonHookStack []globalNetmonHookEntry
+	globalNetnsHookStack  []globalNetnsHookEntry
+)
+
+func init() {
+	// netmon.RegisterInterfaceGetter writes a non-atomic package variable read
+	// without locks by netmon.GetInterfaceList. Installing a single immutable
+	// dispatcher at init time keeps hot-replace and rollback race-free while
+	// preserving system net.Interfaces enumeration when no endpoint is active.
+	netmon.RegisterInterfaceGetter(dispatchGlobalNetmonInterfaces)
+}
+
+func dispatchGlobalNetmonInterfaces() ([]netmon.Interface, error) {
+	globalHookAccess.Lock()
+	var getter func() ([]netmon.Interface, error)
+	if len(globalNetmonHookStack) > 0 {
+		getter = globalNetmonHookStack[len(globalNetmonHookStack)-1].interfaceGetter
+	}
+	globalHookAccess.Unlock()
+	if getter != nil {
+		return getter()
+	}
+	ifs, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]netmon.Interface, len(ifs))
+	for i := range ifs {
+		ret[i].Interface = &ifs[i]
+	}
+	return ret, nil
+}
+
+func registerGlobalNetmonHooks(
+	interfaceGetter func() ([]netmon.Interface, error),
+	defaultRoute func() (netmon.DefaultRouteDetails, error),
+) func() {
+	globalHookAccess.Lock()
+	globalHookNextID++
+	id := globalHookNextID
+	globalNetmonHookStack = append(globalNetmonHookStack, globalNetmonHookEntry{
+		id:              id,
+		interfaceGetter: interfaceGetter,
+		defaultRoute:    defaultRoute,
+	})
+	applyGlobalNetmonHooksLocked()
+	globalHookAccess.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			globalHookAccess.Lock()
+			wasTop := len(globalNetmonHookStack) > 0 && globalNetmonHookStack[len(globalNetmonHookStack)-1].id == id
+			globalNetmonHookStack = slices.DeleteFunc(globalNetmonHookStack, func(entry globalNetmonHookEntry) bool {
+				return entry.id == id
+			})
+			if wasTop {
+				applyGlobalNetmonHooksLocked()
+			}
+			globalHookAccess.Unlock()
+		})
+	}
+}
+
+func applyGlobalNetmonHooksLocked() {
+	if len(globalNetmonHookStack) == 0 {
+		netmon.SetDefaultRouteFunc(nil)
+		return
+	}
+	top := globalNetmonHookStack[len(globalNetmonHookStack)-1]
+	netmon.SetDefaultRouteFunc(top.defaultRoute)
+}
+
+func registerGlobalNetnsHooks(
+	controlFunc control.Func,
+	listenPacket func(ctx context.Context, network, address string) (nettype.PacketConn, error),
+) func() {
+	globalHookAccess.Lock()
+	globalHookNextID++
+	id := globalHookNextID
+	globalNetnsHookStack = append(globalNetnsHookStack, globalNetnsHookEntry{
+		id:           id,
+		controlFunc:  controlFunc,
+		listenPacket: listenPacket,
+	})
+	applyGlobalNetnsHooksLocked()
+	globalHookAccess.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			globalHookAccess.Lock()
+			wasTop := len(globalNetnsHookStack) > 0 && globalNetnsHookStack[len(globalNetnsHookStack)-1].id == id
+			globalNetnsHookStack = slices.DeleteFunc(globalNetnsHookStack, func(entry globalNetnsHookEntry) bool {
+				return entry.id == id
+			})
+			if wasTop {
+				applyGlobalNetnsHooksLocked()
+			}
+			globalHookAccess.Unlock()
+		})
+	}
+}
+
+func applyGlobalNetnsHooksLocked() {
+	if len(globalNetnsHookStack) == 0 {
+		netns.SetControlFunc(nil)
+		netns.SetListenPacketFunc(nil)
+		return
+	}
+	top := globalNetnsHookStack[len(globalNetnsHookStack)-1]
+	netns.SetControlFunc(top.controlFunc)
+	netns.SetListenPacketFunc(top.listenPacket)
 }
