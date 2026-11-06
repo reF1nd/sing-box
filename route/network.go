@@ -45,6 +45,7 @@ type NetworkManager struct {
 	hostPort                common.TypedValue[tun.RoutedPort]
 	bridgeInterfaceAccess   sync.Mutex
 	bridgeInterfaces        []string
+	ebpfSelfBypass          ebpfSelfBypassState
 	networkMonitor          tun.NetworkUpdateMonitor
 	interfaceMonitor        tun.DefaultInterfaceMonitor
 	packageManager          tun.PackageManager
@@ -56,7 +57,11 @@ type NetworkManager struct {
 	inbound                 adapter.InboundManager
 	outbound                adapter.OutboundManager
 	needWIFIState           bool
+	wifiMonitorAccess       sync.Mutex
+	wifiMonitorStarted      bool
+	wifiMonitorClosed       bool
 	wifiMonitor             settings.WIFIMonitor
+	newWIFIMonitor          func(logger.ContextLogger, func(adapter.WIFIState)) (settings.WIFIMonitor, error)
 	wifiState               adapter.WIFIState
 	networkEnvironment      uint64
 	stateAccess             sync.RWMutex
@@ -204,20 +209,23 @@ func (r *NetworkManager) Start(stage adapter.StartStage, scope *adapter.Scope) e
 			}
 		}
 	case adapter.StartStatePostStart:
-		if r.needWIFIState && !(r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor()) {
-			wifiMonitor, err := settings.NewWIFIMonitor(r.onWIFIStateChanged)
-			if err != nil {
-				if err != os.ErrInvalid {
-					r.logger.Warn(E.Cause(err, "create WIFI monitor"))
-				}
-			} else {
-				r.wifiMonitor = wifiMonitor
-				scope.Add(wifiMonitor.Close)
-				err = r.wifiMonitor.Start()
-				if err != nil {
-					r.logger.Warn(E.Cause(err, "start WIFI monitor"))
-				}
+		scope.Add(func() error {
+			r.wifiMonitorAccess.Lock()
+			r.wifiMonitorClosed = true
+			wifiMonitor := r.wifiMonitor
+			r.wifiMonitor = nil
+			r.wifiMonitorAccess.Unlock()
+			if wifiMonitor != nil {
+				return wifiMonitor.Close()
 			}
+			return nil
+		})
+		r.wifiMonitorAccess.Lock()
+		r.wifiMonitorStarted = true
+		shouldStartWIFI := r.needWIFIState
+		r.wifiMonitorAccess.Unlock()
+		if shouldStartWIFI {
+			r.ensureWIFIMonitor()
 		}
 		scope.Add(func() error {
 			r.resetRunAccess.Lock()
@@ -251,13 +259,61 @@ func (r *NetworkManager) Start(stage adapter.StartStage, scope *adapter.Scope) e
 	return nil
 }
 
+func (r *NetworkManager) ensureWIFIMonitor() {
+	if r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor() {
+		return
+	}
+	r.wifiMonitorAccess.Lock()
+	defer r.wifiMonitorAccess.Unlock()
+	if !r.wifiMonitorStarted || r.wifiMonitorClosed || r.wifiMonitor != nil {
+		return
+	}
+	createMonitor := r.newWIFIMonitor
+	if createMonitor == nil {
+		createMonitor = settings.NewWIFIMonitor
+	}
+	wifiMonitor, err := createMonitor(r.logger, r.onWIFIStateChanged)
+	if err != nil {
+		if err != os.ErrInvalid {
+			r.logger.Warn(E.Cause(err, "create WIFI monitor"))
+		}
+		return
+	}
+	r.wifiMonitor = wifiMonitor
+	if err = wifiMonitor.Start(); err != nil {
+		r.logger.Warn(E.Cause(err, "start WIFI monitor"))
+	}
+}
+
 func (r *NetworkManager) Initialize(ruleSets []adapter.RuleSet) {
+	r.wifiMonitorAccess.Lock()
 	for _, ruleSet := range ruleSets {
 		metadata := ruleSet.Metadata()
 		if metadata.ContainsWIFIRule {
 			r.needWIFIState = true
 			break
 		}
+	}
+	r.wifiMonitorAccess.Unlock()
+}
+
+func (r *NetworkManager) UpdateRuleSets(ruleSets []adapter.RuleSet) {
+	hasWIFIRule := false
+	for _, ruleSet := range ruleSets {
+		if ruleSet.Metadata().ContainsWIFIRule {
+			hasWIFIRule = true
+			break
+		}
+	}
+	if !hasWIFIRule {
+		return
+	}
+	r.wifiMonitorAccess.Lock()
+	r.needWIFIState = true
+	shouldStart := r.wifiMonitorStarted && !r.wifiMonitorClosed && r.wifiMonitor == nil
+	r.wifiMonitorAccess.Unlock()
+	if shouldStart {
+		r.ensureWIFIMonitor()
 	}
 }
 
@@ -442,6 +498,8 @@ func (r *NetworkManager) PackageManager() tun.PackageManager {
 }
 
 func (r *NetworkManager) NeedWIFIState() bool {
+	r.wifiMonitorAccess.Lock()
+	defer r.wifiMonitorAccess.Unlock()
 	return r.needWIFIState
 }
 
@@ -469,12 +527,25 @@ func (r *NetworkManager) onWIFIStateChanged(state adapter.WIFIState) {
 }
 
 func (r *NetworkManager) UpdateWIFIState(ctx context.Context) {
+	r.wifiMonitorAccess.Lock()
+	if r.wifiMonitorClosed {
+		r.wifiMonitorAccess.Unlock()
+		return
+	}
+	wifiMonitor := r.wifiMonitor
+	r.wifiMonitorAccess.Unlock()
 	var state adapter.WIFIState
-	if r.wifiMonitor != nil {
-		state = r.wifiMonitor.ReadWIFIState(ctx)
+	if wifiMonitor != nil {
+		state = wifiMonitor.ReadWIFIState(ctx)
 	} else if r.platformInterface != nil && r.platformInterface.UsePlatformWIFIMonitor() {
 		state = r.platformInterface.ReadWIFIState(ctx)
 	} else {
+		return
+	}
+	r.wifiMonitorAccess.Lock()
+	closed := r.wifiMonitorClosed
+	r.wifiMonitorAccess.Unlock()
+	if closed {
 		return
 	}
 	r.onWIFIStateChanged(state)

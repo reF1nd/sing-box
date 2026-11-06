@@ -94,6 +94,7 @@ replace (
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	filippo.io/hpke v0.4.0 // indirect
+	github.com/CHIZI-0618/sing-ebpf v0.1.0-beta.3
 	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
@@ -103,6 +104,7 @@ require (
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/axiomhq/hyperloglog v0.2.6 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cilium/ebpf v0.22.1-0.20261119135504-862b60f0fc93 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/coreos/go-iptables v0.8.0 // indirect
 	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
@@ -141,7 +143,9 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/libp2p/go-nat v1.0.1-0.20250821073202-01afc089f138 // indirect
 	github.com/libp2p/go-netroute v0.2.1 // indirect
+	github.com/mdlayher/genetlink v1.4.0
 	github.com/mdlayher/socket v0.7.0 // indirect
+	github.com/mdlayher/wifi v0.9.0
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.26 // indirect

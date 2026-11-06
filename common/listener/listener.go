@@ -35,9 +35,11 @@ type Listener struct {
 	oobPacketHandler         adapter.OOBPacketHandler
 	threadUnsafePacketWriter bool
 	disablePacketOutput      bool
+	disableLog               bool
 	setSystemProxy           bool
 	systemProxySOCKS         bool
 	tproxy                   bool
+	socketControl            control.Func
 
 	tcpListener          net.Listener
 	systemProxy          settings.SystemProxy
@@ -60,9 +62,11 @@ type Options struct {
 	OOBPacketHandler         adapter.OOBPacketHandler
 	ThreadUnsafePacketWriter bool
 	DisablePacketOutput      bool
+	DisableLog               bool
 	SetSystemProxy           bool
 	SystemProxySOCKS         bool
 	TProxy                   bool
+	SocketControl            control.Func
 }
 
 func New(
@@ -78,9 +82,11 @@ func New(
 		oobPacketHandler:         options.OOBPacketHandler,
 		threadUnsafePacketWriter: options.ThreadUnsafePacketWriter,
 		disablePacketOutput:      options.DisablePacketOutput,
+		disableLog:               options.DisableLog,
 		setSystemProxy:           options.SetSystemProxy,
 		systemProxySOCKS:         options.SystemProxySOCKS,
 		tproxy:                   options.TProxy,
+		socketControl:            options.SocketControl,
 	}
 }
 
