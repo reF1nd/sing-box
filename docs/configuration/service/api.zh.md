@@ -12,6 +12,13 @@ sing-box API 服务是用于观察与控制正在运行的 sing-box 实例的 gR
 
 服务器同时接受 [gRPC-Web](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-WEB.md) 请求。
 
+可使用内置的 `sing-box api` 客户端查询该服务。对于运行中的 eBPF 入站，可通过
+`sing-box api ebpf` 查看运行时诊断；该命令不同于用于探测内核能力的
+`sing-box tools ebpf status`。运行时结果包含 attachment、恢复状态、UDP NAT、
+活动 program、map 占用和数据面失败计数。默认请求只返回轻量级运行状态；需要枚举
+program 和 map 时添加 `--deep`。这只会按请求检查可见的 sing-ebpf 所有资源，不是
+周期性健康检查。
+
 ### 结构
 
 ```json

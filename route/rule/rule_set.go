@@ -65,7 +65,16 @@ func isProcessHeadlessRule(rule option.DefaultHeadlessRule) bool {
 }
 
 func isWIFIHeadlessRule(rule option.DefaultHeadlessRule) bool {
-	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
+	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0 || C.IsAndroid && isWIFINetworkType(rule.NetworkType)
+}
+
+func isWIFINetworkType(networkType []option.InterfaceType) bool {
+	for _, interfaceType := range networkType {
+		if interfaceType.Build() == C.InterfaceTypeWIFI {
+			return true
+		}
+	}
+	return false
 }
 
 func isIPCIDRHeadlessRule(rule option.DefaultHeadlessRule) bool {

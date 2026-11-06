@@ -33,7 +33,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 		} else {
 			iif = fallbackInterfaces[0]
 		}
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
 		if err != nil {
 			return nil, false, err
 		}
@@ -51,7 +51,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 	}
 	results := make(chan dialResult) // unbuffered
 	startRacer := func(ctx context.Context, primary bool, iif adapter.NetworkInterface) {
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
 		if err != nil {
 			select {
 			case results <- dialResult{error: err, primary: primary}:
@@ -61,7 +61,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 			select {
 			case results <- dialResult{Conn: conn, primary: primary}:
 			case <-returned:
-				conn.Close()
+				_ = bindEBPFSelfBypassConnLifecycle(d.networkManager, conn).Close()
 			}
 		}
 	}
@@ -120,7 +120,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 		} else {
 			iif = fallbackInterfaces[0]
 		}
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
 		if err != nil {
 			return nil, false, err
 		}
@@ -139,7 +139,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 	startAt := time.Now()
 	results := make(chan dialResult) // unbuffered
 	startRacer := func(ctx context.Context, primary bool, iif adapter.NetworkInterface) {
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
 		if err != nil {
 			select {
 			case results <- dialResult{error: err, primary: primary}:
@@ -152,7 +152,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 				if primary && time.Since(startAt) <= fallbackDelay {
 					resetFastFallback(time.Time{})
 				}
-				conn.Close()
+				_ = bindEBPFSelfBypassConnLifecycle(d.networkManager, conn).Close()
 			}
 		}
 	}
@@ -177,18 +177,37 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 	return nil, false, E.Errors(errors...)
 }
 
-func dialInterface(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, iif adapter.NetworkInterface, defaultInterface *control.Interface) (net.Conn, error) {
+func (d *DefaultDialer) dialInterface(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, iif adapter.NetworkInterface, defaultInterface *control.Interface) (net.Conn, error) {
 	if defaultInterface == nil || iif.Index != defaultInterface.Index {
-		dialer.Control = control.Append(dialer.Control, control.BindToInterface(nil, iif.Name, iif.Index))
+		appendDialerControl(&dialer, control.BindToInterface(nil, iif.Name, iif.Index))
 	}
 	if destination.Addr.Zone() == "" && isLinkScoped(destination.Addr) {
 		destination.Addr = destination.Addr.WithZone(strconv.Itoa(iif.Index))
 	}
-	conn, err := dialer.DialContext(ctx, network, destination.String())
+	conn, err := d.dialWithSelfBypass(ctx, dialer, network, destination.String())
 	if err != nil {
 		return nil, E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")")
 	}
 	return conn, nil
+}
+
+// appendDialerControl adds fn to whichever hook the dialer uses. net.Dialer
+// ignores Control once ControlContext is set by eBPF self-bypass.
+func appendDialerControl(dialer *net.Dialer, fn control.Func) {
+	if fn == nil {
+		return
+	}
+	if dialer.ControlContext != nil {
+		baseContext := dialer.ControlContext
+		dialer.ControlContext = func(ctx context.Context, network, address string, rawConn syscall.RawConn) error {
+			if err := fn(network, address, rawConn); err != nil {
+				return err
+			}
+			return baseContext(ctx, network, address, rawConn)
+		}
+		return
+	}
+	dialer.Control = control.Append(dialer.Control, fn)
 }
 
 func (d *DefaultDialer) serialInterfaceControl(strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType) control.Func {
