@@ -13,10 +13,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/service/powerreport"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -44,6 +46,8 @@ type Endpoint struct {
 	clientBind     atomic.Pointer[ClientBind]
 	allowedIPs     *device.AllowedIPs
 	egressPool     *tun.UDPEgressPool
+	bindTracker    *dialer.EBPFSelfBypassSocketTracker
+	egressTracker  *dialer.EBPFSelfBypassSocketTracker
 	pause          pause.Manager
 	pauseCallback  *list.Element[pause.Callback]
 	stateAccess    sync.Mutex
@@ -170,15 +174,38 @@ func (e *Endpoint) Start(postStart bool) error {
 	var bind conn.Bind
 	udpListener, isUDPListener := common.Cast[dialer.UDPListener](e.options.Dialer)
 	if isUDPListener {
-		listenerControl, egressEnabled := udpListener.UDPListenerControl()
+		networkManager := service.FromContext[adapter.NetworkManager](e.options.Context)
+		var (
+			listenerControl control.Func
+			egressControl   control.Func
+			egressEnabled   bool
+			bindTracker     *dialer.EBPFSelfBypassSocketTracker
+			egressTracker   *dialer.EBPFSelfBypassSocketTracker
+		)
+		if baseListener, hasBase := common.Cast[interface {
+			UDPListenerBaseControl() (control.Func, bool)
+		}](e.options.Dialer); hasBase {
+			var baseControl control.Func
+			baseControl, egressEnabled = baseListener.UDPListenerBaseControl()
+			bindTracker = dialer.NewEBPFSelfBypassSocketTracker(networkManager)
+			listenerControl = bindTracker.WrapControl(baseControl)
+			if egressEnabled {
+				egressTracker = dialer.NewEBPFSelfBypassSocketTracker(networkManager)
+				egressControl = egressTracker.WrapControl(baseControl)
+			}
+		} else {
+			listenerControl, egressEnabled = udpListener.UDPListenerControl()
+			egressControl = listenerControl
+		}
 		standardBind := conn.NewStdNetBind(listenerControl).(*conn.StdNetBind)
 		if e.options.ListenPort == 0 && len(e.peers) == 1 && e.peers[0].endpoint.IsValid() {
 			standardBind.SetSinglePeerMode()
 		}
 		if egressEnabled {
 			egressPoolOptions := e.options.EgressPoolOptions
-			egressPoolOptions.Control = listenerControl
+			egressPoolOptions.Control = egressControl
 			e.egressPool = tun.NewUDPEgressPool(egressPoolOptions)
+			e.egressTracker = egressTracker
 			standardBind.SetEgressProvider(e.egressPool)
 		}
 		powerManager := service.FromContext[*powerreport.Manager](e.options.Context)
@@ -196,6 +223,7 @@ func (e *Endpoint) Start(postStart bool) error {
 				})
 			}
 		}
+		e.bindTracker = bindTracker
 		bind = standardBind
 	} else {
 		var (
@@ -271,6 +299,18 @@ func (e *Endpoint) Start(postStart bool) error {
 	err = wgDevice.IpcSet(ipcConf.String())
 	if err != nil {
 		wgDevice.Close()
+		if e.bindTracker != nil {
+			e.bindTracker.UnregisterAll()
+			e.bindTracker = nil
+		}
+		if e.egressPool != nil {
+			e.egressPool.Close()
+			e.egressPool = nil
+		}
+		if e.egressTracker != nil {
+			e.egressTracker.UnregisterAll()
+			e.egressTracker = nil
+		}
 		return E.Cause(err, "setup wireguard: \n", ipcConf.String())
 	}
 	wgPeers := make([]*device.Peer, 0, len(e.peers))
@@ -326,6 +366,9 @@ func (e *Endpoint) SetIdle(idle bool) {
 			_ = clientBind.Close()
 		}
 		wgDevice.Down()
+		if e.bindTracker != nil {
+			e.bindTracker.UnregisterAll()
+		}
 	} else {
 		e.resumeLocked(wgDevice)
 	}
@@ -370,7 +413,11 @@ func (e *Endpoint) startDevice() error {
 		return errNetworkPaused
 	}
 	e.suspended.Store(false)
-	return wgDevice.Up()
+	err := wgDevice.Up()
+	if err != nil && e.bindTracker != nil {
+		e.bindTracker.UnregisterAll()
+	}
+	return err
 }
 
 func (e *Endpoint) waitNetworkActive(ctx context.Context) error {
@@ -442,6 +489,14 @@ func (e *Endpoint) Close() error {
 		} else if e.tunDevice != nil {
 			e.closeErr = e.tunDevice.Close()
 		}
+		if e.bindTracker != nil {
+			e.bindTracker.UnregisterAll()
+			e.bindTracker = nil
+		}
+		if e.egressTracker != nil {
+			e.egressTracker.UnregisterAll()
+			e.egressTracker = nil
+		}
 	})
 	return e.closeErr
 }
@@ -469,7 +524,19 @@ func (e *Endpoint) BindUpdate() error {
 	if clientBind := e.clientBind.Load(); clientBind != nil {
 		_ = clientBind.Close()
 	}
-	return wgDevice.BindUpdate()
+	var oldCookies []uint64
+	if e.bindTracker != nil {
+		oldCookies = e.bindTracker.Snapshot()
+	}
+	err := wgDevice.BindUpdate()
+	if e.bindTracker != nil {
+		if err != nil {
+			e.bindTracker.UnregisterAll()
+		} else {
+			e.bindTracker.UnregisterCookies(oldCookies)
+		}
+	}
+	return err
 }
 
 func (e *Endpoint) onPauseUpdated(event int) {
@@ -494,8 +561,14 @@ func (e *Endpoint) updateNetworkPause() {
 			_ = clientBind.Close()
 		}
 		err = wgDevice.Down()
+		if e.bindTracker != nil {
+			e.bindTracker.UnregisterAll()
+		}
 	} else if !e.suspended.Load() {
 		err = wgDevice.Up()
+		if err != nil && e.bindTracker != nil {
+			e.bindTracker.UnregisterAll()
+		}
 	}
 	if err != nil {
 		e.options.Logger.Warn(E.Cause(err, "update WireGuard device state"))

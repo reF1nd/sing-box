@@ -260,12 +260,15 @@ func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		if r.ruleSetUpdater != nil {
 			scope.Add(r.ruleSetUpdater.Close)
 		}
-		r.network.Initialize(r.ruleSets)
 		for _, ruleSet := range r.ruleSets {
 			ruleSet.RegisterCallback(func(adapter.RuleSet) {
 				r.updateRuleSetNeedFindProcess()
+				if updater, ok := r.network.(interface{ UpdateRuleSets([]adapter.RuleSet) }); ok {
+					updater.UpdateRuleSets(r.ruleSets)
+				}
 			})
 		}
+		r.network.Initialize(r.ruleSets)
 		r.updateRuleSetNeedFindProcess()
 		if r.NeedFindProcess() || r.hasUpdatableRuleSet {
 			if r.platformInterface != nil && r.platformInterface.UsePlatformConnectionOwnerFinder() {
